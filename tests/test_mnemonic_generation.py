@@ -1,10 +1,221 @@
+import hashlib
 import pytest
 import random
 
 from embit import bip39
 from seedsigner.helpers import mnemonic_generation
+from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
+
+
+def test_coin_flips_128_generates_12_word_mnemonic():
+    """ 128 coin flips should yield a valid 12-word mnemonic. """
+    coin_flips = "0" * 128
+    expected = "earth naive tongue material rebel cotton credit quarter market peanut memory other"
+    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips)
+    actual = " ".join(mnemonic)
+    assert len(mnemonic) == 12
+    assert bip39.mnemonic_is_valid(actual)
+    assert actual == expected
+
+
+def test_coin_flips_256_generates_24_word_mnemonic():
+    """ 256 coin flips should yield a valid 24-word mnemonic. """
+    coin_flips = "0" * 256
+    expected = "gun library main saddle doctor meat pizza bone brave output matter chef merry flag abuse puppy first rotate era tent news arrest pepper finger"
+    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips)
+    actual = " ".join(mnemonic)
+    assert len(mnemonic) == 24
+    assert bip39.mnemonic_is_valid(actual)
+    assert actual == expected
+
+
+def test_coin_flips_known_vectors():
+    """ Known coin flip inputs should produce deterministic expected mnemonics. """
+    # All ones, 128 flips -> 12-word
+    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips("1" * 128)
+    actual = " ".join(mnemonic)
+    assert actual == "exit pulp believe feature horror vehicle home more patrol hair drink resist"
+    assert bip39.mnemonic_is_valid(actual)
+
+    # All ones, 256 flips -> 24-word
+    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips("1" * 256)
+    actual = " ".join(mnemonic)
+    assert actual == "rural oval civil ignore moon glide any pony perfect gain stable flag fortune require roast stereo mad guitar page flat reduce give borrow leisure"
+    assert bip39.mnemonic_is_valid(actual)
+
+    # Alternating 01, 128 flips -> 12-word
+    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips("01" * 64)
+    actual = " ".join(mnemonic)
+    assert actual == "shove scene domain glow coast decade dwarf dress blood avocado only cargo"
+    assert bip39.mnemonic_is_valid(actual)
+
+    # Alternating 01, 256 flips -> 24-word
+    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips("01" * 128)
+    actual = " ".join(mnemonic)
+    assert actual == "protect frown almost clock verify barrel spike forward entry enact defense tank drop carry seed dynamic that utility paper patient turkey flight ribbon knee"
+    assert bip39.mnemonic_is_valid(actual)
+
+
+def test_coin_flips_random():
+    """ Random coin flips should always produce valid mnemonics of the correct length. """
+    # 12-word from 128 random flips
+    flips_128 = "".join([str(random.randint(0, 1)) for _ in range(128)])
+    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(flips_128)
+    assert len(mnemonic) == 12
+    assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+
+    # 24-word from 256 random flips
+    flips_256 = "".join([str(random.randint(0, 1)) for _ in range(256)])
+    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(flips_256)
+    assert len(mnemonic) == 24
+    assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+
+
+def test_coin_flips_different_inputs_produce_different_mnemonics():
+    """ Different coin flip inputs should produce different mnemonics. """
+    mnemonic_a = mnemonic_generation.generate_mnemonic_from_coin_flips("0" * 128)
+    mnemonic_b = mnemonic_generation.generate_mnemonic_from_coin_flips("1" * 128)
+    assert mnemonic_a != mnemonic_b
+
+
+def test_get_partial_final_word_7_flips():
+    """
+        7 coin flips determine the first 7 of 11 bits of the final word index for a
+        12-word mnemonic. The remaining 4 bits will be the checksum.
+    """
+    # All zeros
+    assert mnemonic_generation.get_partial_final_word("0000000") == "abandon"
+
+    # All ones
+    assert mnemonic_generation.get_partial_final_word("1111111") == "wrap"
+
+    # Alternating 01
+    assert mnemonic_generation.get_partial_final_word("0101010") == "favorite"
+
+
+def test_get_partial_final_word_3_flips():
+    """
+        3 coin flips determine the first 3 of 11 bits of the final word index for a
+        24-word mnemonic. The remaining 8 bits will be the checksum.
+    """
+    # All zeros
+    assert mnemonic_generation.get_partial_final_word("000") == "abandon"
+
+    # All ones
+    assert mnemonic_generation.get_partial_final_word("111") == "theme"
+
+    # '010'
+    assert mnemonic_generation.get_partial_final_word("010") == "divorce"
+
+
+def test_get_partial_final_word_all_3_flip_combinations():
+    """
+        Exhaustively test all 8 possible 3-flip inputs for 24-word final word selection.
+        Each 3-bit prefix maps to a block of 256 words in the BIP-39 wordlist:
+            000 -> index 0, 001 -> index 256, ..., 111 -> index 1792
+    """
+    wordlist = Seed.get_wordlist()
+    expected = {
+        "000": wordlist[0],     # abandon
+        "001": wordlist[256],   # cactus
+        "010": wordlist[512],   # divorce
+        "011": wordlist[768],   # gas
+        "100": wordlist[1024],  # length
+        "101": wordlist[1280],  # parade
+        "110": wordlist[1536],  # scale
+        "111": wordlist[1792],  # theme
+    }
+    for flips, expected_word in expected.items():
+        assert mnemonic_generation.get_partial_final_word(flips) == expected_word
+
+
+def test_get_partial_final_word_7_flips_boundaries():
+    """
+        Test 7-flip boundary values for 12-word final word selection.
+        Each 7-bit prefix maps to a block of 16 words in the BIP-39 wordlist.
+    """
+    wordlist = Seed.get_wordlist()
+    test_cases = [
+        ("0000001", 16),    # second block
+        ("1000000", 1024),  # midpoint of wordlist
+        ("1111110", 2016),  # second-to-last block
+    ]
+    for flips, expected_index in test_cases:
+        assert mnemonic_generation.get_partial_final_word(flips) == wordlist[expected_index]
+
+
+def test_coin_flips_sha256_pipeline():
+    """
+        Cross-verify: manual SHA256 -> generate_mnemonic_from_bytes should produce
+        the same result as generate_mnemonic_from_coin_flips.
+        Validates that the coin flip function hashes correctly before converting.
+    """
+    # 128 flips -> 12-word (SHA256, truncate to 16 bytes)
+    coin_flips = "0" * 128
+    entropy = hashlib.sha256(coin_flips.encode()).digest()[:16]
+    via_bytes = mnemonic_generation.generate_mnemonic_from_bytes(entropy)
+    via_coin_flips = mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips)
+    assert via_coin_flips == via_bytes
+
+    # 256 flips -> 24-word (SHA256, full 32 bytes)
+    coin_flips = "1" * 256
+    entropy = hashlib.sha256(coin_flips.encode()).digest()
+    via_bytes = mnemonic_generation.generate_mnemonic_from_bytes(entropy)
+    via_coin_flips = mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips)
+    assert via_coin_flips == via_bytes
+
+
+def test_dice_rolls_sha256_pipeline():
+    """
+        Cross-verify: manual SHA256 -> generate_mnemonic_from_bytes should produce
+        the same result as generate_mnemonic_from_dice.
+        Validates that the dice function hashes correctly before converting.
+    """
+    # 50 rolls -> 12-word (SHA256, truncate to 16 bytes)
+    rolls = "12345612345612345612345612345612345612345612345612"
+    entropy = hashlib.sha256(rolls.encode()).digest()[:16]
+    via_bytes = mnemonic_generation.generate_mnemonic_from_bytes(entropy)
+    via_dice = mnemonic_generation.generate_mnemonic_from_dice(rolls)
+    assert via_dice == via_bytes
+
+    # 99 rolls -> 24-word (SHA256, full 32 bytes)
+    rolls = "1" * 99
+    entropy = hashlib.sha256(rolls.encode()).digest()
+    via_bytes = mnemonic_generation.generate_mnemonic_from_bytes(entropy)
+    via_dice = mnemonic_generation.generate_mnemonic_from_dice(rolls)
+    assert via_dice == via_bytes
+
+
+def test_generate_mnemonic_from_bytes_12_vs_24():
+    """
+        16 bytes of entropy -> 12-word mnemonic, 32 bytes -> 24-word mnemonic.
+        Verify with all-zero and all-0xFF edge-case entropy.
+    """
+    # 16 zero bytes -> 12 words
+    mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(bytes(16))
+    assert len(mnemonic) == 12
+    assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+    assert mnemonic == "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about".split()
+
+    # 32 zero bytes -> 24 words
+    mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(bytes(32))
+    assert len(mnemonic) == 24
+    assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+    assert mnemonic == "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art".split()
+
+    # 16 bytes 0xFF -> 12 words
+    mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(bytes([0xFF] * 16))
+    assert len(mnemonic) == 12
+    assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+    assert mnemonic == "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong".split()
+
+    # 32 bytes 0xFF -> 24 words
+    mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(bytes([0xFF] * 32))
+    assert len(mnemonic) == 24
+    assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+    assert mnemonic == "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote".split()
 
 
 def test_dice_rolls():
