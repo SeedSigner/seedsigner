@@ -14,6 +14,10 @@ class BaseDisplayDriver:
     _width: int
     _height: int
 
+    # Some panels only show correct colors with the controller's inversion turned on.
+    # Drivers for those panels set this to True.
+    NORMAL_COLORS_REQUIRE_INVERSION = False
+
     def __str__(self):
         return f"DisplayDriver(display_type={getattr(self, 'display_type', None)}, width={self.width}, height={self.height})"
 
@@ -34,6 +38,16 @@ class BaseDisplayDriver:
         Implementation in child classes is optional.
         """
         pass
+
+
+    def set_color_inversion(self, inverted: bool):
+        """
+        Panels that need inversion on for normal colors turn it off to invert.
+        """
+        if self.NORMAL_COLORS_REQUIRE_INVERSION:
+            self.invert(enabled=not inverted)
+        else:
+            self.invert(enabled=inverted)
 
 
     def show_image(self, image, x_start: int = 0, y_start: int = 0):

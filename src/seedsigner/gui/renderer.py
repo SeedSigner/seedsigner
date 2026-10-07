@@ -50,8 +50,10 @@ class Renderer(ConfigurableSingleton):
 
         self.disp = DisplayDriverFactory.instantiate_display_driver(self.display_type, width=int(width), height=int(height))
 
-        if Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED, default_if_none=True) == SettingsConstants.OPTION__ENABLED:
-            self.disp.invert()
+        # Display init resets inversion to the driver's default, so always apply the
+        # saved setting, even when it's disabled.
+        inverted = Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED, default_if_none=True) == SettingsConstants.OPTION__ENABLED
+        self.disp.set_color_inversion(inverted)
 
         if self.display_type == DISPLAY_TYPE__ST7789:
             self.canvas_width = self.disp.width
