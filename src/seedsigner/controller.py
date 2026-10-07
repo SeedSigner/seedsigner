@@ -119,6 +119,9 @@ class Controller(Singleton):
 
     image_entropy_preview_frames: list[Image] = None
     image_entropy_final_image: Image = None
+    # Second back-to-back capture used only to measure temporal sensor noise
+    # via frame differencing; never hashed into the seed.
+    image_entropy_noise_frame: Image = None
 
     address_explorer_data: dict = None
 
