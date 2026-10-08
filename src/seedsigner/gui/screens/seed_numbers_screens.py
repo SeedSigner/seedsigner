@@ -33,14 +33,10 @@ BIT_GAP = 3
 BIT_BORDER = 3
 BIT_GROUP_EXTRA = 8
 BIT_LABEL_SIZE = 20
-INDEX_FONT_SIZE = 20
-INDEX_PAD_X = 6
-INDEX_PAD_Y = 6
-BIT_LABEL_GAP = 2
-
-
-def _index_font():
-    return Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, INDEX_FONT_SIZE)
+NUMBER_FONT_SIZE = 20
+NUMBER_PAD_X = 6
+NUMBER_PAD_Y = 6
+NUMBER_BITS_GAP = 16
 
 
 def _bit_label_font():
@@ -56,8 +52,8 @@ def _word_font():
 
 def _number_font():
     return Fonts.get_font(
-        GUIConstants.get_button_font_name(),
-        GUIConstants.get_button_font_size(),
+        GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+        NUMBER_FONT_SIZE
     )
 
 
@@ -86,42 +82,34 @@ def _bit_label_height(font):
     return (right - left) + 2
 
 
-def _index_text(index1):
-    return f"{format_index1(index1 if index1 else 0)}"
+def _number_text(index1):
+    return format_index1(index1 or 0)
 
 
-def _index_badge_size(font, text):
+def _number_badge_size(font, text):
     left, top, right, bottom = font.getbbox(text, anchor="ls")
-    text_w, text_h = right - left, -top
-    return text_w + INDEX_PAD_X * 2, text_h + INDEX_PAD_Y * 2
+    return (right - left) + NUMBER_PAD_X * 2, -top + NUMBER_PAD_Y * 2
 
 
-def _draw_index_badge(draw, x, y, text, font, valid=True):
-    box_w, box_h = _index_badge_size(font, text)
+def _draw_number_word_row(draw, canvas_width, y, index1, word, valid):
+    font = _number_font()
+    text = _number_text(index1)
+    box_w, box_h = _number_badge_size(font, text)
+    word_font = _word_font()
+    wl, wt, wr, wb = word_font.getbbox(word if word else " ", anchor="ls")
+    x0 = (canvas_width - (box_w + GUIConstants.COMPONENT_PADDING + (wr - wl))) // 2
     draw.rounded_rectangle(
-        (x, y, x + box_w, y + box_h),
+        (x0, y, x0 + box_w, y + box_h),
         radius=4,
         fill=GUIConstants.BUTTON_BACKGROUND_COLOR,
     )
     draw.text(
-        (x + box_w // 2, y + box_h // 2),
+        (x0 + box_w // 2, y + box_h // 2),
         text,
         fill=GUIConstants.INFO_COLOR if valid else GUIConstants.LABEL_FONT_COLOR,
         font=font,
         anchor="mm",
     )
-    return box_w, box_h
-
-
-def _draw_index_word_row(draw, canvas_width, y, index1, word, valid):
-    font = _index_font()
-    text = _index_text(index1)
-    box_w, box_h = _index_badge_size(font, text)
-    word_font = _word_font()
-    wl, wt, wr, wb = word_font.getbbox(word if word else " ", anchor="ls")
-    total = box_w + GUIConstants.COMPONENT_PADDING + (wr - wl)
-    x0 = (canvas_width - total) // 2
-    _draw_index_badge(draw, x0, y, text, font, valid)
     draw.text(
         (x0 + box_w + GUIConstants.COMPONENT_PADDING, y + box_h // 2),
         word if word else "",
@@ -132,37 +120,6 @@ def _draw_index_word_row(draw, canvas_width, y, index1, word, valid):
     return box_h
 
 
-def _draw_word_number_row(draw, canvas_width, y, word_num, word):
-    number_font = _number_font()
-    word_font = _word_font()
-    nl, nt, nr, nb = number_font.getbbox("24", anchor="ls")
-    number_height = -nt
-    box_w = nr + GUIConstants.COMPONENT_PADDING
-    box_h = GUIConstants.BUTTON_HEIGHT
-    wl, wt, wr, wb = word_font.getbbox(word, anchor="ls")
-    row_w = box_w + GUIConstants.COMPONENT_PADDING + (wr - wl)
-    x0 = (canvas_width - row_w) // 2
-    draw.rounded_rectangle(
-        (x0, y, x0 + box_w, y + box_h),
-        radius=4,
-        fill=GUIConstants.BUTTON_BACKGROUND_COLOR,
-    )
-    baseline = y + box_h - int((box_h - number_height) / 2)
-    draw.text(
-        (x0 + box_w // 2, baseline),
-        str(word_num),
-        fill=GUIConstants.INFO_COLOR,
-        font=number_font,
-        anchor="ms",
-    )
-    draw.text(
-        (x0 + box_w + GUIConstants.COMPONENT_PADDING, baseline),
-        word,
-        fill=GUIConstants.BODY_FONT_COLOR,
-        font=word_font,
-        anchor="ls",
-    )
-    return box_h
 
 
 def _paste_rotated_label(target, text, font, fill, cx, top_y):
@@ -194,7 +151,7 @@ def _draw_bit_row(draw, target, canvas_width, y, bits, focused_index=None, label
                 label_font,
                 color,
                 x + BIT_BOX // 2,
-                y + BIT_BOX + BIT_LABEL_GAP,
+                y + BIT_BOX + NUMBER_BITS_GAP,
             )
     return y + BIT_BOX
 
@@ -290,16 +247,15 @@ class SeedNumbersEntryScreen(BaseTopNavScreen):
 
         if self.mode == "binary":
             label_font = _bit_label_font()
-            badge_h = _index_badge_size(_index_font(), _index_text(index1))[1]
+            badge_h = _number_badge_size(_number_font(), _number_text(index1))[1]
             label_h = _bit_label_height(label_font)
-            total_h = badge_h + 16 + BIT_BOX + BIT_LABEL_GAP + label_h
+            total_h = badge_h + NUMBER_BITS_GAP + BIT_BOX + NUMBER_BITS_GAP + label_h
             available_top = self.top_nav.height
             save_reserve = GUIConstants.BUTTON_HEIGHT + GUIConstants.EDGE_PADDING
-            available_top = self.top_nav.height
             available_h = self.canvas_height - available_top - save_reserve
             y_word = available_top + (available_h - total_h) // 2
-            y_bits = y_word + badge_h + 16
-            _draw_index_word_row(draw, self.canvas_width, y_word, index1, word, valid)
+            y_bits = y_word + badge_h + NUMBER_BITS_GAP
+            _draw_number_word_row(draw, self.canvas_width, y_word, index1, word, valid)
             focused = None if self.top_nav.is_selected else self.bit_index
             _draw_bit_row(
                 draw,
@@ -312,7 +268,7 @@ class SeedNumbersEntryScreen(BaseTopNavScreen):
             )
         else:
             y_word = self.top_nav.height + 6
-            badge_h = _draw_index_word_row(
+            badge_h = _draw_number_word_row(
                 draw, self.canvas_width, y_word, index1, word, valid
             )
             _draw_bit_row(
@@ -418,47 +374,27 @@ class SeedNumbersBackupScreen(WarningEdgesMixin, ButtonListScreen):
         super().__post_init__()
 
         label_font = _bit_label_font()
-        index_font = _index_font()
-        index_text = _index_text(self.index1)
-        badge_w, badge_h = _index_badge_size(index_font, index_text)
         label_h = _bit_label_height(label_font)
-        word_h = GUIConstants.BUTTON_HEIGHT
-        gap = GUIConstants.COMPONENT_PADDING
+        badge_h = _number_badge_size(_number_font(), _number_text(self.index1))[1]
 
-        body_x = 0
         body_y = self.top_nav.height
         body_h = self.buttons[0].screen_y - body_y
-        body_img = Image.new(
-            "RGB",
-            (self.canvas_width, body_h),
-            GUIConstants.BACKGROUND_COLOR,
-        )
+        body_img = Image.new("RGB", (self.canvas_width, body_h), GUIConstants.BACKGROUND_COLOR)
         draw = ImageDraw.Draw(body_img)
 
-        total_h = word_h + gap + badge_h + gap + BIT_BOX + BIT_LABEL_GAP + label_h
-        y_word = max((body_h - total_h) // 2, gap)
-        y_index = y_word + _draw_word_number_row(
-            draw, self.canvas_width, y_word, self.word_num, self.word
-        ) + gap
-        y_bits = y_index + badge_h + gap
-
-        _draw_index_badge(
-            draw,
-            (self.canvas_width - badge_w) // 2,
-            y_index,
-            index_text,
-            index_font,
-        )
+        total_h = badge_h + NUMBER_BITS_GAP + BIT_BOX + NUMBER_BITS_GAP + label_h
+        y_word = max((body_h - total_h) // 2, 0)
+        _draw_number_word_row(draw, self.canvas_width, y_word, self.index1, self.word, True)
         _draw_bit_row(
             draw,
             body_img,
             self.canvas_width,
-            y_bits,
+            y_word + badge_h + NUMBER_BITS_GAP,
             index_to_bits(self.index1),
             label_font=label_font,
         )
 
-        self.paste_images.append((body_img, (body_x, body_y)))
+        self.paste_images.append((body_img, (0, body_y)))
 
 
 @dataclass
@@ -471,7 +407,7 @@ class SeedNumbersBackupTestScreen(BaseTopNavScreen):
         self.show_back_button = False
         super().__post_init__()
         self.selected_button = 0
-        self.index_font = _index_font()
+        self.number_font = _number_font()
 
     def _button_rects(self):
         n = len(self.options)
@@ -503,7 +439,7 @@ class SeedNumbersBackupTestScreen(BaseTopNavScreen):
             on_color = GUIConstants.BUTTON_SELECTED_FONT_COLOR if selected else GUIConstants.BUTTON_FONT_COLOR
             off_color = GUIConstants.BUTTON_SELECTED_FONT_COLOR if selected else GUIConstants.LABEL_FONT_COLOR
 
-            left, top, right, bottom = self.index_font.getbbox(label, anchor="ls")
+            left, top, right, bottom = self.number_font.getbbox(label, anchor="ls")
             text_above = -top
             text_below = bottom
             box = 11
@@ -517,9 +453,9 @@ class SeedNumbersBackupTestScreen(BaseTopNavScreen):
             y_text = y1 + pad + text_above
             y_bits = y_text + text_below + between
 
-            draw.text((self.canvas_width // 2, y_text), label, fill=index_color, font=self.index_font, anchor="ms")
+            draw.text((self.canvas_width // 2, y_text), label, fill=index_color, font=self.number_font, anchor="ms")
 
-            bits = index_to_bits(int(label[1:]))
+            bits = index_to_bits(int(label.lstrip("#")))
             total = BIT_COUNT * box + (BIT_COUNT - 1) * gap + ((BIT_COUNT - 1) // 4) * extra
             x0 = (self.canvas_width - total) // 2
             for bit_i, on in enumerate(bits):
