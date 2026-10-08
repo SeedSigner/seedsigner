@@ -568,7 +568,7 @@ class ToolsSeedIndexesEntryView(View):
         self.cur_word = self.controller.storage.get_pending_mnemonic_word(cur_word_index)
 
     def run(self):
-        from seedsigner.gui.screens.seed_indexes_screens import SeedIndexesEntryScreen
+        from seedsigner.gui.screens.seed_numbers_screens import SeedIndexesEntryScreen
 
         ret = self.run_screen(
             SeedIndexesEntryScreen,

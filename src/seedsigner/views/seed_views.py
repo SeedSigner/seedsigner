@@ -1167,7 +1167,7 @@ class SeedIndexesView(View):
 
 
     def run(self):
-        from seedsigner.gui.screens.seed_indexes_screens import SeedIndexesBackupScreen
+        from seedsigner.gui.screens.seed_numbers_screens import SeedIndexesBackupScreen
 
         if self.bip85_data is not None:
             mnemonic = self.seed.get_bip85_child_mnemonic(self.bip85_data["child_index"], self.bip85_data["num_words"]).split()
@@ -1591,7 +1591,7 @@ class SeedIndexesBackupTestView(View):
 
         # TRANSLATOR_NOTE: Inserts the word number (e.g. "Verify Word #1")
         title = _("Verify Word #{}").format(self.cur_index + 1)
-        from seedsigner.gui.screens.seed_indexes_screens import SeedIndexesBackupTestScreen
+        from seedsigner.gui.screens.seed_numbers_screens import SeedIndexesBackupTestScreen
         selected_menu_num = self.run_screen(
             SeedIndexesBackupTestScreen,
             title=title,
