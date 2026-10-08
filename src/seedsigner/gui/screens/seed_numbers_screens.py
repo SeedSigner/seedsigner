@@ -7,7 +7,6 @@ from seedsigner.gui.components import (
     Fonts,
     GUIConstants,
     IconButton,
-    IconTextLine,
     SeedSignerIconConstants,
 )
 from seedsigner.gui.keyboard import Keyboard
@@ -88,7 +87,7 @@ def _bit_label_height(font):
 
 
 def _index_text(index1):
-    return f"#{format_index1(index1 if index1 else 0)}"
+    return f"{format_index1(index1 if index1 else 0)}"
 
 
 def _index_badge_size(font, text):
@@ -201,7 +200,7 @@ def _draw_bit_row(draw, target, canvas_width, y, bits, focused_index=None, label
 
 
 @dataclass
-class SeedIndexesEntryScreen(BaseTopNavScreen):
+class SeedNumbersEntryScreen(BaseTopNavScreen):
     """Enter one mnemonic word as a 1–2048 index (numbers or 12-bit row)."""
 
     mode: str = "binary"  # "binary" | "numbers"
@@ -408,7 +407,7 @@ class SeedIndexesEntryScreen(BaseTopNavScreen):
 
 
 @dataclass
-class SeedIndexesBackupScreen(WarningEdgesMixin, ButtonListScreen):
+class SeedNumbersBackupScreen(WarningEdgesMixin, ButtonListScreen):
     word_num: int = 1
     word: str = ""
     index1: int = 1
@@ -463,10 +462,10 @@ class SeedIndexesBackupScreen(WarningEdgesMixin, ButtonListScreen):
 
 
 @dataclass
-class SeedIndexesBackupTestScreen(BaseTopNavScreen):
-    """Four quiz choices: #index plus its 12 bit circles."""
+class SeedNumbersBackupTestScreen(BaseTopNavScreen):
+    """Four quiz choices: number plus its 12 bit circles."""
 
-    options: list = None  # ["#0274", ...]
+    options: list = None  # ["0274", ...]
 
     def __post_init__(self):
         self.show_back_button = False

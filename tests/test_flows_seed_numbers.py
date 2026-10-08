@@ -10,22 +10,22 @@ from seedsigner.models.seed import Seed
 from seedsigner.views.seed_views import (
     SeedBackupView,
     SeedFinalizeView,
-    SeedIndexesBackupTestMistakeView,
-    SeedIndexesBackupTestSuccessView,
-    SeedIndexesBackupTestView,
-    SeedIndexesView,
-    SeedIndexesWarningView,
+    SeedNumbersBackupTestMistakeView,
+    SeedNumbersBackupTestSuccessView,
+    SeedNumbersBackupTestView,
+    SeedNumbersView,
+    SeedNumbersWarningView,
     SeedOptionsView,
     SeedWordsBackupTestPromptView,
     SeedsMenuView,
 )
 from seedsigner.views.tools_views import (
     ToolsMenuView,
-    ToolsSeedIndexesEntryView,
-    ToolsSeedIndexesInvalidView,
-    ToolsSeedIndexesLoadView,
-    ToolsSeedIndexesNumWordsView,
-    ToolsSeedIndexesView,
+    ToolsSeedNumbersEntryView,
+    ToolsSeedNumbersInvalidView,
+    ToolsSeedNumbersLoadView,
+    ToolsSeedNumbersLengthView,
+    ToolsSeedNumbersView,
 )
 from seedsigner.views.view import MainMenuView
 
@@ -47,25 +47,25 @@ def _load_seed(controller: Controller, mnemonic: list[str]) -> Seed:
 def _entry_steps(mnemonic: list[str]) -> list[FlowStep]:
     """Entry screen returns the BIP-39 word, not the raw index."""
     return [
-        FlowStep(ToolsSeedIndexesEntryView, screen_return_value=word)
+        FlowStep(ToolsSeedNumbersEntryView, screen_return_value=word)
         for word in mnemonic
     ]
 
 
-def _backup_to_first_index() -> list[FlowStep]:
+def _backup_to_first_number() -> list[FlowStep]:
     return [
         FlowStep(SeedOptionsView, button_data_selection=SeedOptionsView.BACKUP),
-        FlowStep(SeedBackupView, button_data_selection=SeedBackupView.VIEW_INDEXES),
-        FlowStep(SeedIndexesWarningView, screen_return_value=0),
-        FlowStep(SeedIndexesView),
+        FlowStep(SeedBackupView, button_data_selection=SeedBackupView.VIEW_NUMBERS),
+        FlowStep(SeedNumbersWarningView, screen_return_value=0),
+        FlowStep(SeedNumbersView),
     ]
 
 
 def _backup_walk_to_prompt(mnemonic: list[str]) -> list[FlowStep]:
-    steps = _backup_to_first_index()[:-1]
+    steps = _backup_to_first_number()[:-1]
     for _ in range(len(mnemonic) - 1):
-        steps.append(FlowStep(SeedIndexesView, button_data_selection=SeedIndexesView.NEXT))
-    steps.append(FlowStep(SeedIndexesView, button_data_selection=SeedIndexesView.DONE))
+        steps.append(FlowStep(SeedNumbersView, button_data_selection=SeedNumbersView.NEXT))
+    steps.append(FlowStep(SeedNumbersView, button_data_selection=SeedNumbersView.DONE))
     return steps
 
 
@@ -80,8 +80,8 @@ def _pin_quiz_word(word_index: int):
     return _before_run
 
 
-def _quiz_option_index(mnemonic: list[str], word_index: int, pick_correct: bool) -> int:
-    """Replay SeedIndexesBackupTestView RNG so screen_return_value hits the right button."""
+def _quiz_option_number(mnemonic: list[str], word_index: int, pick_correct: bool) -> int:
+    """Replay SeedNumbersBackupTestView RNG so screen_return_value hits the right button."""
     seed = Seed(mnemonic=mnemonic)
     random.seed(QUIZ_RAND_SEED + word_index)
     real_index1 = seed.wordlist.index(mnemonic[word_index]) + 1
@@ -107,34 +107,34 @@ def _quiz_to_prompt(mnemonic: list[str]) -> list[FlowStep]:
     return steps
 
 
-class TestSeedIndexesNav(FlowTest):
-    def test_tools_menu_opens_indexes(self):
+class TestSeedNumbersNav(FlowTest):
+    def test_tools_menu_opens_number(self):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
-            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.WORD_INDEX),
-            FlowStep(ToolsSeedIndexesView),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.NUMBERS),
+            FlowStep(ToolsSeedNumbersView),
         ])
 
-    def test_tools_indexes_back(self):
+    def test_tools_numbers_back(self):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
-            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.WORD_INDEX),
-            FlowStep(ToolsSeedIndexesView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.NUMBERS),
+            FlowStep(ToolsSeedNumbersView, screen_return_value=RET_CODE__BACK_BUTTON),
             FlowStep(ToolsMenuView),
         ])
 
     @pytest.mark.parametrize("fmt", ["NUMBERS", "BINARY"])
-    def test_tools_indexes_picks_format(self, fmt):
+    def test_tools_numbers_picks_format(self, fmt):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
-            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.WORD_INDEX),
-            FlowStep(ToolsSeedIndexesView, button_data_selection=getattr(ToolsSeedIndexesView, fmt)),
-            FlowStep(ToolsSeedIndexesNumWordsView),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.NUMBERS),
+            FlowStep(ToolsSeedNumbersView, button_data_selection=getattr(ToolsSeedNumbersView, fmt)),
+            FlowStep(ToolsSeedNumbersLengthView),
         ])
 
 
-class TestSeedIndexesLoad(FlowTest):
-    """Tools → Indexes → Numbers|Binary → 12|24 → each word → Load seed."""
+class TestSeedNumbersLoad(FlowTest):
+    """Tools → Numbers → Numbers|Binary → 12|24 → each word → Load seed."""
 
     @pytest.mark.parametrize("fmt,length_opt,mnemonic", [
         ("NUMBERS", "TWELVE", MNEMONIC_12),
@@ -142,15 +142,15 @@ class TestSeedIndexesLoad(FlowTest):
         ("NUMBERS", "TWENTY_FOUR", MNEMONIC_24),
         ("BINARY", "TWENTY_FOUR", MNEMONIC_24),
     ])
-    def test_load_seed_by_indexes(self, fmt, length_opt, mnemonic):
+    def test_load_seed_by_numbers(self, fmt, length_opt, mnemonic):
         sequence = [
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
-            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.WORD_INDEX),
-            FlowStep(ToolsSeedIndexesView, button_data_selection=getattr(ToolsSeedIndexesView, fmt)),
-            FlowStep(ToolsSeedIndexesNumWordsView, button_data_selection=getattr(ToolsSeedIndexesNumWordsView, length_opt)),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.NUMBERS),
+            FlowStep(ToolsSeedNumbersView, button_data_selection=getattr(ToolsSeedNumbersView, fmt)),
+            FlowStep(ToolsSeedNumbersLengthView, button_data_selection=getattr(ToolsSeedNumbersLengthView, length_opt)),
         ]
         sequence.extend(_entry_steps(mnemonic))
-        sequence.append(FlowStep(ToolsSeedIndexesLoadView, button_data_selection=ToolsSeedIndexesLoadView.LOAD))
+        sequence.append(FlowStep(ToolsSeedNumbersLoadView, button_data_selection=ToolsSeedNumbersLoadView.LOAD))
         sequence.append(FlowStep(SeedFinalizeView))
 
         self.run_sequence(sequence)
@@ -167,34 +167,34 @@ class TestSeedIndexesLoad(FlowTest):
     def test_invalid_checksum_goes_to_invalid_view(self, fmt, length_opt, mnemonic):
         sequence = [
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
-            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.WORD_INDEX),
-            FlowStep(ToolsSeedIndexesView, button_data_selection=getattr(ToolsSeedIndexesView, fmt)),
-            FlowStep(ToolsSeedIndexesNumWordsView, button_data_selection=getattr(ToolsSeedIndexesNumWordsView, length_opt)),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.NUMBERS),
+            FlowStep(ToolsSeedNumbersView, button_data_selection=getattr(ToolsSeedNumbersView, fmt)),
+            FlowStep(ToolsSeedNumbersLengthView, button_data_selection=getattr(ToolsSeedNumbersLengthView, length_opt)),
         ]
         sequence.extend(_entry_steps(mnemonic))
-        sequence.append(FlowStep(ToolsSeedIndexesInvalidView))
+        sequence.append(FlowStep(ToolsSeedNumbersInvalidView))
         self.run_sequence(sequence)
 
     def test_entry_back_on_first_word(self):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
-            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.WORD_INDEX),
-            FlowStep(ToolsSeedIndexesView, button_data_selection=ToolsSeedIndexesView.NUMBERS),
-            FlowStep(ToolsSeedIndexesNumWordsView, button_data_selection=ToolsSeedIndexesNumWordsView.TWELVE),
-            FlowStep(ToolsSeedIndexesEntryView, screen_return_value=RET_CODE__BACK_BUTTON),
-            FlowStep(ToolsSeedIndexesNumWordsView),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.NUMBERS),
+            FlowStep(ToolsSeedNumbersView, button_data_selection=ToolsSeedNumbersView.NUMBERS),
+            FlowStep(ToolsSeedNumbersLengthView, button_data_selection=ToolsSeedNumbersLengthView.TWELVE),
+            FlowStep(ToolsSeedNumbersEntryView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(ToolsSeedNumbersLengthView),
         ])
 
 
-class TestSeedIndexesBackup(FlowTest):
-    """Loaded 12/24-word seed → Backup → Seed Word Indexes."""
+class TestSeedNumbersBackup(FlowTest):
+    """Loaded 12/24-word seed → Backup → Seed Numbers"""
 
     @pytest.mark.parametrize("mnemonic", [MNEMONIC_12, MNEMONIC_24])
     def test_backup_opens_first_index(self, mnemonic):
         seed = _load_seed(self.controller, mnemonic)
         self.run_sequence(
             initial_destination_view_args=dict(seed=seed),
-            sequence=_backup_to_first_index(),
+            sequence=_backup_to_first_number(),
         )
 
     @pytest.mark.parametrize("mnemonic", [MNEMONIC_12, MNEMONIC_24])
@@ -211,9 +211,9 @@ class TestSeedIndexesBackup(FlowTest):
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
             FlowStep(SeedsMenuView, screen_return_value=0),
             FlowStep(SeedOptionsView, button_data_selection=SeedOptionsView.BACKUP),
-            FlowStep(SeedBackupView, button_data_selection=SeedBackupView.VIEW_INDEXES),
-            FlowStep(SeedIndexesWarningView, screen_return_value=0),
-            FlowStep(SeedIndexesView),
+            FlowStep(SeedBackupView, button_data_selection=SeedBackupView.VIEW_NUMBERS),
+            FlowStep(SeedNumbersWarningView, screen_return_value=0),
+            FlowStep(SeedNumbersView),
         ])
 
     @pytest.mark.parametrize("mnemonic", [MNEMONIC_12, MNEMONIC_24])
@@ -241,10 +241,10 @@ class TestSeedIndexesBackup(FlowTest):
         )
 
     @pytest.mark.parametrize("mnemonic", [MNEMONIC_12, MNEMONIC_24])
-    def test_backup_prompt_verify_opens_index_quiz(self, mnemonic):
+    def test_backup_prompt_verify_opens_number_quiz(self, mnemonic):
         seed = _load_seed(self.controller, mnemonic)
         steps = _quiz_to_prompt(mnemonic)
-        steps.append(FlowStep(SeedIndexesBackupTestView))
+        steps.append(FlowStep(SeedNumbersBackupTestView))
         self.run_sequence(
             initial_destination_view_args=dict(seed=seed),
             sequence=steps,
@@ -255,30 +255,30 @@ class TestSeedIndexesBackup(FlowTest):
         seed = _load_seed(self.controller, mnemonic)
         steps = _quiz_to_prompt(mnemonic)
         steps.append(FlowStep(
-            SeedIndexesBackupTestView,
+            SeedNumbersBackupTestView,
             before_run=_pin_quiz_word(0),
-            screen_return_value=_quiz_option_index(mnemonic, 0, pick_correct=False),
+            screen_return_value=_quiz_option_number(mnemonic, 0, pick_correct=False),
         ))
-        steps.append(FlowStep(SeedIndexesBackupTestMistakeView))
+        steps.append(FlowStep(SeedNumbersBackupTestMistakeView))
         self.run_sequence(
             initial_destination_view_args=dict(seed=seed),
             sequence=steps,
         )
 
-    def test_quiz_mistake_review_returns_to_indexes(self):
+    def test_quiz_mistake_review_returns_to_numbers(self):
         mnemonic = MNEMONIC_12
         seed = _load_seed(self.controller, mnemonic)
         steps = _quiz_to_prompt(mnemonic)
         steps.append(FlowStep(
-            SeedIndexesBackupTestView,
+            SeedNumbersBackupTestView,
             before_run=_pin_quiz_word(0),
-            screen_return_value=_quiz_option_index(mnemonic, 0, pick_correct=False),
+            screen_return_value=_quiz_option_number(mnemonic, 0, pick_correct=False),
         ))
         steps.append(FlowStep(
-            SeedIndexesBackupTestMistakeView,
-            button_data_selection=SeedIndexesBackupTestMistakeView.REVIEW,
+            SeedNumbersBackupTestMistakeView,
+            button_data_selection=SeedNumbersBackupTestMistakeView.REVIEW,
         ))
-        steps.append(FlowStep(SeedIndexesView))
+        steps.append(FlowStep(SeedNumbersView))
         self.run_sequence(
             initial_destination_view_args=dict(seed=seed),
             sequence=steps,
@@ -289,15 +289,15 @@ class TestSeedIndexesBackup(FlowTest):
         seed = _load_seed(self.controller, mnemonic)
         steps = _quiz_to_prompt(mnemonic)
         steps.append(FlowStep(
-            SeedIndexesBackupTestView,
+            SeedNumbersBackupTestView,
             before_run=_pin_quiz_word(0),
-            screen_return_value=_quiz_option_index(mnemonic, 0, pick_correct=False),
+            screen_return_value=_quiz_option_number(mnemonic, 0, pick_correct=False),
         ))
         steps.append(FlowStep(
-            SeedIndexesBackupTestMistakeView,
-            button_data_selection=SeedIndexesBackupTestMistakeView.RETRY,
+            SeedNumbersBackupTestMistakeView,
+            button_data_selection=SeedNumbersBackupTestMistakeView.RETRY,
         ))
-        steps.append(FlowStep(SeedIndexesBackupTestView))
+        steps.append(FlowStep(SeedNumbersBackupTestView))
         self.run_sequence(
             initial_destination_view_args=dict(seed=seed),
             sequence=steps,
@@ -309,11 +309,11 @@ class TestSeedIndexesBackup(FlowTest):
         steps = _quiz_to_prompt(mnemonic)
         for word_index in range(len(mnemonic)):
             steps.append(FlowStep(
-                SeedIndexesBackupTestView,
+                SeedNumbersBackupTestView,
                 before_run=_pin_quiz_word(word_index),
-                screen_return_value=_quiz_option_index(mnemonic, word_index, pick_correct=True),
+                screen_return_value=_quiz_option_number(mnemonic, word_index, pick_correct=True),
             ))
-        steps.append(FlowStep(SeedIndexesBackupTestSuccessView))
+        steps.append(FlowStep(SeedNumbersBackupTestSuccessView))
         self.run_sequence(
             initial_destination_view_args=dict(seed=seed),
             sequence=steps,
@@ -325,11 +325,11 @@ class TestSeedIndexesBackup(FlowTest):
         steps = _quiz_to_prompt(mnemonic)
         for word_index in range(len(mnemonic)):
             steps.append(FlowStep(
-                SeedIndexesBackupTestView,
+                SeedNumbersBackupTestView,
                 before_run=_pin_quiz_word(word_index),
-                screen_return_value=_quiz_option_index(mnemonic, word_index, pick_correct=True),
+                screen_return_value=_quiz_option_number(mnemonic, word_index, pick_correct=True),
             ))
-        steps.append(FlowStep(SeedIndexesBackupTestSuccessView, screen_return_value=0))
+        steps.append(FlowStep(SeedNumbersBackupTestSuccessView, screen_return_value=0))
         steps.append(FlowStep(SeedOptionsView))
         self.run_sequence(
             initial_destination_view_args=dict(seed=seed),

@@ -677,7 +677,7 @@ class ToolsAddressExplorerAddressListScreen(ButtonListScreen):
 
 
 @dataclass
-class ToolsSeedIndexesFormatScreen(ButtonListScreen):
+class ToolsSeedNumbersFormatScreen(ButtonListScreen):
     is_bottom_list: bool = True
     text: str = ""
 

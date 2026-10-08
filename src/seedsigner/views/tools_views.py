@@ -22,12 +22,12 @@ class ToolsMenuView(View):
     IMAGE = ButtonOption("New seed", FontAwesomeIconConstants.CAMERA)
     DICE = ButtonOption("New seed", FontAwesomeIconConstants.DICE)
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
-    WORD_INDEX = ButtonOption("Seed Word Indexes", FontAwesomeIconConstants.LIST)
+    NUMBERS = ButtonOption("Seed Numbers", FontAwesomeIconConstants.LIST)
     ADDRESS_EXPLORER = ButtonOption("Address explorer")
     VERIFY_ADDRESS = ButtonOption("Verify address")
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.WORD_INDEX, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
+        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.NUMBERS, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -48,8 +48,8 @@ class ToolsMenuView(View):
         elif button_data[selected_menu_num] == self.KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
 
-        elif button_data[selected_menu_num] == self.WORD_INDEX:
-            return Destination(ToolsSeedIndexesView)
+        elif button_data[selected_menu_num] == self.NUMBERS:
+            return Destination(ToolsSeedNumbersView)
 
         elif button_data[selected_menu_num] == self.ADDRESS_EXPLORER:
             return Destination(ToolsAddressExplorerSelectSourceView)
@@ -503,19 +503,19 @@ class ToolsCalcFinalWordDoneView(View):
 
 
 """****************************************************************************
-    Seed Indexes Views
+    Seed Numbers Views
 ****************************************************************************"""
-class ToolsSeedIndexesView(View):
+class ToolsSeedNumbersView(View):
     NUMBERS = ButtonOption("Numbers")
     BINARY = ButtonOption("Binary")
 
     def run(self):
-        from seedsigner.gui.screens.tools_screens import ToolsSeedIndexesFormatScreen
+        from seedsigner.gui.screens.tools_screens import ToolsSeedNumbersFormatScreen
         button_data = [self.NUMBERS, self.BINARY]
         selected_menu_num = self.run_screen(
-            ToolsSeedIndexesFormatScreen,
-            title=_("Seed Word Indexes"),
-            text="Valid indexes: 1-2048",
+            ToolsSeedNumbersFormatScreen,
+            title=_("Seed Numbers"),
+            text="Valid numbers: 1-2048",
             is_button_text_centered=True,
             is_bottom_list=True,
             button_data=button_data,
@@ -525,13 +525,13 @@ class ToolsSeedIndexesView(View):
             return Destination(BackStackView)
 
         mode = "numbers" if button_data[selected_menu_num] == self.NUMBERS else "binary"
-        return Destination(ToolsSeedIndexesNumWordsView, view_args={"mode": mode})
+        return Destination(ToolsSeedNumbersLengthView, view_args={"mode": mode})
 
 
 
-class ToolsSeedIndexesNumWordsView(View):
-    TWELVE = ButtonOption("12 words", return_data=12)
-    TWENTY_FOUR = ButtonOption("24 words", return_data=24)
+class ToolsSeedNumbersLengthView(View):
+    TWELVE = ButtonOption("12 numbers", return_data=12)
+    TWENTY_FOUR = ButtonOption("24 numbers", return_data=24)
 
     def __init__(self, mode: str):
         super().__init__()
@@ -554,13 +554,13 @@ class ToolsSeedIndexesNumWordsView(View):
             button_data[selected_menu_num].return_data
         )
         return Destination(
-            ToolsSeedIndexesEntryView,
+            ToolsSeedNumbersEntryView,
             view_args={"cur_word_index": 0, "mode": self.mode},
         )
 
 
 
-class ToolsSeedIndexesEntryView(View):
+class ToolsSeedNumbersEntryView(View):
     def __init__(self, cur_word_index: int = 0, mode: str = "binary"):
         super().__init__()
         self.cur_word_index = cur_word_index
@@ -568,12 +568,12 @@ class ToolsSeedIndexesEntryView(View):
         self.cur_word = self.controller.storage.get_pending_mnemonic_word(cur_word_index)
 
     def run(self):
-        from seedsigner.gui.screens.seed_numbers_screens import SeedIndexesEntryScreen
+        from seedsigner.gui.screens.seed_numbers_screens import SeedNumbersEntryScreen
 
         ret = self.run_screen(
-            SeedIndexesEntryScreen,
-            # TRANSLATOR_NOTE: Inserts the word number (e.g. "Seed Word #6")
-            title=_("Seed Word #{}").format(self.cur_word_index + 1),  # Human-readable 1-indexing!
+            SeedNumbersEntryScreen,
+            # TRANSLATOR_NOTE: Inserts the word number (e.g. "Seed Number #6")
+            title=_("Seed Number #{}").format(self.cur_word_index + 1),  # Human-readable 1-indexing!
             mode=self.mode,
             initial_word=self.cur_word,
             wordlist=Seed.get_wordlist(
@@ -592,7 +592,7 @@ class ToolsSeedIndexesEntryView(View):
 
         if self.cur_word_index < self.controller.storage.pending_mnemonic_length - 1:
             return Destination(
-                ToolsSeedIndexesEntryView,
+                ToolsSeedNumbersEntryView,
                 view_args={
                     "cur_word_index": self.cur_word_index + 1,
                     "mode": self.mode,
@@ -602,13 +602,13 @@ class ToolsSeedIndexesEntryView(View):
         try:
             self.controller.storage.convert_pending_mnemonic_to_pending_seed()
         except InvalidSeedException:
-            return Destination(ToolsSeedIndexesInvalidView, view_args={"mode": self.mode})
+            return Destination(ToolsSeedNumbersInvalidView, view_args={"mode": self.mode})
 
-        return Destination(ToolsSeedIndexesLoadView)
+        return Destination(ToolsSeedNumbersLoadView)
 
 
 
-class ToolsSeedIndexesLoadView(View):
+class ToolsSeedNumbersLoadView(View):
     """Fingerprint + Load seed / Discard — same fork as Calc 12th/24th word Done."""
 
     LOAD = ButtonOption("Load seed")
@@ -634,7 +634,7 @@ class ToolsSeedIndexesLoadView(View):
 
 
 
-class ToolsSeedIndexesInvalidView(View):
+class ToolsSeedNumbersInvalidView(View):
     EDIT = ButtonOption("Review & edit")
     DISCARD = ButtonOption("Discard", button_label_color="red")
 
@@ -656,7 +656,7 @@ class ToolsSeedIndexesInvalidView(View):
 
         if button_data[selected_menu_num] == self.EDIT:
             return Destination(
-                ToolsSeedIndexesEntryView,
+                ToolsSeedNumbersEntryView,
                 view_args={"cur_word_index": 0, "mode": self.mode},
             )
 
