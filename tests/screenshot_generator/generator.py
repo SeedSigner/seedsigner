@@ -335,6 +335,19 @@ def generate_screenshots(locale):
 
 
         @contextmanager
+        def mock_dice_grid_read():
+            # A reading with a few rolls flagged for review and one that couldn't be read
+            rolls = [(i * 7 + 3) % 6 + 1 for i in range(100)]
+            uncertain = [False] * 100
+            for i in (14, 37, 62):
+                uncertain[i] = True
+            rolls[81] = 0
+            uncertain[81] = True
+            with patch.multiple(controller, dice_grid_rolls=rolls, dice_grid_uncertain=uncertain, dice_grid_selected_index=14):
+                yield
+
+
+        @contextmanager
         def mock_version_to_most_recent_release():
             # Patch the Version get_* calls to the most recent release
             with patch.multiple(Version,
@@ -469,6 +482,11 @@ def generate_screenshots(locale):
                 ScreenshotConfig(tools_views.ToolsImageEntropyMnemonicLengthView),
                 ScreenshotConfig(tools_views.ToolsDiceEntropyMnemonicLengthView),
                 ScreenshotConfig(tools_views.ToolsDiceEntropyEntryView, dict(total_rolls=50)),
+                #ScreenshotConfig(tools_views.ToolsDiceGridScanView),
+                ScreenshotConfig(tools_views.ToolsDiceGridMarkersNotFoundView),
+                ScreenshotConfig(tools_views.ToolsDiceGridReviewView, mock_context_manager=mock_dice_grid_read),
+                ScreenshotConfig(tools_views.ToolsDiceGridUnreadRollView, dict(roll_index=81), mock_context_manager=mock_dice_grid_read),
+                ScreenshotConfig(tools_views.ToolsDiceGridEditRollView, dict(roll_index=14), mock_context_manager=mock_dice_grid_read),
                 ScreenshotConfig(tools_views.ToolsCalcFinalWordNumWordsView),
                 ScreenshotConfig(tools_views.ToolsCalcFinalWordFinalizePromptView),
                 ScreenshotConfig(tools_views.ToolsCalcFinalWordCoinFlipsView),
