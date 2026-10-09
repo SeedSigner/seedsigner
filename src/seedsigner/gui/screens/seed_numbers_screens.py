@@ -20,10 +20,10 @@ from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.helpers.index_bits import (
     BIT_COUNT,
     BIT_WEIGHTS,
-    bits_to_index,
-    format_index1,
-    index_to_bits,
-    is_valid_index1,
+    bits_to_number,
+    format_number,
+    number_to_bits,
+    is_valid_number,
 )
 from seedsigner.models.seed import Seed
 
@@ -82,8 +82,8 @@ def _bit_label_height(font):
     return (right - left) + 2
 
 
-def _number_text(index1):
-    return format_index1(index1 or 0)
+def _number_text(number):
+    return format_number(number or 0)
 
 
 def _number_badge_size(font, text):
@@ -91,9 +91,9 @@ def _number_badge_size(font, text):
     return (right - left) + NUMBER_PAD_X * 2, -top + NUMBER_PAD_Y * 2
 
 
-def _draw_number_word_row(draw, canvas_width, y, index1, word, valid):
+def _draw_number_word_row(draw, canvas_width, y, number, word, valid):
     font = _number_font()
-    text = _number_text(index1)
+    text = _number_text(number)
     box_w, box_h = _number_badge_size(font, text)
     word_font = _word_font()
     wl, wt, wr, wb = word_font.getbbox(word if word else " ", anchor="ls")
@@ -213,11 +213,11 @@ class SeedNumbersEntryScreen(BaseTopNavScreen):
             )
             self.keyboard.set_selected_key(selected_letter="1")
         if self.initial_word and self.initial_word in self.wordlist:
-            index1 = self.wordlist.index(self.initial_word) + 1
-            self.digits = str(index1)
-            self.bits = index_to_bits(index1)
+            number = self.wordlist.index(self.initial_word) + 1
+            self.digits = str(number)
+            self.bits = number_to_bits(number)
 
-    def _current_index(self) -> int:
+    def _current_number(self) -> int:
         if self.mode == "numbers":
             if not self.digits:
                 return 0
@@ -225,11 +225,11 @@ class SeedNumbersEntryScreen(BaseTopNavScreen):
                 return int(self.digits)
             except ValueError:
                 return 0
-        return bits_to_index(self.bits)
+        return bits_to_number(self.bits)
 
-    def _sync_from_index(self, index1: int):
-        if is_valid_index1(index1):
-            self.bits = index_to_bits(index1)
+    def _sync_from_index(self, number: int):
+        if is_valid_number(number):
+            self.bits = number_to_bits(number)
         else:
             self.bits = [False] * BIT_COUNT
 
@@ -241,13 +241,13 @@ class SeedNumbersEntryScreen(BaseTopNavScreen):
     def _render(self):
         super()._render()
         draw = self.renderer.draw
-        index1 = self._current_index()
-        valid = is_valid_index1(index1)
-        word = self.wordlist[index1 - 1] if valid else ""
+        number = self._current_number()
+        valid = is_valid_number(number)
+        word = self.wordlist[number - 1] if valid else ""
 
         if self.mode == "binary":
             label_font = _bit_label_font()
-            badge_h = _number_badge_size(_number_font(), _number_text(index1))[1]
+            badge_h = _number_badge_size(_number_font(), _number_text(number))[1]
             label_h = _bit_label_height(label_font)
             total_h = badge_h + NUMBER_BITS_GAP + BIT_BOX + NUMBER_BITS_GAP + label_h
             available_top = self.top_nav.height
@@ -255,7 +255,7 @@ class SeedNumbersEntryScreen(BaseTopNavScreen):
             available_h = self.canvas_height - available_top - save_reserve
             y_word = available_top + (available_h - total_h) // 2
             y_bits = y_word + badge_h + NUMBER_BITS_GAP
-            _draw_number_word_row(draw, self.canvas_width, y_word, index1, word, valid)
+            _draw_number_word_row(draw, self.canvas_width, y_word, number, word, valid)
             focused = None if self.top_nav.is_selected else self.bit_index
             _draw_bit_row(
                 draw,
@@ -269,7 +269,7 @@ class SeedNumbersEntryScreen(BaseTopNavScreen):
         else:
             y_word = self.top_nav.height + 6
             badge_h = _draw_number_word_row(
-                draw, self.canvas_width, y_word, index1, word, valid
+                draw, self.canvas_width, y_word, number, word, valid
             )
             _draw_bit_row(
                 draw,
@@ -285,10 +285,10 @@ class SeedNumbersEntryScreen(BaseTopNavScreen):
         self.renderer.show_image()
 
     def _commit_word(self):
-        index1 = self._current_index()
-        if not is_valid_index1(index1):
+        number = self._current_number()
+        if not is_valid_number(number):
             return None
-        return self.wordlist[index1 - 1]
+        return self.wordlist[number - 1]
 
     def _run(self):
         while True:
@@ -357,7 +357,7 @@ class SeedNumbersEntryScreen(BaseTopNavScreen):
                             pass
                         elif len(self.digits) < 4:
                             self.digits += ret_val
-                    self._sync_from_index(self._current_index())
+                    self._sync_from_index(self._current_number())
 
                 self._render()
 
@@ -366,7 +366,7 @@ class SeedNumbersEntryScreen(BaseTopNavScreen):
 class SeedNumbersBackupScreen(WarningEdgesMixin, ButtonListScreen):
     word_num: int = 1
     word: str = ""
-    index1: int = 1
+    number: int = 1
     is_bottom_list: bool = True
     status_color: str = GUIConstants.DIRE_WARNING_COLOR
 
@@ -375,7 +375,7 @@ class SeedNumbersBackupScreen(WarningEdgesMixin, ButtonListScreen):
 
         label_font = _bit_label_font()
         label_h = _bit_label_height(label_font)
-        badge_h = _number_badge_size(_number_font(), _number_text(self.index1))[1]
+        badge_h = _number_badge_size(_number_font(), _number_text(self.number))[1]
 
         body_y = self.top_nav.height
         body_h = self.buttons[0].screen_y - body_y
@@ -384,13 +384,13 @@ class SeedNumbersBackupScreen(WarningEdgesMixin, ButtonListScreen):
 
         total_h = badge_h + NUMBER_BITS_GAP + BIT_BOX + NUMBER_BITS_GAP + label_h
         y_word = max((body_h - total_h) // 2, 0)
-        _draw_number_word_row(draw, self.canvas_width, y_word, self.index1, self.word, True)
+        _draw_number_word_row(draw, self.canvas_width, y_word, self.number, self.word, True)
         _draw_bit_row(
             draw,
             body_img,
             self.canvas_width,
             y_word + badge_h + NUMBER_BITS_GAP,
-            index_to_bits(self.index1),
+            number_to_bits(self.number),
             label_font=label_font,
         )
 
@@ -455,7 +455,7 @@ class SeedNumbersBackupTestScreen(BaseTopNavScreen):
 
             draw.text((self.canvas_width // 2, y_text), label, fill=index_color, font=self.number_font, anchor="ms")
 
-            bits = index_to_bits(int(label.lstrip("#")))
+            bits = number_to_bits(int(label.lstrip("#")))
             total = BIT_COUNT * box + (BIT_COUNT - 1) * gap + ((BIT_COUNT - 1) // 4) * extra
             x0 = (self.canvas_width - total) // 2
             for bit_i, on in enumerate(bits):

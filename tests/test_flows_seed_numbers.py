@@ -5,7 +5,7 @@ import pytest
 from base import FlowTest, FlowStep
 from seedsigner.controller import Controller
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
-from seedsigner.helpers.index_bits import format_index1
+from seedsigner.helpers.index_bits import format_number
 from seedsigner.models.seed import Seed
 from seedsigner.views.seed_views import (
     SeedBackupView,
@@ -84,14 +84,14 @@ def _quiz_option_number(mnemonic: list[str], word_index: int, pick_correct: bool
     """Replay SeedNumbersBackupTestView RNG so screen_return_value hits the right button."""
     seed = Seed(mnemonic=mnemonic)
     random.seed(QUIZ_RAND_SEED + word_index)
-    real_index1 = seed.wordlist.index(mnemonic[word_index]) + 1
-    real_label = f"#{format_index1(real_index1)}"
+    real_number = seed.wordlist.index(mnemonic[word_index]) + 1
+    real_label = format_number(real_number)
     decoys = set()
     while len(decoys) < 3:
         candidate = int(random.random() * 2048) + 1
-        if candidate != real_index1:
+        if candidate != real_number:
             decoys.add(candidate)
-    labels = [real_label] + [f"#{format_index1(i)}" for i in decoys]
+    labels = [real_label] + [format_number(i) for i in decoys]
     random.shuffle(labels)
     if pick_correct:
         return labels.index(real_label)

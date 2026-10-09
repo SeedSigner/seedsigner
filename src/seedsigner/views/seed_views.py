@@ -1179,7 +1179,7 @@ class SeedNumbersView(View):
 
         n = len(mnemonic)
         word = mnemonic[self.word_index]
-        index1 = self.seed.wordlist.index(word) + 1
+        number = self.seed.wordlist.index(word) + 1
 
         button_data = []
         if self.word_index < n - 1 or self.is_pending_seed:
@@ -1192,7 +1192,7 @@ class SeedNumbersView(View):
             title=f"{title} {self.word_index + 1}/{n}",
             word_num=self.word_index + 1,
             word=word,
-            index1=index1,
+            number=number,
             button_data=button_data,
         )
 
@@ -1564,7 +1564,7 @@ class SeedNumbersBackupTestView(View):
 
 
     def run(self):
-        from seedsigner.helpers.index_bits import format_index1
+        from seedsigner.helpers.index_bits import format_number
 
         if self.rand_seed is not None:
             random.seed(self.rand_seed + self.cur_index if self.cur_index is not None else 0)
@@ -1574,18 +1574,18 @@ class SeedNumbersBackupTestView(View):
             while self.cur_index in self.confirmed_list:
                 self.cur_index = int(random.random() * len(self.mnemonic_list))
 
-        real_index1 = self.seed.wordlist.index(self.mnemonic_list[self.cur_index]) + 1
-        real_option = ButtonOptionWithoutTranslation(f"{format_index1(real_index1)}")
+        real_number = self.seed.wordlist.index(self.mnemonic_list[self.cur_index]) + 1
+        real_option = ButtonOptionWithoutTranslation(format_number(real_number))
 
         decoys = set()
         while len(decoys) < 3:
             candidate = int(random.random() * 2048) + 1
-            if candidate != real_index1:
+            if candidate != real_number:
                 decoys.add(candidate)
 
         button_data = [real_option] + [
-            ButtonOptionWithoutTranslation(f"{format_index1(index1)}")
-            for index1 in decoys
+            ButtonOptionWithoutTranslation(format_number(number))
+            for number in decoys
         ]
         random.shuffle(button_data)
 
