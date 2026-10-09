@@ -28,6 +28,21 @@ Print at 100% / "Actual size" (not "Fit to page") and check the 100 mm bar on th
 The sheet has a square frame for the dice and four corner markers. The camera uses the markers to locate the frame, so all four must be visible and uncovered in the photo.
 
 
+## Advice on obtaining and rolling/packing dice
+
+Packs of 100 dice of 16mm are inexpensive and widely available.
+
+This approach works well for rolling and arranging the dice:
+
+1. Put the template on a clipboard.
+1. Put the clipboard in a shallow box jammed into one corner.
+1. Roll the dice so they stay on the clipboard.
+1. Slide any dice that are on top of other dice off onto the clipboard, so all dice are in one layer.
+1. Hold the box at an angle toward the corner where the clipboard is. Shake the box so that they tend to pack themselves into the corner. Shake from both side directions to best resolve dice that are stuck in a diagonal orientation.
+1. Arrange the remaining dice so they form a 10x10 grid.
+1. Remove the clipboard from the box with the dice in place.
+1. Use a book or ruler to slide the whole block in each direction until the block lies within the grid square on the template.
+
 ## Scan
 
 1. Roll the dice and push them into the frame as a packed 10x10 block, without looking at or rearranging them by value. Every die should sit flat.
