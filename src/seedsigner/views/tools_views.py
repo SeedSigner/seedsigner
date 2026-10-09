@@ -515,7 +515,7 @@ class ToolsSeedNumbersView(View):
         selected_menu_num = self.run_screen(
             ToolsSeedNumbersFormatScreen,
             title=_("Seed Numbers"),
-            text="Valid numbers: 1-2048",
+            text=_("Valid numbers: 1-2048"),
             is_button_text_centered=True,
             is_bottom_list=True,
             button_data=button_data,

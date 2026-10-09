@@ -686,7 +686,7 @@ class ToolsSeedNumbersFormatScreen(ButtonListScreen):
         gap_top = self.top_nav.height
         gap_bottom = self.buttons[0].screen_y
         msg = TextArea(
-            text=_(self.text),
+            text=self.text,
             width=self.canvas_width,
             is_text_centered=True,
             font_color=GUIConstants.BODY_FONT_COLOR,
