@@ -492,14 +492,42 @@ def locate_dice_tops(markers: dict[int, np.ndarray], focal_px: float, image_size
     Steps 3 and 4: snap the grid, then each cell, onto the dice
 ****************************************************************************"""
 def sliding_extreme(values: np.ndarray, window: int, axis: int, func) -> np.ndarray:
-    """ Centered sliding max/min along one axis, edges clamped. """
+    """
+    Centered sliding max/min along one axis, edges clamped. func is np.max or np.min.
+
+    Built up by doubling: after k passes each value is the extreme over a span of 2^k,
+    and two overlapping spans cover the window. That's ~log2(window) array passes
+    instead of one reduction over every window, which matters on a Pi.
+    """
+    op = np.maximum if func is np.max else np.minimum
     before = window // 2
     after = window - 1 - before
     pad = [(0, 0)] * values.ndim
     pad[axis] = (before, after)
-    padded = np.pad(values, pad, mode="edge")
-    windows = np.lib.stride_tricks.sliding_window_view(padded, window, axis=axis)
-    return func(windows, axis=-1)
+    spans = np.pad(values, pad, mode="edge")
+
+    def along(start, stop):
+        index = [slice(None)] * values.ndim
+        index[axis] = slice(start, stop)
+        return tuple(index)
+
+    span = 1
+    while span * 2 <= window:
+        length = spans.shape[axis]
+        spans = op(spans[along(0, length - span)], spans[along(span, length)])
+        span *= 2
+    count = values.shape[axis]
+    rest = window - span
+    return op(spans[along(0, count)], spans[along(rest, rest + count)])
+
+
+
+def channel_extreme(rgb: np.ndarray, op) -> np.ndarray:
+    """
+    Per-pixel max (op=np.maximum) or min (op=np.minimum) across the color channels, as
+    float32. Same as rgb.max(axis=2), but numpy reduces over a 3-wide last axis slowly.
+    """
+    return op(op(rgb[..., 0], rgb[..., 1]), rgb[..., 2]).astype(np.float32)
 
 
 
@@ -547,7 +575,7 @@ def snap_grid_to_dice(rgb: np.ndarray, corners: np.ndarray) -> np.ndarray:
     pad = CELL_PX // 2
     image_from_canonical = fit_homography(grid_corners_px(side), corners)
     warped = warp_grid(rgb, corners, pad)
-    gray = warped.max(axis=2).astype(np.float32)
+    gray = channel_extreme(warped, np.maximum)
 
     x0, pitch_x = fit_lattice(np.median(seam_map(gray, 0), axis=0), -pad)
     y0, pitch_y = fit_lattice(np.median(seam_map(gray, 1), axis=1), -pad)
@@ -568,7 +596,7 @@ def snap_cells(warped: np.ndarray, pad: int) -> np.ndarray:
     paper has no seam and simply doesn't pull. A small penalty on distance keeps cells
     with no clear seams where the lattice put them.
     """
-    gray = warped.max(axis=2).astype(np.float32)
+    gray = channel_extreme(warped, np.maximum)
     vertical = seam_map(gray, 0)
     horizontal_t = seam_map(gray, 1).T
     shifts = np.arange(-pad, pad + 1)
@@ -665,26 +693,36 @@ def classify_face(contrasts: np.ndarray) -> tuple[int, float]:
 
 
 
-def count_pip_blobs(channel: np.ndarray, body: float, pip_contrast: float, darker: bool) -> int:
+def count_pip_blobs(masks: list[np.ndarray]) -> list[int]:
     """
-    Count pip-shaped blobs in one cell, as a second opinion on the face reading.
+    Count pip-shaped blobs in each cell's pip mask, as a second opinion on the face
+    readings.
 
     A pixel belongs to a pip when it differs from the die body by at least half the
     reading's pip contrast. Blobs touching the cell edge are ignored (they are
     neighbors' pips or seams). All pips on a die are about the same size, so blobs
     much smaller than the largest (glare on glossy dice, specks) are ignored too.
+
+    The masks are labeled side by side in one pass, two empty columns apart so no
+    blob spans two cells: labeling runs row by row, so one wide pass is far cheaper
+    than one per cell.
     """
-    size = channel.shape[0]
-    difference = body - channel if darker else channel - body
-    mask = difference > pip_contrast / 2
-    areas = [
-        area for top, left, bottom, right, area in bounding_boxes(mask)
-        if top > 0 and left > 0 and bottom < size - 1 and right < size - 1
-        and 0.004 * size * size <= area <= 0.06 * size * size
-    ]
-    if not areas:
-        return 0
-    return sum(area >= 0.65 * max(areas) for area in areas)
+    if not masks:
+        return []
+    size = masks[0].shape[0]
+    stride = size + 2
+    combined = np.zeros((size, stride * len(masks)), dtype=bool)
+    for i, mask in enumerate(masks):
+        combined[:, i * stride:i * stride + size] = mask
+
+    areas = [[] for _ in masks]
+    for top, left, bottom, right, area in bounding_boxes(combined):
+        i = left // stride
+        left, right = left - i * stride, right - i * stride
+        if (top > 0 and left > 0 and bottom < size - 1 and right < size - 1
+                and 0.004 * size * size <= area <= 0.06 * size * size):
+            areas[i].append(area)
+    return [sum(area >= 0.65 * max(cell) for area in cell) if cell else 0 for cell in areas]
 
 
 
@@ -699,14 +737,15 @@ def read_cells(warped: np.ndarray, pad: int, offsets: np.ndarray) -> tuple[list[
     when a plain count of pip-shaped blobs disagrees with it. The blob count catches
     a die sitting well off its cell, where the pattern can fit the wrong points.
     """
-    brightest = warped.max(axis=2).astype(np.float32)   # dark pips show here
-    dimmest = warped.min(axis=2).astype(np.float32)     # light pips show here
+    brightest = channel_extreme(warped, np.maximum)   # dark pips show here
+    dimmest = channel_extreme(warped, np.minimum)     # light pips show here
     radius = max(1, int(round(CELL_PX * PIP_RADIUS)))
     brightest_mean = local_mean(brightest, radius)
     dimmest_mean = local_mean(dimmest, radius)
     layouts = pip_layouts(CELL_PX)
 
     rolls, uncertain = [], []
+    pip_masks = []         # (roll index, mask) for the blob count, done in one pass
     for row in range(GRID_SIZE):
         for col in range(GRID_SIZE):
             dx, dy = offsets[row, col]
@@ -732,7 +771,12 @@ def read_cells(warped: np.ndarray, pad: int, offsets: np.ndarray) -> tuple[list[
 
             inset = int(round(CELL_PX * 0.15))
             body = np.median(box_mean[cell][inset:-inset, inset:-inset])
-            blobs = count_pip_blobs(channel[cell], body, strength, darker)
+            difference = body - channel[cell] if darker else channel[cell] - body
+            pip_masks.append((len(rolls), difference > strength / 2))
             rolls.append(value)
-            uncertain.append(margin < MIN_CONFIDENT_MARGIN * strength or blobs != value)
+            uncertain.append(margin < MIN_CONFIDENT_MARGIN * strength)
+
+    counts = count_pip_blobs([mask for _, mask in pip_masks])
+    for (index, _), blobs in zip(pip_masks, counts):
+        uncertain[index] = uncertain[index] or blobs != rolls[index]
     return rolls, uncertain

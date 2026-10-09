@@ -163,3 +163,32 @@ def test_fit_homography_recovers_known_mapping():
     dst = reader.apply_homography(h, src)
     fitted = reader.fit_homography(src, dst)
     assert np.allclose(reader.apply_homography(fitted, src), dst, atol=1e-6)
+
+
+@pytest.mark.parametrize("window", [1, 2, 3, 8, 15, 17])
+def test_sliding_extreme_matches_direct_windows(window):
+    values = np.random.default_rng(window).random((40, 50)).astype(np.float32)
+    for axis in (0, 1):
+        padded = np.pad(values, [(window // 2, window - 1 - window // 2) if a == axis else (0, 0) for a in (0, 1)], mode="edge")
+        windows = np.lib.stride_tricks.sliding_window_view(padded, window, axis=axis)
+        for func in (np.max, np.min):
+            assert np.array_equal(reader.sliding_extreme(values, window, axis, func), func(windows, axis=-1))
+
+
+def test_count_pip_blobs_keeps_cells_apart():
+    size = reader.CELL_PX
+    def cell(pips, touching_right_edge=False):
+        mask = np.zeros((size, size), dtype=bool)
+        for y, x in pips:
+            mask[y:y + 8, x:x + 8] = True
+        if touching_right_edge:
+            mask[20:28, size - 8:] = True
+        return mask
+
+    three = cell([(10, 10), (26, 26), (42, 42)])
+    # Pips against the right edge would merge with the next cell's if cells weren't kept apart
+    one_with_edge_blob = cell([(26, 26)], touching_right_edge=True)
+    left_edge_pip = np.zeros((size, size), dtype=bool)
+    left_edge_pip[20:28, :8] = True
+    left_edge_pip[26:34, 26:34] = True
+    assert reader.count_pip_blobs([three, one_with_edge_blob, left_edge_pip, cell([])]) == [3, 1, 1, 0]
