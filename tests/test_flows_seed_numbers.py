@@ -5,7 +5,7 @@ import pytest
 from base import FlowTest, FlowStep
 from seedsigner.controller import Controller
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
-from seedsigner.helpers.index_bits import format_number
+from seedsigner.helpers.number_bits import format_number
 from seedsigner.models.seed import Seed
 from seedsigner.views.seed_views import (
     SeedBackupView,

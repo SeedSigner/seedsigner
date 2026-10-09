@@ -1564,7 +1564,7 @@ class SeedNumbersBackupTestView(View):
 
 
     def run(self):
-        from seedsigner.helpers.index_bits import format_number
+        from seedsigner.helpers.number_bits import format_number
 
         if self.rand_seed is not None:
             random.seed(self.rand_seed + self.cur_index if self.cur_index is not None else 0)

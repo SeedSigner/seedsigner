@@ -17,7 +17,7 @@ from seedsigner.gui.screens.screen import (
     WarningEdgesMixin,
 )
 from seedsigner.hardware.buttons import HardwareButtonsConstants
-from seedsigner.helpers.index_bits import (
+from seedsigner.helpers.number_bits import (
     BIT_COUNT,
     BIT_WEIGHTS,
     bits_to_number,
