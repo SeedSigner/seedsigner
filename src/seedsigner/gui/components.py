@@ -778,12 +778,13 @@ class Icon(BaseComponent):
         
         # Set width/height based on exact pixels that are rendered
         (left, top, self.width, bottom) = self.icon_font.getbbox(self.icon_name, anchor="ls")
-        self.height = -1 * top
+        self.ascent = -top
+        self.height = self.ascent + bottom
 
 
     def render(self):
         self.image_draw.text(
-            (self.screen_x, self.screen_y + self.height),
+            (self.screen_x, self.screen_y + self.ascent),
             text=self.icon_name,
             font=self.icon_font,
             fill=self.icon_color,
