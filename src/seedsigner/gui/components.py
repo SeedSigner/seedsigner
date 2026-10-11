@@ -173,6 +173,7 @@ class FontAwesomeIconConstants:
     ANGLE_DOWN = "\uf107"
     ANGLE_UP = "\uf106"
     CAMERA = "\uf030"
+    CALCULATOR = "\uf1ec"
     CIRCLE = "\uf111"
     DICE = "\uf522"
     DICE_ONE = "\uf525"
