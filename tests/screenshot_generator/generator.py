@@ -43,7 +43,7 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, RemoveMicroSDWarningView, NotYetImplementedView, UnhandledExceptionView, 
-    psbt_views, seed_views, settings_views, tools_views, scan_views)
+    psbt_views, seed_views, seed_numbers_views, settings_views, tools_views, scan_views)
 from seedsigner.views.screensaver import OpeningSplashView
 from seedsigner.views.view import CameraConnectionErrorView, NetworkMismatchErrorView, OptionDisabledView, PowerOffView
 
@@ -242,6 +242,17 @@ def generate_screenshots(locale):
             )
         )
 
+        settings_views_list.append(
+            ScreenshotConfig(
+                settings_views.SettingsMenuView,
+                dict(
+                    visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                    selected_attr=SettingsConstants.SETTING__SEED_NUMBERS,
+                ),
+                screenshot_name="SettingsMenuView__Advanced__Seed_numbers",
+            )
+        )
+
         # ...and Advanced entries
         add_settings_entries(SettingsConstants.VISIBILITY__ADVANCED)
 
@@ -255,8 +266,8 @@ def generate_screenshots(locale):
         )
         add_settings_entries(SettingsConstants.VISIBILITY__HARDWARE)
 
-        settingsqr_data_persistent = f"settings::v1 name=English_noob_mode persistent=E xpub_qr=urca,sta denom=thr network=M qr_density=M sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E locale={locale}"
-        settingsqr_data_not_persistent = f"settings::v1 name=Mode_Ephemeral persistent=D xpub_qr=urca,sta denom=thr network=M qr_density=M sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E locale={locale}"
+        settingsqr_data_persistent = f"settings::v1 name=English_noob_mode persistent=E xpub_qr=urca,sta denom=thr network=M qr_density=M sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D numbers=D priv_warn=E dire_warn=E partners=E locale={locale}"
+        settingsqr_data_not_persistent = f"settings::v1 name=Mode_Ephemeral persistent=D xpub_qr=urca,sta denom=thr network=M qr_density=M sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D numbers=D priv_warn=E dire_warn=E partners=E locale={locale}"
 
         # Set up mocks to provide whatever temporary data/state a particular screenshot
         # might need.
@@ -348,6 +359,16 @@ def generate_screenshots(locale):
                     yield
 
 
+        @contextmanager
+        def mock_seed_numbers_enabled():
+            settings = Settings.get_instance()
+            previous = settings.get_value(SettingsConstants.SETTING__SEED_NUMBERS)
+            settings.set_value(SettingsConstants.SETTING__SEED_NUMBERS, SettingsConstants.OPTION__ENABLED)
+            try:
+                yield
+            finally:
+                settings.set_value(SettingsConstants.SETTING__SEED_NUMBERS, previous)
+
         screenshot_sections = {
             "Main Menu Views": [
                 ScreenshotConfig(OpeningSplashView, dict(force_partner_logos=True), mock_context_manager=mock_version_to_most_recent_release),
@@ -371,6 +392,7 @@ def generate_screenshots(locale):
             "Seed Views": [
                 ScreenshotConfig(seed_views.SeedsMenuView),
                 ScreenshotConfig(seed_views.LoadSeedView),
+                ScreenshotConfig(seed_views.LoadSeedView, mock_context_manager=mock_seed_numbers_enabled, screenshot_name="LoadSeedView_seed_numbers"),
                 ScreenshotConfig(seed_views.SeedMnemonicEntryView),
                 ScreenshotConfig(seed_views.SeedMnemonicInvalidView),
                 ScreenshotConfig(seed_views.SeedFinalizeView),
@@ -384,6 +406,7 @@ def generate_screenshots(locale):
                 
                 ScreenshotConfig(seed_views.SeedOptionsView, dict(seed=seed_12)),
                 ScreenshotConfig(seed_views.SeedBackupView,  dict(seed=seed_12)),
+                ScreenshotConfig(seed_views.SeedBackupView,  dict(seed=seed_12), mock_context_manager=mock_seed_numbers_enabled, screenshot_name="SeedBackupView_seed_numbers"),
                 ScreenshotConfig(seed_views.SeedExportXpubSigTypeView,          dict(seed=seed_12)),
                 ScreenshotConfig(seed_views.SeedExportXpubScriptTypeView,       dict(seed=seed_12, sig_type="msig")),
                 ScreenshotConfig(seed_views.SeedExportXpubCustomDerivationView, dict(seed=seed_12, sig_type="ss",   script_type="")),
@@ -433,6 +456,19 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedSignMessageConfirmAddressView),
 
                 ScreenshotConfig(seed_views.SeedElectrumMnemonicStartView),
+            ],
+            "Seed Numbers Views": [
+                ScreenshotConfig(seed_numbers_views.SeedNumbersWarningView, dict(seed=seed_12)),
+                ScreenshotConfig(seed_numbers_views.SeedNumbersView,        dict(seed=seed_12)),
+                ScreenshotConfig(seed_numbers_views.SeedNumbersView,        dict(seed=seed_12, page_index=6), screenshot_name="SeedNumbersView_2"),
+                ScreenshotConfig(seed_numbers_views.SeedNumbersBackupTestView,        dict(seed=seed_12, rand_seed=6102)),
+                ScreenshotConfig(seed_numbers_views.SeedNumbersBackupTestMistakeView, dict(seed=seed_12, cur_index=7, wrong_number="1245")),
+                ScreenshotConfig(seed_numbers_views.SeedNumbersBackupTestSuccessView, dict(seed=seed_12)),
+                ScreenshotConfig(seed_numbers_views.SeedNumbersFormatView),
+                ScreenshotConfig(seed_numbers_views.SeedNumbersEntryView,    screenshot_name="SeedNumbersEntryView_Binary"),
+                ScreenshotConfig(seed_numbers_views.SeedNumbersEntryView,    dict(mode="numbers"), screenshot_name="SeedNumbersEntryView_Numbers"),
+                ScreenshotConfig(seed_numbers_views.SeedNumbersLoadView),
+                ScreenshotConfig(seed_numbers_views.SeedNumbersInvalidView,  dict(mode="numbers")),
             ],
             "PSBT Views": [
                 ScreenshotConfig(psbt_views.PSBTSelectSeedView, mock_context_manager=mock_controller_psbt_seed_empty),
