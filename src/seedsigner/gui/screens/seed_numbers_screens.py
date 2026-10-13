@@ -150,7 +150,7 @@ def _draw_bit_row(draw, target, canvas_width, y, bits, focused_index=None, label
                 label_font,
                 color,
                 x + BIT_BOX // 2,
-                y + BIT_BOX + NUMBER_BITS_GAP,
+                y + BIT_BOX + 4,
             )
     return y + BIT_BOX
 
