@@ -3,7 +3,7 @@ import logging
 from gettext import gettext as _
 
 from seedsigner.models.psbt_parser import (PSBTInputAmountVerificationError,
-    PSBTInputOwnershipClaimError, PSBTMissingInputUtxoError,
+    PSBTInputOwnershipClaimError, PSBTMalformedOpReturnError, PSBTMissingInputUtxoError,
     PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
     PSBTSurplusDerivationPathsError)
@@ -126,6 +126,10 @@ class PSBTOverviewView(View):
 
             except PSBTMixedDerivationPathTypesError:
                 self.set_redirect(Destination(PSBTMixedDerivationPathTypesView, clear_history=True))
+                return
+
+            except PSBTMalformedOpReturnError:
+                self.set_redirect(Destination(PSBTMalformedOpReturnView, clear_history=True))
                 return
 
             except PSBTOutputOwnershipContradictionError:
@@ -633,6 +637,34 @@ class PSBTMixedDerivationPathTypesView(View):
             status_headline=None,
             # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
             text=_("This transaction claims taproot and non-taproot keys for the same script."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTMalformedOpReturnView(View):
+    """
+    Reached when an OP_RETURN output's script is not made of complete pushes (see
+    PSBTMalformedOpReturnError).
+
+    We view this as a malformed psbt and do not try to decide whether it is malicious. We
+    do not allow the user to continue, but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
+            text=_("This transaction's OP_RETURN data is malformed."),
             button_data=[self.DISCARD],
             show_back_button=False,
         )

@@ -22,6 +22,7 @@ class OPCODES:
     OP_PUSHDATA1 = 76
     OP_PUSHDATA2 = 77
     OP_PUSHDATA4 = 78
+    OP_16 = 96
 
 
 
@@ -127,6 +128,17 @@ class PSBTMissingInputUtxoError(PSBTVerificationError):
     An input is missing its utxo, which holds its amount. A psbt supplies the amount in
     the witness_utxo or non_witness_utxo field, and without either there is no amount to
     verify. This is a correctness problem rather than an attack.
+    """
+    pass
+
+
+class PSBTMalformedOpReturnError(PSBTVerificationError):
+    """
+    An OP_RETURN output's script is not made of complete pushes: a push runs past the end
+    of the script, or an opcode is not a push at all.
+
+    This is a malformed psbt rather than a proven deception, so we do not treat it as an
+    attack.
     """
     pass
 
@@ -804,10 +816,12 @@ class PSBTParser():
         and the pushes are concatenated here rather than returned separately, since where
         the encoder chose to break the data into pushes carries no consensus meaning.
 
-        Anything that is not a data push, and any push that claims more bytes than the
-        script actually carries, ends the walk and the remaining bytes are appended
-        verbatim, so no committed data is hidden from the review. The caller gets raw
-        bytes and decides how to render them.
+        Bitcoin Core treats an OP_RETURN output as nonstandard unless everything after the
+        opcode is a push. Raises PSBTMalformedOpReturnError for a push that runs past the
+        end of the script or an opcode that is not a push. OP_0, OP_1NEGATE, OP_RESERVED,
+        and OP_1 through OP_16 carry no data bytes but Core still counts them as pushes,
+        so their opcode bytes are kept as-is. The caller gets raw bytes and decides how to
+        render them.
         """
         pushes = []
 
@@ -825,28 +839,29 @@ class PSBTParser():
                 length_size = 2
             elif opcode == OPCODES.OP_PUSHDATA4:
                 length_size = 4
+            elif opcode <= OPCODES.OP_16:
+                # No data bytes follow; keep the opcode byte itself so it is shown
+                pushes.append(script_data[i:i + 1])
+                i += 1
+                continue
             else:
-                # Not a data push (OP_0, a numeric opcode, anything else). Surface the
-                # rest as-is rather than silently dropping it.
-                pushes.append(script_data[i:])
-                break
+                # Not a push, so the script cannot be read as OP_RETURN data
+                raise PSBTMalformedOpReturnError(f"OP_RETURN script holds non-push opcode 0x{opcode:02x}")
 
             if length_size == 0:
                 length = opcode
             else:
                 length_end = i + 1 + length_size
                 if length_end > len(script_data):
-                    # The length field itself is truncated
-                    pushes.append(script_data[i:])
-                    break
+                    # The length field itself is truncated, so the push size is unknown
+                    raise PSBTMalformedOpReturnError("OP_RETURN push length field is truncated")
                 length = int.from_bytes(script_data[i + 1:length_end], "little")
 
             data_start = i + 1 + length_size
             data_end = data_start + length
             if data_end > len(script_data):
                 # The push claims more data than the script carries
-                pushes.append(script_data[data_start:])
-                break
+                raise PSBTMalformedOpReturnError(f"OP_RETURN push declares {length} bytes but only {len(script_data) - data_start} remain")
 
             pushes.append(script_data[data_start:data_end])
             i = data_end

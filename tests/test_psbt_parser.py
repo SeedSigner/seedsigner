@@ -13,7 +13,7 @@ from embit.descriptor import Descriptor
 from embit.script import Script
 
 from seedsigner.models.psbt_parser import (OPCODES, PSBTInputAmountVerificationError,
-    PSBTInputOwnershipClaimError, PSBTMissingInputUtxoError,
+    PSBTInputOwnershipClaimError, PSBTMalformedOpReturnError, PSBTMissingInputUtxoError,
     PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
     PSBTSurplusDerivationPathsError)
@@ -2722,6 +2722,7 @@ def test_parse_op_return_payload_push_encodings():
     # in one would otherwise make this test agree with the bug it is meant to catch.
     assert (OPCODES.OP_RETURN, OPCODES.OP_PUSHDATA_MAX_DIRECT) == (0x6a, 0x4b)
     assert (OPCODES.OP_PUSHDATA1, OPCODES.OP_PUSHDATA2, OPCODES.OP_PUSHDATA4) == (0x4c, 0x4d, 0x4e)
+    assert OPCODES.OP_16 == 0x60
 
     op_return = bytes([OPCODES.OP_RETURN])
 
@@ -2762,16 +2763,54 @@ def test_parse_op_return_payload_push_encodings():
     # An empty scriptPubKey must not index past the end
     assert PSBTParser._parse_op_return_payload(b"") == b""
 
-    # A push claiming more data than the script carries yields what is actually there,
-    # rather than raising or returning nothing
-    assert PSBTParser._parse_op_return_payload(op_return + bytes([10]) + b"abc") == b"abc"
-
-    # A truncated OP_PUSHDATA2 length field, same rule
-    assert PSBTParser._parse_op_return_payload(op_return + bytes([OPCODES.OP_PUSHDATA2, 0x01])) == bytes([OPCODES.OP_PUSHDATA2, 0x01])
-
-    # A leading opcode that is not a data push. The remaining bytes are still surfaced;
-    # the user has to be able to see everything the transaction commits to.
+    # OP_0 through OP_16 carry no data bytes but still count as pushes. Their opcode bytes
+    # are kept, and the walk carries on past them.
     assert PSBTParser._parse_op_return_payload(op_return + bytes([0x00, 0x51])) == bytes([0x00, 0x51])
+    assert PSBTParser._parse_op_return_payload(op_return + bytes([0x4f, 0x50])) == bytes([0x4f, 0x50])
+    assert PSBTParser._parse_op_return_payload(op_return + bytes([0x00, 4]) + b"data") == b"\x00data"
+    assert PSBTParser._parse_op_return_payload(op_return + bytes([OPCODES.OP_16])) == bytes([OPCODES.OP_16])
+
+
+
+def test_parse_op_return_payload_rejects_malformed_scripts():
+    """
+        Should raise PSBTMalformedOpReturnError when the script after OP_RETURN is not made
+        of complete pushes, which Bitcoin Core treats as nonstandard.
+    """
+    op_return = bytes([OPCODES.OP_RETURN])
+
+    malformed_scripts = [
+        # A direct push claiming more data than the script carries
+        op_return + bytes([10]) + b"abc",
+
+        # An OP_PUSHDATA1 push claiming more data than the script carries
+        op_return + bytes([OPCODES.OP_PUSHDATA1, 80]) + b"abc",
+
+        # OP_PUSHDATA1 with no length byte at all
+        op_return + bytes([OPCODES.OP_PUSHDATA1]),
+
+        # A truncated OP_PUSHDATA2 length field
+        op_return + bytes([OPCODES.OP_PUSHDATA2, 0x01]),
+
+        # A truncated OP_PUSHDATA4 length field
+        op_return + bytes([OPCODES.OP_PUSHDATA4, 0x01, 0x00, 0x00]),
+
+        # The first opcode past OP_16 is not a push, and neither is anything above it
+        op_return + bytes([OPCODES.OP_16 + 1]),
+        op_return + bytes([0xff]),
+
+        # A non-push opcode after a valid push; the whole script is checked
+        op_return + bytes([4]) + b"data" + bytes([0xac]),
+    ]
+    for script_data in malformed_scripts:
+        with pytest.raises(PSBTMalformedOpReturnError):
+            PSBTParser._parse_op_return_payload(script_data)
+
+    # The parser refuses the whole psbt, rather than parsing the rest of it
+    truncated_push = script.Script(op_return + bytes([10]) + b"abc")
+    psbt = create_op_return_psbt([create_op_return_output(b"", script_pubkey=truncated_push)])
+    with pytest.raises(PSBTMalformedOpReturnError):
+        PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
 
 
 
