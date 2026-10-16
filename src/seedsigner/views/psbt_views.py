@@ -4,11 +4,11 @@ from gettext import gettext as _
 
 from seedsigner.models.psbt_parser import (PSBTExtraneousInputScriptError,
     PSBTInputAmountVerificationError, PSBTInputOwnershipClaimError,
-    PSBTInputScriptMismatchError, PSBTMalformedOpReturnError,
-    PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
+    PSBTInputOwnershipContradictionError, PSBTInputScriptMismatchError,
+    PSBTMalformedOpReturnError, PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
     PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
-    PSBTSurplusDerivationPathsError)
+    PSBTSurplusDerivationPathsError, PSBTUnsupportedScriptPathError)
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
@@ -148,6 +148,14 @@ class PSBTOverviewView(View):
 
             except PSBTOutputOwnershipContradictionError:
                 self.set_redirect(Destination(PSBTOutputOwnershipContradictionView, clear_history=True))
+                return
+
+            except PSBTInputOwnershipContradictionError:
+                self.set_redirect(Destination(PSBTInputOwnershipContradictionView, clear_history=True))
+                return
+
+            except PSBTUnsupportedScriptPathError:
+                self.set_redirect(Destination(PSBTUnsupportedScriptPathView, clear_history=True))
                 return
 
             except PSBTNegativeFeeError:
@@ -718,6 +726,34 @@ class PSBTOutputOwnershipContradictionView(View):
 
 
 
+class PSBTInputOwnershipContradictionView(View):
+    """
+    Reached when the psbt claims one of this seed's keys on an input whose committed
+    script does not use that key (see PSBTInputOwnershipContradictionError).
+
+    We view this as an attack. We do not allow the user to continue and give this the
+    "Dire Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            DireWarningScreen,
+            title=_("Suspicious Transaction"),
+            status_headline=_("Likely an Attack!"),
+            # TRANSLATOR_NOTE: The transaction/psbt contains a deception that we consider an attack.
+            text=_("This transaction misrepresents which keys own an input."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
 class PSBTNegativeFeeView(View):
     """
     Reached when a psbt's outputs spend more than its inputs bring in (see
@@ -817,6 +853,33 @@ class PSBTExtraneousInputScriptView(View):
             status_headline=None,
             # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
             text=_("This transaction supplied an extra script for one of its inputs."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTUnsupportedScriptPathView(View):
+    """
+    Reached when this seed can sign an input only through a taproot script path spend
+    (see PSBTUnsupportedScriptPathError).
+
+    Script path spends are not yet supported, so this seed cannot sign the input. We do
+    not allow the user to continue, but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Not Yet Implemented"),
+            status_headline=None,
+            text=_("This transaction needs a taproot script path signature."),
             button_data=[self.DISCARD],
             show_back_button=False,
         )

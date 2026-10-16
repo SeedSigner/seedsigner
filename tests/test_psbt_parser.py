@@ -14,11 +14,11 @@ from embit.script import Script
 
 from seedsigner.models.psbt_parser import (OPCODES, PSBTExtraneousInputScriptError,
     PSBTInputAmountVerificationError, PSBTInputOwnershipClaimError,
-    PSBTInputScriptMismatchError, PSBTMalformedOpReturnError,
-    PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
+    PSBTInputOwnershipContradictionError, PSBTInputScriptMismatchError,
+    PSBTMalformedOpReturnError, PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
     PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
-    PSBTSurplusDerivationPathsError)
+    PSBTSurplusDerivationPathsError, PSBTUnsupportedScriptPathError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
@@ -1415,6 +1415,7 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         PSBTOutputOwnershipContradictionError:
           * p2wpkh input: a throwaway false claim
           * p2wpkh input: entries in both derivation path maps
+          * p2tr input: our only key in a script tree leaf
           * p2wpkh output: entries in both derivation path maps
           * p2wpkh output: more derivation path entries than it can use
           * p2tr output: more than one internal key claim
@@ -1460,6 +1461,22 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         # p2wpkh input: entries in both derivation path maps
         psbt = self._psbt_with_change()
         claim_seed_owns_key(psbt.inputs[0], taproot_derivation_path, taproot_public_key, is_taproot=True)
+        claim_a_stranger_on_the_change(psbt)
+        with pytest.raises(PSBTOutputOwnershipContradictionError):
+            self._parse(psbt)
+
+        # p2tr input: our only key in a script tree leaf
+        leaf_derivation_path = "m/86h/1h/0h/0/0"
+        leaf_public_key = self._root().derive(leaf_derivation_path).get_public_key()
+        merkle_root = tapleaf_hash(leaf_public_key)
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+        psbt.inputs[0].witness_utxo.script_pubkey = p2tr_with_script_tree(NUMS_INTERNAL_KEY, merkle_root)
+        # Drop the non_witness_utxo, which describes the original coin and contradicts
+        # the witness_utxo altered above.
+        psbt.inputs[0].non_witness_utxo = None
+        psbt.inputs[0].taproot_merkle_root = merkle_root
+        psbt.inputs[0].taproot_bip32_derivations.clear()
+        claim_seed_owns_key(psbt.inputs[0], leaf_derivation_path, leaf_public_key, is_taproot=True, leaf_hashes=[merkle_root])
         claim_a_stranger_on_the_change(psbt)
         with pytest.raises(PSBTOutputOwnershipContradictionError):
             self._parse(psbt)
@@ -2779,6 +2796,9 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
         the output's policy shape would match the input's (`None` == `None`) and so the
         parse would consider it as possible change. Rather than continue, we expect the
         catch-all safety check to spot the unsupported script type and raise RuntimeError.
+
+        Both the input's script check and the output's rebuild carry that catch-all; the
+        input's is the one reached first.
         """
         root = self._root()
 
@@ -3196,4 +3216,250 @@ class TestPSBTParserInputScripts(PSBTParserOwnershipTestBase):
         # (index 1), rather than the index 0 key that the scriptPubKey commits to.
         foreign_input.redeem_script = script.p2wpkh(foreign_public_key("m/49h/1h/0h/0/1"))
         with pytest.raises(PSBTInputScriptMismatchError):
+            self._parse(psbt)
+
+
+
+class TestPSBTParserInputOwnership(PSBTParserOwnershipTestBase):
+    """
+    A psbt annotates its inputs with claims about which keys control them. Our seed may
+    really derive a claimed key, but it's the script the input commits to that decides
+    which keys can spend it.
+
+    These tests cover claims of ours that the committed script does not use. They also
+    cover the taproot claims whose check needs the input's merkle root.
+    """
+    def test__parse__refuses_a_true_claim_planted_on_another_partys_input(self):
+        """
+        A coordinator that holds our account xpub can derive our keys itself. So it can
+        write a TRUE claim (our fingerprint along with a key our seed really derives) onto
+        another party's input, which our key has no part in.
+
+        The claim verifies, because it is true. But the input's committed script does not
+        use that key, so the parse should refuse the psbt with
+        PSBTInputOwnershipContradictionError.
+        """
+        planted_derivation_path = "m/84h/1h/7h/0/0"
+        planted_public_key = self._root().derive(planted_derivation_path).get_public_key()
+
+        psbt = self._psbt_with_change()
+
+        # Another party's input: a copy of ours, repointed at their key and carrying no
+        # derivation path entries
+        foreign_input = deepcopy(psbt.inputs[0])
+        foreign_input.bip32_derivations.clear()
+        foreign_input.witness_utxo.script_pubkey = script.p2wpkh(foreign_public_key())
+        # Drop the copied non_witness_utxo, which describes our own coin and contradicts
+        # the witness_utxo altered above.
+        foreign_input.non_witness_utxo = None
+        psbt.inputs.append(foreign_input)
+
+        # With no claim on it, the other party's input is simply not ours
+        psbt_parser = self._parse(psbt)
+        assert psbt_parser.verified_input_derivation_paths[1] == []
+
+        # Plant the true claim
+        claim_seed_owns_key(foreign_input, planted_derivation_path, planted_public_key)
+
+        with pytest.raises(PSBTInputOwnershipContradictionError):
+            self._parse(psbt)
+
+
+    def test__parse__refuses_a_decoy_entry_on_a_multisig_input(self):
+        """
+        The psbt adds a decoy entry to the user's own multisig input, along with the
+        seed's real cosigner entry. The decoy claims a key our seed does own, at a path
+        whose key the input's script has no use for.
+
+        The real entry is still in place, but the decoy is a claim the committed script
+        contradicts. So the parse should refuse the psbt with
+        PSBTInputOwnershipContradictionError.
+        """
+        decoy_derivation_path = "m/48h/1h/0h/2h/0/500"
+        decoy_public_key = self._root().derive(decoy_derivation_path).get_public_key()
+
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        claim_seed_owns_key(psbt.inputs[0], decoy_derivation_path, decoy_public_key)
+
+        with pytest.raises(PSBTInputOwnershipContradictionError):
+            self._parse(psbt)
+
+
+    def test__parse__keeps_both_keys_of_a_seed_holding_two_cosigner_slots(self):
+        """
+        A multisig can use one seed in two of its cosigner slots, each at its own
+        derivation path. It is a poor wallet, since that seed can spend alone, but it is
+        a valid one.
+
+        The user's 2-of-3 input is rebuilt with this seed in two slots plus one
+        stranger's key. Both of our keys are in the input's committed script, so the
+        parse should keep both derivation paths.
+        """
+        slot_a_derivation_path = "m/48h/1h/0h/2h/0/0"
+        slot_b_derivation_path = "m/48h/1h/1h/2h/0/0"
+
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        inp = psbt.inputs[0]
+        inp.bip32_derivations.clear()
+
+        # Our two keys, each claimed under our fingerprint
+        cosigner_public_keys = []
+        for derivation_path in (slot_a_derivation_path, slot_b_derivation_path):
+            public_key = self._root().derive(derivation_path).get_public_key()
+            cosigner_public_keys.append(public_key)
+            claim_seed_owns_key(inp, derivation_path, public_key)
+
+        # The stranger's key, claimed under their fingerprint
+        stranger_public_key = foreign_public_key("m/48h/1h/0h/2h/0/0")
+        cosigner_public_keys.append(stranger_public_key)
+        claim_seed_owns_key(inp, "m/48h/1h/0h/2h/0/0", stranger_public_key, seed=PSBTTestData.recipient_seed)
+
+        # Rebuild the input's script and the scriptPubKey that commits to it
+        inp.witness_script = script.multisig(2, cosigner_public_keys)
+        inp.witness_utxo.script_pubkey = script.p2wsh(inp.witness_script)
+        # Drop the non_witness_utxo, which describes the original coin and contradicts
+        # the witness_utxo altered above.
+        inp.non_witness_utxo = None
+
+        # embit signs with both of our keys
+        assert deepcopy(psbt).sign_with(self._root()) == 2
+
+        psbt_parser = self._parse(psbt)
+        assert [entry.derivation for entry in psbt_parser.verified_input_derivation_paths[0]] == [
+            bip32.parse_path(slot_a_derivation_path),
+            bip32.parse_path(slot_b_derivation_path),
+        ]
+
+
+    def test__parse__keeps_a_key_path_spend_from_an_address_built_over_a_script_tree(self):
+        """
+        A taproot address can commit to its internal key tweaked by a script tree's
+        merkle root and still be spent through the key path. The psbt supplies that
+        merkle root on the input, so the parse should rebuild the address from our
+        internal key and keep its derivation path.
+
+        BIP-371 also lets an input list the keys in its script tree leaves. With a key of
+        ours listed in the tree's leaf as well, the parse should still keep just the
+        internal key's derivation path.
+        """
+        internal_derivation_path = "m/86h/1h/0h/0/0"
+        internal_public_key = self._root().derive(internal_derivation_path).get_public_key()
+
+        # A script tree of one leaf, holding another of our keys. A one-leaf tree's
+        # merkle root is that leaf's hash.
+        leaf_derivation_path = "m/86h/1h/0h/0/1"
+        leaf_public_key = self._root().derive(leaf_derivation_path).get_public_key()
+        merkle_root = tapleaf_hash(leaf_public_key)
+
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+        inp = psbt.inputs[0]
+        inp.witness_utxo.script_pubkey = p2tr_with_script_tree(internal_public_key, merkle_root)
+        # Drop the non_witness_utxo, which describes the original coin and contradicts
+        # the witness_utxo altered above.
+        inp.non_witness_utxo = None
+        inp.taproot_merkle_root = merkle_root
+
+        # embit signs this input through its key path
+        assert deepcopy(psbt).sign_with(self._root()) == 1
+
+        psbt_parser = self._parse(psbt)
+        assert [entry.derivation for entry in psbt_parser.verified_input_derivation_paths[0]] == [bip32.parse_path(internal_derivation_path)]
+
+        # List our key in the leaf as well
+        claim_seed_owns_key(inp, leaf_derivation_path, leaf_public_key, is_taproot=True, leaf_hashes=[merkle_root])
+
+        psbt_parser = self._parse(psbt)
+        assert [entry.derivation for entry in psbt_parser.verified_input_derivation_paths[0]] == [bip32.parse_path(internal_derivation_path)]
+
+
+    def test__parse__refuses_an_internal_key_claim_that_its_merkle_root_contradicts(self):
+        """
+        The input's address commits to our internal key with no script tree, but the psbt
+        supplies a merkle root for it anyway. Our key tweaked by that merkle root is not
+        the key the input commits to. The psbt has supplied everything that check needs,
+        so the parse should refuse the psbt with PSBTInputOwnershipContradictionError.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+        psbt.inputs[0].taproot_merkle_root = tapleaf_hash(foreign_public_key())
+
+        with pytest.raises(PSBTInputOwnershipContradictionError):
+            self._parse(psbt)
+
+
+    def test__parse__drops_an_internal_key_claim_when_the_merkle_root_is_left_out(self):
+        """
+        The input's address commits to our internal key tweaked by a script tree, but the
+        psbt leaves out the input's merkle root, which is an optional field. Without it we
+        cannot rebuild the address, so the claim is neither confirmed nor contradicted.
+
+        The parse should drop the claim and treat that input as not ours. With another
+        input of ours, the psbt should still parse.
+        """
+        internal_derivation_path = "m/86h/1h/0h/0/0"
+        internal_public_key = self._root().derive(internal_derivation_path).get_public_key()
+        merkle_root = tapleaf_hash(foreign_public_key())
+
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+
+        # A second input: a copy of ours, at an address built over the script tree, with
+        # no merkle root supplied
+        script_tree_input = deepcopy(psbt.inputs[0])
+        script_tree_input.witness_utxo.script_pubkey = p2tr_with_script_tree(internal_public_key, merkle_root)
+        # Drop the copied non_witness_utxo, which describes our own coin and contradicts
+        # the witness_utxo altered above.
+        script_tree_input.non_witness_utxo = None
+        assert script_tree_input.taproot_merkle_root is None
+        psbt.inputs.append(script_tree_input)
+
+        psbt_parser = self._parse(psbt)
+        assert [entry.derivation for entry in psbt_parser.verified_input_derivation_paths[0]] == [bip32.parse_path(internal_derivation_path)]
+        assert psbt_parser.verified_input_derivation_paths[1] == []
+
+
+    def test__parse__refuses_a_taproot_map_claim_on_a_non_taproot_input(self):
+        """
+        The psbt claims one of our keys in the taproot map of the user's own p2wpkh
+        input, at a path whose key the input's script does not use. Only a taproot
+        input commits to a key tweaked by a merkle root, so a missing merkle root
+        explains nothing here. The parse should refuse the psbt with
+        PSBTInputOwnershipContradictionError, as it would the same claim in the
+        non-taproot map.
+        """
+        claimed_derivation_path = "m/86h/1h/0h/0/9"
+        claimed_public_key = self._root().derive(claimed_derivation_path).get_public_key()
+
+        # Our claim is the input's only entry, written into the taproot map
+        psbt = self._psbt_with_change()
+        psbt.inputs[0].bip32_derivations.clear()
+        claim_seed_owns_key(psbt.inputs[0], claimed_derivation_path, claimed_public_key, is_taproot=True)
+        assert psbt.inputs[0].taproot_merkle_root is None
+
+        with pytest.raises(PSBTInputOwnershipContradictionError):
+            self._parse(psbt)
+
+
+    def test__parse__refuses_an_input_this_seed_can_sign_only_through_a_script_path(self):
+        """
+        The input's address is built for script path spends only. Its internal key is the
+        provably unspendable NUMS point. Our key is in its script tree's one leaf.
+        Script path spends are not yet supported, so the parse should refuse the psbt with
+        PSBTUnsupportedScriptPathError.
+        """
+        leaf_derivation_path = "m/86h/1h/0h/0/0"
+        leaf_public_key = self._root().derive(leaf_derivation_path).get_public_key()
+        merkle_root = tapleaf_hash(leaf_public_key)
+
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+        inp = psbt.inputs[0]
+        inp.witness_utxo.script_pubkey = p2tr_with_script_tree(NUMS_INTERNAL_KEY, merkle_root)
+        # Drop the non_witness_utxo, which describes the original coin and contradicts
+        # the witness_utxo altered above.
+        inp.non_witness_utxo = None
+        inp.taproot_merkle_root = merkle_root
+
+        # Our key is now claimed only as the key in the leaf
+        inp.taproot_bip32_derivations.clear()
+        claim_seed_owns_key(inp, leaf_derivation_path, leaf_public_key, is_taproot=True, leaf_hashes=[merkle_root])
+
+        with pytest.raises(PSBTUnsupportedScriptPathError):
             self._parse(psbt)

@@ -109,6 +109,17 @@ class PSBTOutputOwnershipContradictionError(PSBTVerificationError):
     pass
 
 
+class PSBTInputOwnershipContradictionError(PSBTVerificationError):
+    """
+    The psbt's account of which keys control an input contradicts the script that input
+    commits to. It claims one of this seed's keys on the input. Our seed really does
+    derive that key, but the committed script does not use it.
+
+    We treat this deception as an attack.
+    """
+    pass
+
+
 class PSBTInputAmountVerificationError(PSBTVerificationError):
     """
     An input's declared amount is unproven or false, so the fee displayed cannot be trusted.
@@ -175,6 +186,16 @@ class PSBTExtraneousInputScriptError(PSBTVerificationError):
     segwit).
 
     We don't try to decide whether this is an attack or a mistake.
+    """
+    pass
+
+
+class PSBTUnsupportedScriptPathError(PSBTVerificationError):
+    """
+    This seed can sign an input only through a taproot script path spend, because the
+    keys of ours that the input claims are keys in its script tree leaves.
+
+    Script path spends are not yet supported.
     """
     pass
 
@@ -276,8 +297,10 @@ class PSBTParser():
 
         # Contains one entry per input in psbt.inputs and per output in psbt.outputs. Each
         # entry lists every derivation path the seed genuinely owns there, in the order
-        # the psbt lists them. An input or output that does not claim any of our keys
-        # gets an empty list, as does an input carrying a held finding (see parse()).
+        # the psbt lists them. On an input, the key at each listed path is also one the
+        # input's committed script spends with. An input or output that does not claim
+        # any of our keys gets an empty list, as does an input carrying a held finding
+        # (see parse()).
         self.verified_input_derivation_paths: List[List[DerivationPath]] = []
         self.verified_output_derivation_paths: List[List[DerivationPath]] = []
 
@@ -334,9 +357,10 @@ class PSBTParser():
              script it commits to and no others.
 
           4. _parse_inputs: determines which inputs this seed can sign, and the wallet
-             policy. An input's claims on this seed are verified. Every input must resolve
-             to the same policy otherwise a RuntimeError is raised (TODO: replace the
-             RuntimeError with a PSBTVerificationError subclass so the View can
+             policy. An input's claims on this seed are verified. Each verified claim must
+             also be a key that the input's committed script uses. Every input must
+             resolve to the same policy otherwise a RuntimeError is raised (TODO: replace
+             the RuntimeError with a PSBTVerificationError subclass so the View can
              deliberately catch this scenario and route accordingly).
 
              A policy is one of:
@@ -374,6 +398,7 @@ class PSBTParser():
           * a false claim on an input.
           * an input or output with entries in both derivation path maps.
           * an output claiming more derivation path entries than it can use.
+          * an input that this seed can sign only through a taproot script path spend.
 
         Optimization via child_key_derivation_cache:
         Parsing traverses a derivation path down to an individual address one level at a
@@ -538,6 +563,14 @@ class PSBTParser():
         Verifies each input's claims on this seed and determines the wallet policy.
         Perceived attacks are raised immediately. Milder errors are held (see parse()).
         Every input must resolve to the same policy, otherwise a RuntimeError is raised.
+
+        First we re-derive each key the input claims for our seed, which confirms that the
+        key is ours. But the script an input commits to is what decides who can spend it;
+        the coordinator could attach our key to an input that someone else owns. So we
+        then confirm that the committed script does indeed use our key.
+
+        We need to be certain which inputs are ours because they determine what a valid
+        change output should look like.
         """
         self.num_inputs = len(self.psbt.inputs)
         self.verified_input_derivation_paths = []
@@ -564,7 +597,62 @@ class PSBTParser():
                     # which is allowed by BIP-174 and BIP-78.
                     raise RuntimeError("Mixed inputs in the transaction")
 
-            self.verified_input_derivation_paths.append(verified_derivation_paths)
+            # Now check each verified claim against the input's committed script. We read
+            # the entries from the input's own maps so that each taproot entry's leaf
+            # hashes come with it.
+            script_committed_derivation_paths = []
+            has_leaf_key_claim = False
+
+            for public_key, derivation_path_obj in inp.bip32_derivations.items():
+                if derivation_path_obj not in verified_derivation_paths:
+                    # We check only the claims on our seed that verified above
+                    continue
+
+                seed_public_key = PSBTParser._derive_with_cache_via_derivation_path(self.root, derivation_path_obj, child_key_derivation_cache).get_public_key()
+                if not PSBTParser._input_spends_with_key(inp, inp_policy, script_pubkey, seed_public_key):
+                    # The psbt said this input is controlled by our key at that path, but
+                    # the input's committed script does not use that key. We treat this
+                    # deception as an attack.
+                    raise PSBTInputOwnershipContradictionError(f"Input claims this seed at {bip32.path_to_str(derivation_path_obj.derivation)} but its committed script does not use that key")
+
+                script_committed_derivation_paths.append(derivation_path_obj)
+
+            for public_key, (leaf_hashes, derivation_path_obj) in inp.taproot_bip32_derivations.items():
+                if derivation_path_obj not in verified_derivation_paths:
+                    # We check only the claims on our seed that verified above
+                    continue
+
+                seed_public_key = PSBTParser._derive_with_cache_via_derivation_path(self.root, derivation_path_obj, child_key_derivation_cache).get_public_key()
+                if PSBTParser._input_spends_with_key(inp, inp_policy, script_pubkey, seed_public_key):
+                    script_committed_derivation_paths.append(derivation_path_obj)
+
+                elif leaf_hashes:
+                    # This entry lists the script tree leaves its key appears in. Signing
+                    # with a key in a leaf takes a script path spend, which we do not
+                    # support yet, so this entry is dropped.
+                    has_leaf_key_claim = True
+
+                elif inp_policy["type"] == "p2tr" and inp.taproot_merkle_root is None:
+                    # The psbt claims our key as this input's internal key. The input may
+                    # commit to that key tweaked by a script tree, but the psbt did not
+                    # supply the tree's merkle root, so we cannot rebuild the tweak. An
+                    # omitted optional field is not a contradiction, so this entry is
+                    # dropped.
+                    pass
+
+                else:
+                    # The psbt said this input is controlled by our key at that path, but
+                    # the input's committed script does not use that key. We treat this
+                    # deception as an attack.
+                    raise PSBTInputOwnershipContradictionError(f"Input claims this seed at {bip32.path_to_str(derivation_path_obj.derivation)} but its committed script does not use that key")
+
+            if script_committed_derivation_paths == [] and has_leaf_key_claim:
+                # None of our claims on this input passed. At least one of them is a key
+                # in a script tree leaf, so this seed could only sign the input through a
+                # script path spend. Held rather than raised (see parse()).
+                self.held_findings.append(PSBTUnsupportedScriptPathError("Input can only be signed through a taproot script path spend"))
+
+            self.verified_input_derivation_paths.append(script_committed_derivation_paths)
 
 
     @staticmethod
@@ -647,6 +735,49 @@ class PSBTParser():
 
         if inp.witness_script is not None and not expects_witness_script:
             raise PSBTExtraneousInputScriptError("Input supplied a witness script its scriptPubKey does not commit to")
+
+
+    @staticmethod
+    def _input_spends_with_key(inp: InputScope, inp_policy: dict, script_pubkey: script.Script, public_key: PublicKey) -> bool:
+        """
+        Answers whether public_key is one of the keys that the input actually spends
+        with.
+
+        Single sig: rebuild the scriptPubKey from the key and compare it to the input's
+        committed scriptPubKey.
+
+        Taproot: a key path spend uses the internal key tweaked by the input's merkle root
+        (an empty one when the psbt supplies none). That is the same tweak embit signs
+        with, so we rebuild the scriptPubKey from the key tweaked that way. A key in a
+        script tree leaf rebuilds some other scriptPubKey, so it gets False here.
+
+        Multisig: look for the key among the pubkeys in the supplied script.
+        _verify_input_scripts has already tied that script to the scriptPubKey, directly
+        for p2wsh and legacy p2sh, and through the redeem script for nested segwit. So its
+        pubkeys are the ones the input really spends with.
+        """
+        policy_type = inp_policy["type"]
+
+        if policy_type == "p2tr":
+            tweaked_public_key = public_key.taproot_tweak(inp.taproot_merkle_root or b"")
+            OP_1 = b"\x51"  # segwit version byte
+            OP_PUSHBYTES_32 = b"\x20"
+            return OP_1 + OP_PUSHBYTES_32 + tweaked_public_key.xonly() == script_pubkey.data
+
+        if policy_type in ("p2pkh", "p2sh-p2wpkh", "p2wpkh"):
+            return PSBTParser._build_singlesig_script(policy_type, public_key).data == script_pubkey.data
+
+        if policy_type in ("p2wsh", "p2sh-p2wsh"):
+            multisig_script = inp.witness_script
+        elif policy_type == "p2sh":
+            multisig_script = inp.redeem_script
+        else:
+            # Safety catch-all: any new script types will need explicit handling
+            # above. Note that embit reports unrecognized script types as `None`,
+            # which is also caught here.
+            raise RuntimeError(f"Unsupported policy type: {policy_type}")
+
+        return PSBTParser._multisig_script_contains_key(multisig_script, public_key)
 
 
     def _hold_output_finding(self, output_index: int, finding: PSBTVerificationError):
@@ -1543,16 +1674,12 @@ class PSBTParser():
         (embit's sign_with is marginally more permissive: it also signs an input whose
         script names the master key directly, with no derivation. That runs against how HD
         wallets are built. The master key is a derivation root, not a spending key, so no
-        standard wallet produces such a psbt. We deliberately ignore this case.
-
-        Similarly, it's not worth the effort to verify that each key is included in its
-        input's script. A psbt that excludes a key in that way would be nonsensical but
-        harmless: the excluded key cannot spend the input, so nothing of this seed's is
-        at risk.)
+        standard wallet produces such a psbt. We deliberately ignore this case.)
         """
         # An input claims a key at a derivation path. _parse_inputs proved that the seed
-        # derives that key (single-sig: one such key; multisig: one per cosigner, ours
-        # among them). One verified input path is enough for the psbt to be signable.
+        # derives that key and that the input's committed script uses it (single-sig: one
+        # such key; multisig: one per cosigner, ours among them). One verified input path
+        # is enough for the psbt to be signable.
         for verified_derivation_paths in self.verified_input_derivation_paths:
             if len(verified_derivation_paths) > 0:
                 return
