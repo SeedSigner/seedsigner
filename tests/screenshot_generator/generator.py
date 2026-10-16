@@ -454,6 +454,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTSurplusDerivationPathsView),
                 ScreenshotConfig(psbt_views.PSBTMixedDerivationPathTypesView),
                 ScreenshotConfig(psbt_views.PSBTMalformedOpReturnView),
+                ScreenshotConfig(psbt_views.PSBTUnsupportedDerivationPathView),
                 ScreenshotConfig(psbt_views.PSBTOutputOwnershipContradictionView),
                 ScreenshotConfig(psbt_views.PSBTInputOwnershipContradictionView),
                 ScreenshotConfig(psbt_views.PSBTMissingInputScriptView),

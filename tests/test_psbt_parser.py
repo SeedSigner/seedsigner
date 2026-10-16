@@ -18,7 +18,8 @@ from seedsigner.models.psbt_parser import (OPCODES, PSBTExtraneousInputScriptErr
     PSBTMalformedOpReturnError, PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
     PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
-    PSBTSurplusDerivationPathsError, PSBTUnsupportedScriptPathError)
+    PSBTSurplusDerivationPathsError, PSBTUnsupportedDerivationPathError,
+    PSBTUnsupportedScriptPathError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
@@ -1415,8 +1416,10 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         PSBTOutputOwnershipContradictionError:
           * p2wpkh input: a throwaway false claim
           * p2wpkh input: entries in both derivation path maps
+          * p2wpkh input: a claim on this seed's master key
           * p2tr input: our only key in a script tree leaf
           * p2wpkh output: entries in both derivation path maps
+          * p2wpkh output: a claim on this seed's master key
           * p2wpkh output: more derivation path entries than it can use
           * p2tr output: more than one internal key claim
           * p2wsh output: more derivation path entries than its script has keys
@@ -1465,6 +1468,13 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         with pytest.raises(PSBTOutputOwnershipContradictionError):
             self._parse(psbt)
 
+        # p2wpkh input: a claim on this seed's master key
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.inputs[0], "m", self._root().get_public_key())
+        claim_a_stranger_on_the_change(psbt)
+        with pytest.raises(PSBTOutputOwnershipContradictionError):
+            self._parse(psbt)
+
         # p2tr input: our only key in a script tree leaf
         leaf_derivation_path = "m/86h/1h/0h/0/0"
         leaf_public_key = self._root().derive(leaf_derivation_path).get_public_key()
@@ -1485,6 +1495,15 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         psbt = self._psbt_with_change()
         other_output = create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE, 10_000)
         claim_seed_owns_key(other_output, taproot_derivation_path, taproot_public_key, is_taproot=True)
+        psbt.outputs.insert(0, other_output)
+        claim_a_stranger_on_the_change(psbt)
+        with pytest.raises(PSBTOutputOwnershipContradictionError):
+            self._parse(psbt)
+
+        # p2wpkh output: a claim on this seed's master key
+        psbt = self._psbt_with_change()
+        other_output = create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE, 10_000)
+        claim_seed_owns_key(other_output, "m", self._root().get_public_key())
         psbt.outputs.insert(0, other_output)
         claim_a_stranger_on_the_change(psbt)
         with pytest.raises(PSBTOutputOwnershipContradictionError):
@@ -1746,6 +1765,75 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         for seed in [PSBTTestData.seed, PSBTTestData.multisig_key_2, PSBTTestData.multisig_key_3]:
             psbt_parser = PSBTParser(psbt, seed, network=SettingsConstants.REGTEST)
             assert psbt_parser.verified_input_derivation_paths[0] != []
+
+
+    def test__parse__refuses_a_claim_at_a_derivation_path_too_short_for_a_wallet(self):
+        """
+        A derivation path entry with no levels at all points at the seed's master key.
+        That key is a derivation root, not one any wallet spends from or receives at. No
+        wallet writes an entry at that path, though embit would sign an input built on it
+        anyway. A path of one level is too short to hold both a branch and an address
+        index. No wallet spends from a path that short either.
+
+        So the parse should refuse the psbt with PSBTUnsupportedDerivationPathError:
+          * an input claiming the master key
+          * an output claiming the master key
+          * an input claiming a key at a one-level path
+
+        A forged claim should report as PSBTOutputOwnershipClaimError instead, whether it
+        is at the empty path itself or listed after a true claim on the master key.
+        """
+        root = self._root()
+        master_public_key = root.get_public_key()
+        one_level_public_key = root.derive("m/5").get_public_key()
+
+        # input: claim the master key, on an input that the master key really does
+        # control
+        psbt = self._psbt_with_change()
+        psbt.inputs[0].bip32_derivations.clear()
+        psbt.inputs[0].witness_utxo.script_pubkey = script.p2wpkh(master_public_key)
+        # Drop the non_witness_utxo, which describes the original coin and contradicts
+        # the witness_utxo altered above.
+        psbt.inputs[0].non_witness_utxo = None
+        claim_seed_owns_key(psbt.inputs[0], "m", master_public_key)
+
+        # embit is willing to sign it
+        assert deepcopy(psbt).sign_with(root) > 0
+
+        with pytest.raises(PSBTUnsupportedDerivationPathError):
+            self._parse(psbt)
+
+        # output: claim the master key, with the input left honest
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.outputs[0], "m", master_public_key)
+        with pytest.raises(PSBTUnsupportedDerivationPathError):
+            self._parse(psbt)
+
+        # input: claim a key at a one-level path, on an input that key really does
+        # control
+        psbt = self._psbt_with_change()
+        psbt.inputs[0].bip32_derivations.clear()
+        psbt.inputs[0].witness_utxo.script_pubkey = script.p2wpkh(one_level_public_key)
+        # Drop the non_witness_utxo, which describes the original coin and contradicts
+        # the witness_utxo altered above.
+        psbt.inputs[0].non_witness_utxo = None
+        claim_seed_owns_key(psbt.inputs[0], "m/5", one_level_public_key)
+        with pytest.raises(PSBTUnsupportedDerivationPathError):
+            self._parse(psbt)
+
+        # output: claim the master key over someone else's key. The forged claim is the
+        # more serious finding, so that is the one reported.
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.outputs[0], "m", foreign_public_key())
+        with pytest.raises(PSBTOutputOwnershipClaimError):
+            self._parse(psbt)
+
+        # output: a true claim on the master key, then a forged claim listed after it
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.outputs[0], "m", master_public_key)
+        claim_seed_owns_key(psbt.outputs[0], "m/84h/1h/0h/1/9", foreign_public_key())
+        with pytest.raises(PSBTOutputOwnershipClaimError):
+            self._parse(psbt)
 
 
     def test_a_psbt_with_no_utxos_is_rejected_rather_than_crashing(self):

@@ -190,6 +190,20 @@ class PSBTExtraneousInputScriptError(PSBTVerificationError):
     pass
 
 
+class PSBTUnsupportedDerivationPathError(PSBTVerificationError):
+    """
+    An input or output claims one of this seed's keys at a derivation path too short for
+    any wallet to use:
+      * the empty path, which is the master key itself. That key is a derivation root
+        rather than a key any wallet spends from or receives at.
+      * on an input, a path of one level, too short to hold both a branch and an
+        address index.
+
+    We don't try to decide whether this is an attack or a mistake.
+    """
+    pass
+
+
 class PSBTUnsupportedScriptPathError(PSBTVerificationError):
     """
     This seed can sign an input only through a taproot script path spend, because the
@@ -397,6 +411,8 @@ class PSBTParser():
         These findings are held:
           * a false claim on an input.
           * an input or output with entries in both derivation path maps.
+          * an input or output claiming one of our keys at a derivation path too short
+            for any wallet to use.
           * an output claiming more derivation path entries than it can use.
           * an input that this seed can sign only through a taproot script path spend.
 
@@ -578,7 +594,7 @@ class PSBTParser():
             # Verify every entry on this input that claims our fingerprint
             try:
                 verified_derivation_paths = PSBTParser._get_seed_derivation_paths(inp, self.root, child_key_derivation_cache)
-            except (PSBTInputOwnershipClaimError, PSBTMixedDerivationPathTypesError) as e:
+            except (PSBTInputOwnershipClaimError, PSBTMixedDerivationPathTypesError, PSBTUnsupportedDerivationPathError) as e:
                 # Held rather than raised (see parse()), and this input is treated as
                 # not ours.
                 self.held_findings.append(e)
@@ -1603,9 +1619,12 @@ class PSBTParser():
         derives from our seed. What those entries mean for the psbt is determined
         elsewhere.
 
-        The path itself is still whatever the psbt supplied: it can be any length or
-        shape, since any path that derives from the seed will pass. Whether the path is
-        one the user's wallet would ever look at is a separate question.
+        The path itself is still whatever the psbt supplied, so a last check refuses one
+        too short for any wallet to use: the empty path, which is the master key itself,
+        and on an input a path of one level. Each raises
+        PSBTUnsupportedDerivationPathError. Any longer path that derives from the seed
+        passes, whatever its shape. Whether the path is one the user's wallet would ever
+        look at is a separate question.
         """
         seed_fingerprint = root.my_fingerprint
         verified_derivation_paths = []
@@ -1635,6 +1654,20 @@ class PSBTParser():
         if scope.bip32_derivations and scope.taproot_bip32_derivations:
             raise PSBTMixedDerivationPathTypesError("Scope declares both ecdsa and taproot derivation paths")
 
+        # Also checked after the loops, for the same reason
+        for verified_derivation_path in verified_derivation_paths:
+            if len(verified_derivation_path.derivation) == 0:
+                # A path with no levels is the master key itself. That key is a derivation
+                # root, never a spending key. No wallet writes an entry at that path. We
+                # refuse the psbt rather than skip the entry, on inputs and outputs alike
+                # (embit would sign an input built on it).
+                raise PSBTUnsupportedDerivationPathError("The psbt claims this seed's master key, which is not a spending key")
+
+            if len(verified_derivation_path.derivation) == 1 and isinstance(scope, InputScope):
+                # A one-level path is too short to hold both a branch and an address
+                # index. No wallet spends from a path that short.
+                raise PSBTUnsupportedDerivationPathError(f"Input claims this seed at {bip32.path_to_str(verified_derivation_path.derivation)}, a path too short for a wallet")
+
         return verified_derivation_paths
 
 
@@ -1658,7 +1691,7 @@ class PSBTParser():
         for i, out in enumerate(self.psbt.outputs):
             try:
                 verified_derivation_paths = PSBTParser._get_seed_derivation_paths(out, self.root, child_key_derivation_cache)
-            except PSBTMixedDerivationPathTypesError as e:
+            except (PSBTMixedDerivationPathTypesError, PSBTUnsupportedDerivationPathError) as e:
                 self._hold_output_finding(i, e)
                 verified_derivation_paths = []
             self.verified_output_derivation_paths.append(verified_derivation_paths)

@@ -397,6 +397,27 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         ])
 
 
+    def test_master_key_claim_terminates_signing_flow(self):
+        """
+        The psbt claims this seed on an output at a derivation path with no levels, which
+        is the seed's master key. That key is a derivation root rather than one any wallet
+        receives at. No standard wallet writes an entry at that path.
+
+        It ends the flow at its own warning before any transaction detail is rendered.
+        """
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.outputs[0], "m", root_for_seed(PSBTTestData.seed).get_public_key())
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnsupportedDerivationPathView, button_data_selection=psbt_views.PSBTUnsupportedDerivationPathView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
     def test_missing_input_script_terminates_signing_flow(self):
         """
         The psbt leaves out the witness script that a p2wsh input commits to.

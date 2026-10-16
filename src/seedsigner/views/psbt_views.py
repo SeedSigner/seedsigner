@@ -8,7 +8,8 @@ from seedsigner.models.psbt_parser import (PSBTExtraneousInputScriptError,
     PSBTMalformedOpReturnError, PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
     PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
-    PSBTSurplusDerivationPathsError, PSBTUnsupportedScriptPathError)
+    PSBTSurplusDerivationPathsError, PSBTUnsupportedDerivationPathError,
+    PSBTUnsupportedScriptPathError)
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
@@ -132,6 +133,10 @@ class PSBTOverviewView(View):
 
             except PSBTMalformedOpReturnError:
                 self.set_redirect(Destination(PSBTMalformedOpReturnView, clear_history=True))
+                return
+
+            except PSBTUnsupportedDerivationPathError:
+                self.set_redirect(Destination(PSBTUnsupportedDerivationPathView, clear_history=True))
                 return
 
             except PSBTMissingInputScriptError:
@@ -447,8 +452,7 @@ class PSBTChangeDetailsView(View):
         verified_derivation_path = change_data.get("verified_derivation_path")
         is_change_derivation_path = PSBTParser.is_change_branch(verified_derivation_path)
 
-        # TODO: Refuse a path too short to carry a branch and an address index; until then
-        # this can raise on a malformed psbt.
+        # TODO: Refuse a path too short to carry a branch and an address index
         derivation_path_addr_index = verified_derivation_path[-1]
 
         if is_change_derivation_path:
@@ -687,6 +691,36 @@ class PSBTMalformedOpReturnView(View):
             status_headline=None,
             # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
             text=_("This transaction's OP_RETURN data is malformed."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTUnsupportedDerivationPathView(View):
+    """
+    Reached when a psbt claims one of this seed's keys at a derivation path too short for
+    any wallet to use, such as the seed's master key itself (see
+    PSBTUnsupportedDerivationPathError).
+
+    We do not try to decide whether this is an attack or a mistake; no standard wallet
+    writes a claim at a path that short either way. We do not allow the user to continue,
+    but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
+            text=_("This transaction uses a key of yours that this device will not sign with."),
             button_data=[self.DISCARD],
             show_back_button=False,
         )
