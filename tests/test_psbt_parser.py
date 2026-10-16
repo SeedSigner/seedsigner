@@ -1183,10 +1183,8 @@ class TestPSBTParserOptimizations:
 
 class PSBTParserOwnershipTestBase:
     """
-    Base class for the test classes below. Provides:
-      * the signing seed
-      * a psbt made of nothing but that seed's own scopes
-      * the parse call under test.
+    Shared fixtures for tests of how PSBTParser verifies a psbt's claims about its inputs
+    and outputs.
     """
     seed = PSBTTestData.seed
 
@@ -1207,6 +1205,11 @@ class PSBTParserOwnershipTestBase:
         psbt = PSBT.parse(a2b_base64(input_base64))
         psbt.outputs.append(create_output(change_hex, 10_000))
         return psbt
+
+
+    def _foreign_multisig_script(self) -> script.Script:
+        """A 2-of-3 built entirely from someone else's keys."""
+        return script.multisig(2, [foreign_public_key(f"m/48h/1h/0h/2h/0/{i}") for i in range(3)])
 
 
     def _parse(self, psbt: PSBT) -> PSBTParser:
@@ -1623,11 +1626,6 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
     These tests cover invalid claims as well as the ways that the claims and the script
     can disagree and how PSBTParser handles such discrepancies.
     """
-    def _foreign_multisig_script(self) -> script.Script:
-        """A 2-of-3 built entirely from someone else's keys."""
-        return script.multisig(2, [foreign_public_key(f"m/48h/1h/0h/2h/0/{i}") for i in range(3)])
-
-
     def _rebuild_around_foreign_keys(self, out: OutputScope):
         """
         Replace a multisig output's script to pay to a different quorum made entirely of
@@ -2879,11 +2877,6 @@ class TestPSBTParserInputScripts(PSBTParserOwnershipTestBase):
     the parser requiring that script, requiring it to be the right one, and refusing an
     extraneous one.
     """
-    def _foreign_multisig_script(self) -> script.Script:
-        """A 2-of-3 built entirely from someone else's keys."""
-        return script.multisig(2, [foreign_public_key(f"m/48h/1h/0h/2h/0/{i}") for i in range(3)])
-
-
     def _add_foreign_nested_segwit_input(self, psbt: PSBT, derivation_path: str = "m/49h/1h/0h/0/0"):
         """
         Adds a p2sh-p2wpkh input spending from another party's key with no derivation
