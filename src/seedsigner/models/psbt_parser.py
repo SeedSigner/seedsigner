@@ -493,8 +493,8 @@ class PSBTParser():
 
     def _parse_inputs(self, child_key_derivation_cache: dict):
         """
-        Determines the wallet policy. Every input must resolve to the same policy,
-        otherwise a RuntimeError is raised.
+        Verifies each input's scripts and determines the wallet policy. Every input must
+        resolve to the same policy, otherwise a RuntimeError is raised.
         """
         self.num_inputs = len(self.psbt.inputs)
         for inp in self.psbt.inputs:
