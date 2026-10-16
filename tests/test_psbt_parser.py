@@ -1391,11 +1391,11 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
 
     def test__parse__forged_output_claim_outranks_forged_input_claim(self):
         """
-        The scan stops at the first false claim, so scan order decides which error the
-        psbt is reported with. A false output claim is the fake-change forgery and must
-        be the one reported even when the same psbt also carries a false input claim --
-        otherwise an attacker could plant a throwaway input claim just to be routed to
-        the milder input-scope warning.
+        A false output claim is the fake-change forgery and must be the one reported even
+        when the same psbt also carries a false input claim; otherwise an attacker could
+        plant a throwaway input claim just to be routed to the milder input-scope
+        warning. The scan checks outputs first and stops at the first false output
+        claim, so the input claim is never reached.
         """
         psbt = self._psbt_with_change()
         claim_seed_owns_key(psbt.inputs[0], "m/84h/1h/0h/0/0", foreign_public_key())
@@ -1403,6 +1403,119 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
 
         # The output error is the more severe issue
         with pytest.raises(PSBTOutputOwnershipClaimError):
+            self._parse(psbt)
+
+
+    def test__parse__held_findings_wait_for_an_output_contradiction(self):
+        """
+        Each psbt below carries a finding milder than an attack, along with a change
+        output that pays our key while its entry claims a stranger's fingerprint. That
+        contradiction is only found once the outputs are read, after the milder finding.
+        So the parse should hold the milder finding, read the outputs, and report
+        PSBTOutputOwnershipContradictionError:
+          * p2wpkh input: a throwaway false claim
+          * p2wpkh input: entries in both derivation path maps
+          * p2wpkh output: entries in both derivation path maps
+          * p2wpkh output: more derivation path entries than it can use
+          * p2tr output: more than one internal key claim
+          * p2wsh output: more derivation path entries than its script has keys
+
+        Each finding on an output is placed on a second output, listed ahead of the change.
+        """
+        def claim_a_stranger_on_the_change(psbt: PSBT):
+            """
+            Re-lists each of our entries on the change output under a stranger's
+            fingerprint, keeping its path, so the output still pays our key. Callers list
+            the change output last.
+            """
+            change_output = psbt.outputs[-1]
+            our_fingerprint = self._root().my_fingerprint
+            stranger_fingerprint = root_for_seed(PSBTTestData.recipient_seed).my_fingerprint
+
+            # Our entries in the non-taproot map
+            for public_key, derivation_path_obj in list(change_output.bip32_derivations.items()):
+                if derivation_path_obj.fingerprint == our_fingerprint:
+                    change_output.bip32_derivations[public_key] = DerivationPath(stranger_fingerprint, derivation_path_obj.derivation)
+
+            # Our entries in the taproot map
+            for public_key, (leaf_hashes, derivation_path_obj) in list(change_output.taproot_bip32_derivations.items()):
+                if derivation_path_obj.fingerprint == our_fingerprint:
+                    change_output.taproot_bip32_derivations[public_key] = (leaf_hashes, DerivationPath(stranger_fingerprint, derivation_path_obj.derivation))
+
+        # A true claim on a key this seed owns, for the taproot map
+        taproot_derivation_path = "m/86h/1h/0h/1/9"
+        taproot_public_key = self._root().derive(taproot_derivation_path).get_public_key()
+
+        # A true claim on a second key this seed owns, for the non-taproot map
+        decoy_derivation_path = "m/84h/1h/0h/1/9"
+        decoy_public_key = self._root().derive(decoy_derivation_path).get_public_key()
+
+        # p2wpkh input: a throwaway false claim
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.inputs[0], "m/84h/1h/0h/0/0", foreign_public_key())
+        claim_a_stranger_on_the_change(psbt)
+        with pytest.raises(PSBTOutputOwnershipContradictionError):
+            self._parse(psbt)
+
+        # p2wpkh input: entries in both derivation path maps
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.inputs[0], taproot_derivation_path, taproot_public_key, is_taproot=True)
+        claim_a_stranger_on_the_change(psbt)
+        with pytest.raises(PSBTOutputOwnershipContradictionError):
+            self._parse(psbt)
+
+        # p2wpkh output: entries in both derivation path maps
+        psbt = self._psbt_with_change()
+        other_output = create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE, 10_000)
+        claim_seed_owns_key(other_output, taproot_derivation_path, taproot_public_key, is_taproot=True)
+        psbt.outputs.insert(0, other_output)
+        claim_a_stranger_on_the_change(psbt)
+        with pytest.raises(PSBTOutputOwnershipContradictionError):
+            self._parse(psbt)
+
+        # p2wpkh output: more derivation path entries than it can use
+        psbt = self._psbt_with_change()
+        other_output = create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE, 10_000)
+        claim_seed_owns_key(other_output, decoy_derivation_path, decoy_public_key)
+        psbt.outputs.insert(0, other_output)
+        claim_a_stranger_on_the_change(psbt)
+        with pytest.raises(PSBTOutputOwnershipContradictionError):
+            self._parse(psbt)
+
+        # p2tr output: more than one internal key claim
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+        other_output = create_output(PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE, 10_000)
+        claim_seed_owns_key(other_output, taproot_derivation_path, taproot_public_key, is_taproot=True)
+        psbt.outputs.insert(0, other_output)
+        claim_a_stranger_on_the_change(psbt)
+        with pytest.raises(PSBTOutputOwnershipContradictionError):
+            self._parse(psbt)
+
+        # p2wsh output: more derivation path entries than its script has keys
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        other_output = deepcopy(psbt.outputs[0])
+        claim_seed_owns_key(other_output, "m/48h/1h/0h/2h/1/9", foreign_public_key("m/48h/1h/0h/2h/1/9"), seed=PSBTTestData.recipient_seed)
+        psbt.outputs.insert(0, other_output)
+        claim_a_stranger_on_the_change(psbt)
+        with pytest.raises(PSBTOutputOwnershipContradictionError):
+            self._parse(psbt)
+
+
+    def test__parse__reports_the_first_held_finding(self):
+        """
+        The psbt carries two findings milder than an attack: a false claim on its input,
+        found while the inputs are read, and a second derivation path entry on its change
+        output, found later while the outputs are read. The parse should report the one
+        it found first, PSBTInputOwnershipClaimError.
+        """
+        decoy_derivation_path = "m/84h/1h/0h/1/9"
+        decoy_public_key = self._root().derive(decoy_derivation_path).get_public_key()
+
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.inputs[0], "m/84h/1h/0h/0/0", foreign_public_key())
+        claim_seed_owns_key(psbt.outputs[0], decoy_derivation_path, decoy_public_key)
+
+        with pytest.raises(PSBTInputOwnershipClaimError):
             self._parse(psbt)
 
 
@@ -1585,6 +1698,26 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         assert psbt.sign_with(root) == 0
 
 
+    def test__parse__reports_a_bad_input_script_ahead_of_the_wrong_seed(self):
+        """
+        The user picks the wrong seed for a psbt whose input also supplies the wrong
+        script. The bad script is a problem with the psbt itself, whichever seed signs it.
+        So the parse should report PSBTInputScriptMismatchError rather than
+        PSBTSeedCannotSignError.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+
+        # With its scripts intact, the psbt is reported as one the wrong seed cannot sign
+        with pytest.raises(PSBTSeedCannotSignError):
+            PSBTParser(psbt, PSBTTestData.recipient_seed, network=SettingsConstants.REGTEST)
+
+        # The script's content is irrelevant, so an arbitrary script will do
+        psbt.inputs[0].witness_script = script.Script(b"\x51")  # OP_TRUE
+
+        with pytest.raises(PSBTInputScriptMismatchError):
+            PSBTParser(psbt, PSBTTestData.recipient_seed, network=SettingsConstants.REGTEST)
+
+
     def test__parse__accepts_a_cosigner_seed_on_a_multisig(self):
         """
         Each cosigner holding a key on the device signs the same psbt in turn, so a seed
@@ -1600,18 +1733,16 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
 
     def test_a_psbt_with_no_utxos_is_rejected_rather_than_crashing(self):
         """
-        A psbt with no inputs is malformed and cannot be signed. `parse` should raise
-        PSBTSeedCannotSignError. Note that diagnosing the malformation is not this check's
-        job.
+        The psbt's inputs leave out the utxos they spend, so the psbt is malformed and
+        cannot be signed. `parse` should raise PSBTMissingInputUtxoError.
         """
         psbt = self._psbt_with_change()
         for psbt_input in psbt.inputs:
             psbt_input.witness_utxo = None
             psbt_input.non_witness_utxo = None
             psbt_input._utxo = None
-            psbt_input.bip32_derivations.clear()
 
-        with pytest.raises(PSBTSeedCannotSignError):
+        with pytest.raises(PSBTMissingInputUtxoError):
             self._parse(psbt)
 
 
