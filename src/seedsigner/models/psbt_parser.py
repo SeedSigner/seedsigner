@@ -355,16 +355,17 @@ class PSBTParser():
         the coin being spent, so we can hash it and confirm it produces the txid this input
         claims to spend. A witness_utxo is just the one output, with no such proof.
 
-        InputScope.verify() needs ignore_missing=True: coordinators legitimately and typically
-        supply only the witness_utxo for segwit and taproot inputs, where the sighash commits the
-        input amount. A lie there invalidates the signature instead of burning funds. Legacy
-        sighashes commit no amount at all, so legacy inputs must supply a non_witness_utxo.
-        Raises PSBTInputAmountVerificationError otherwise.
+        Coordinators typically only supply the witness_utxo for segwit and taproot inputs, where
+        the sighash commits the input amount. A lie there invalidates the signature instead
+        of burning funds. Legacy sighashes commit no amount at all, so legacy inputs must
+        supply a non_witness_utxo, otherwise a PSBTInputAmountVerificationError is raised.
 
         Known limitation: that sighash protection is not absolute. BIP-143 commits only the
-        amount of the input being signed, so a coordinator that gets us to sign the same
-        transaction twice can keep one valid signature per session/input and combine them into
-        a tx that burns the difference as miner fee (CVE-2020-14199). Taproot is not affected:
+        amount of the input being signed. A coordinator who tricks a user into signing the same
+        multi-input transaction more than once can understate different inputs in each round,
+        so every round shows a normal-looking fee. It then combines each input's signature from
+        a round where that input's amount was true, producing a valid transaction whose real
+        fee is far higher than any round showed (CVE-2020-14199). Taproot is not affected:
         BIP-341 commits the amount of every input.
 
         We accept that risk for segwit rather than warn about it, because the data needed to
@@ -374,39 +375,39 @@ class PSBTParser():
         """
         verified_input_amount = 0
         for i, inp in enumerate(self.psbt.inputs):
-            # Make sure the output that this input claims to spend (inp.vout) actually exists
-            # in the non_witness_utxo.
-            if inp.non_witness_utxo and inp.vout >= len(inp.non_witness_utxo.vout):
-                raise PSBTMissingInputUtxoError(
-                    f"Input {i}: outpoint index {inp.vout} is out of range of its non_witness_utxo")
+            if inp.non_witness_utxo is None:
+                # Without any utxo data there is no amount to verify or total
+                if inp.witness_utxo is None:
+                    raise PSBTMissingInputUtxoError(f"Input {i} has no utxo data")
 
-            # Without any utxo data there is no amount to verify or total
-            if inp.utxo is None:
-                raise PSBTMissingInputUtxoError(f"Input {i} has no utxo data")
-
-            try:
-                # ignore_missing=True: a missing non_witness_utxo returns False instead of raising
-                verified = inp.verify(ignore_missing=True)
-            except PSBTError as e:
-                # embit's verify() hashes the non_witness_utxo and raises PSBTError only when that
-                # hash isn't the txid this input spends: a wrong or altered previous transaction.
-                raise PSBTInputAmountVerificationError(f"Input {i}: {e}")
-
-            if not verified:
-                # embit's verify() with ignore_missing=True returns False only when the input has
-                # no non_witness_utxo. Raise if the sighash does not commit to the amount: without
-                # that commitment, the signature would still be valid for a false amount.
+                # Only a witness_utxo, so there is no previous transaction to hash. Raise if the
+                # sighash does not commit to the amount: without that commitment, the signature
+                # would still be valid for a false amount.
                 script_type = PSBTParser._get_script_type(inp, inp.script_pubkey)
                 if script_type in PSBTParser.UNCOMMITTED_AMOUNT_SCRIPT_TYPES:
                     raise PSBTInputAmountVerificationError(f"Input {i}: {script_type} input has no non_witness_utxo to verify against")
 
-            # With both fields present, compare the witness_utxo to the output this input spends
-            # in the verified non_witness_utxo. embit's verify() does not compare the two, so
-            # reject the psbt if their amounts or scripts contradict.
-            if inp.witness_utxo and inp.non_witness_utxo:
-                prevout = inp.non_witness_utxo.vout[inp.vout]
-                if prevout.value != inp.witness_utxo.value or prevout.script_pubkey.data != inp.witness_utxo.script_pubkey.data:
-                    raise PSBTInputAmountVerificationError(f"Input {i}: witness_utxo doesn't match verified non_witness_utxo")
+            else:
+                # Make sure inp.vout points to an output that exists in the non_witness_utxo
+                if inp.vout >= len(inp.non_witness_utxo.vout):
+                    raise PSBTMissingInputUtxoError(f"Input {i}: outpoint index {inp.vout} is out of range of its non_witness_utxo")
+
+                try:
+                    inp.verify()
+                except PSBTError as e:
+                    # verify() hashes the non_witness_utxo and raises if that hash doesn't match the
+                    # txid this input references, so it isn't the transaction that created this coin.
+                    # The amount the coordinator declared for this input can't be trusted, so we
+                    # treat this as an attack.
+                    raise PSBTInputAmountVerificationError(f"Input {i}: {e}")
+
+                # With both non_witness_utxo and witness_utxo present, compare them. verify() only
+                # proved the non_witness_utxo, so the witness_utxo must match its output at inp.vout.
+                # Reject the psbt if their amounts or scripts contradict.
+                if inp.witness_utxo is not None:
+                    prevout = inp.non_witness_utxo.vout[inp.vout]
+                    if prevout.value != inp.witness_utxo.value or prevout.script_pubkey.data != inp.witness_utxo.script_pubkey.data:
+                        raise PSBTInputAmountVerificationError(f"Input {i}: witness_utxo doesn't match verified non_witness_utxo")
 
             verified_input_amount += inp.utxo.value
 
