@@ -148,7 +148,6 @@ class PSBTOverviewView(View):
                 # The declared input amounts could not be verified, so the fee we would show is unproven
                 # Set clear_history to disable returning via BACK button.
                 logger.error(f"PSBT input amount verification failed: {e}")
-                self.controller.psbt_parser = None
                 self.set_redirect(Destination(PSBTInputAmountVerificationFailedView, clear_history=True))
                 return
 

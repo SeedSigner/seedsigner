@@ -1,15 +1,13 @@
 from binascii import a2b_base64
-from unittest.mock import Mock
 
 from embit import bip32, script
 from embit.psbt import PSBT, DerivationPath
 
-from base import BaseTest, FlowTest, FlowStep
+from base import FlowTest, FlowStep
 from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_output,
     foreign_public_key, root_for_seed)
 
 from seedsigner.controller import Controller
-from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
 from seedsigner.models.seed import Seed
@@ -398,43 +396,3 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         # The psbt itself is kept: the user is choosing a different seed for it, not
         # starting over
         assert self.controller.psbt is not None
-
-
-
-class TestPSBTOverviewView(BaseTest):
-    """
-    View-level tests for the parts of PSBTOverviewView that a FlowTest can't reach.
-    """
-
-    def test_stale_psbt_parser_is_cleared_on_input_verification_failure(self):
-        """
-        The error handler nulls controller.psbt_parser so an unusable parser can't be left
-        behind for a later view to read a fee from.
-
-        This is defensive: ScanView already nulls psbt_parser whenever it sets a new psbt
-        (scan_views.py), so no real flow reaches PSBTOverviewView with a stale parser in
-        place. That's precisely why this is tested here and not in a flow — the state has to
-        be constructed by hand, and asserting it inside a flow would only ever be checking
-        ScanView's cleanup rather than the handler's.
-        """
-        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
-
-        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
-        psbt.inputs[0].non_witness_utxo.vout[0].value += 100_000
-
-        self.controller.psbt = psbt
-        self.controller.psbt_seed = PSBTTestData.two_input_seed
-
-        # Stand in for a parser left over from a previously-viewed psbt. Its seed differs from
-        # psbt_seed, so PSBTOverviewView will re-parse rather than reuse it.
-        self.controller.psbt_parser = Mock(spec=PSBTParser, seed=PSBTTestData.seed)
-        assert self.controller.psbt_parser.seed != self.controller.psbt_seed
-
-        view = psbt_views.PSBTOverviewView()
-
-        assert self.controller.psbt_parser is None
-
-        # The view redirects away from the overview rather than rendering an unproven fee.
-        # Destination._run_view() honors this before run() is ever called.
-        assert view.has_redirect
-        assert view.get_redirect().View_cls is psbt_views.PSBTInputAmountVerificationFailedView
