@@ -105,8 +105,13 @@ class PSBTOutputOwnershipContradictionError(PSBTVerificationError):
 
 class PSBTInputAmountVerificationError(PSBTVerificationError):
     """
-    An input's declared amount could not be verified, so the fee this device would display
-    cannot be trusted.
+    An input's declared amount is unproven or false, so the fee displayed cannot be trusted.
+    It's one of these:
+      * The input has no non_witness_utxo and its sighash doesn't commit to its amount.
+      * The input's non_witness_utxo doesn't hash to the txid the input references.
+      * The input's witness_utxo contradicts the verified non_witness_utxo.
+
+    We treat any of these as an attack.
     """
     pass
 
@@ -258,9 +263,7 @@ class PSBTParser():
           4. _verify_input_amounts: verifies each input's claimed amount, then totals them
              as verified_input_amount. Raises PSBTMissingInputUtxoError if an input is
              missing the utxo that holds its amount, or PSBTInputAmountVerificationError
-             if an amount cannot be verified. Runs after the ownership checks so a psbt
-             this seed cannot sign is reported as a mismatch rather than as a suspicious
-             transaction.
+             if an amount is unproven or false.
 
           5. _parse_inputs: every input must resolve to the same policy otherwise a
              RuntimeError is raised. TODO: make this a PSBTVerificationError subclass so
@@ -757,10 +760,7 @@ class PSBTParser():
 
     @staticmethod
     def _get_script_type(scope, scriptpubkey) -> str:
-        """
-        Disambiguate the scriptpubkey's type. Cheap: pattern-matches bytes and derives
-        nothing, so it's safe to call before an input's amounts have been verified.
-        """
+        """Like script_type(), but tells nested segwit p2sh apart from legacy p2sh"""
         script_type = scriptpubkey.script_type()
         # p2sh can be either legacy multisig, or nested segwit multisig
         # or nested segwit singlesig
