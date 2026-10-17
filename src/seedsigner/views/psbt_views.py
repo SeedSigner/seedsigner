@@ -742,7 +742,7 @@ class PSBTMissingInputUtxoView(View):
             title=_("Transaction Problem"),
             status_headline=None,
             # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
-            text=_("This transaction left out the amount for one of its inputs."),
+            text=_("This transaction is missing required data for one of its inputs."),
             button_data=[self.DISCARD],
             show_back_button=False,
         )
