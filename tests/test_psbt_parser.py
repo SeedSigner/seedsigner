@@ -1314,14 +1314,19 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         """
         psbt = self._psbt_with_change()
 
-        # The other party's input: their utxo, carrying no derivation info. Witness-only,
-        # as a real payjoin counterparty's input is — the deepcopy's non_witness_utxo
-        # describes this seed's coin and would contradict the witness_utxo rewritten below.
-        foreign_input = deepcopy(psbt.inputs[0])
-        foreign_input.bip32_derivations.clear()
-        foreign_input.non_witness_utxo = None
-        foreign_input.witness_utxo.script_pubkey = script.p2wpkh(foreign_public_key())
-        psbt.inputs.append(foreign_input)
+# Build the other party's input, starting from a copy of our input:
+foreign_input = deepcopy(psbt.inputs[0])
+
+# A payjoin counterparty's input would not have derivation path info
+foreign_input.bip32_derivations.clear()
+
+# Alter the input so it's owned by the other party
+foreign_input.witness_utxo.script_pubkey = script.p2wpkh(foreign_public_key())
+
+# We can't let this copy's original non_witness_utxo contradict the witness_utxo we just altered.
+foreign_input.non_witness_utxo = None
+
+psbt.inputs.append(foreign_input)
 
         # The payjoin shape
         psbt_parser = self._parse(psbt)
