@@ -61,6 +61,37 @@ class TestPSBTFlows(FlowTest):
         assert self.controller.psbt_seed is self.controller.storage.seeds[0]
 
 
+    def test_tampered_input_amounts_routes_to_input_verification_failed(self):
+        """
+            A psbt whose non_witness_utxo doesn't verify can declare any input amounts it
+            likes, which means it can display any fee it likes. It should be discarded
+            outright with no option to proceed.
+        """
+        def load_tampered_psbt_into_decoder(view: scan_views.ScanView):
+            # Editing the non_witness_utxo changes the txid it hashes to, so it no longer
+            # matches the txid the input claims to spend.
+            psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+            psbt.inputs[0].non_witness_utxo.vout[0].value += 100_000
+            view.decoder.add_data(str(psbt))
+
+        def load_seed_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("080115060387063104071857067618681125136207731354")
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_tampered_psbt_into_decoder),
+            FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+
+            # Parsing fails, so the overview never renders; it redirects straight to the warning
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTInputAmountVerificationFailedView),
+            FlowStep(MainMenuView),
+        ])
+
+
     def test_scan_psbt_first_then_load_electrum_seed(self):
         """
             Should be able to load an Electrum mnemonic after first loading in a psbt.
@@ -316,6 +347,30 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
             FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
             FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
             FlowStep(psbt_views.PSBTMixedDerivationPathTypesView, button_data_selection=psbt_views.PSBTMixedDerivationPathTypesView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_missing_input_utxo_terminates_signing_flow(self):
+        """
+        An input that carries no utxo data gives us no amount to verify, so parsing
+        refuses the psbt.
+
+        It ends the flow at its own warning before any transaction detail is rendered.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+
+        # Input 0 is left intact, so the seed can still sign and the parse gets as far as
+        # the amount check.
+        psbt.inputs[1].witness_utxo = None
+        psbt.inputs[1].non_witness_utxo = None
+
+        self._load_psbt_for_signing(psbt, seed=PSBTTestData.two_input_seed)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMissingInputUtxoView, button_data_selection=psbt_views.PSBTMissingInputUtxoView.DISCARD),
             FlowStep(MainMenuView),
         ])
 
