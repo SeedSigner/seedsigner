@@ -2509,13 +2509,11 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
         assert psbt.inputs[0].witness_utxo.script_pubkey.script_type() is None
         assert psbt.outputs[0].script_pubkey.script_type() is None
 
-        # An unrecognized script type with no non_witness_utxo to prove its amount is
-        # exactly what _verify_input_amounts() now refuses, and editing the
-        # non_witness_utxo to pay to this p2pk script is not an option either: that
-        # changes the txid it hashes to. So this psbt can no longer reach _parse_inputs on
-        # its own; see test_unrecognized_script_type_without_non_witness_utxo_raises for
-        # that rejection. The catch-all safety check is still worth asserting, so stub out
-        # the amount verification that now precedes it.
-        with patch.object(PSBTParser, "_verify_input_amounts"):
-            with pytest.raises(RuntimeError, match="Unsupported policy type"):
-                self._parse(psbt)
+        # The parse verifies input amounts before the scriptPubKey rebuild, so give this
+        # p2pk coin a matching non_witness_utxo and point the input at its new txid.
+        inp = psbt.inputs[0]
+        inp.non_witness_utxo.vout[inp.vout].script_pubkey = inp.witness_utxo.script_pubkey
+        inp.txid = inp.non_witness_utxo.txid()
+
+        with pytest.raises(RuntimeError, match="Unsupported policy type"):
+            self._parse(psbt)
