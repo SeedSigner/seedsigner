@@ -379,8 +379,9 @@ class PSBTParser():
         verified_input_amount = 0
         for i, inp in enumerate(self.psbt.inputs):
             if inp.non_witness_utxo is None:
-                # Without any utxo data there is no amount to verify or total
                 if inp.witness_utxo is None:
+                    # We have no utxo data at all. This PSBT is invalid: it tries to spend an
+                    # input whose source coin/value is completely unknown and unverifiable.
                     raise PSBTMissingInputUtxoError(f"Input {i} has no utxo data")
 
                 # Only a witness_utxo, so there is no previous transaction to hash. Raise if the
