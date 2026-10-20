@@ -1314,19 +1314,19 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         """
         psbt = self._psbt_with_change()
 
-# Build the other party's input, starting from a copy of our input:
-foreign_input = deepcopy(psbt.inputs[0])
+        # Build the other party's input, starting from a copy of our input:
+        foreign_input = deepcopy(psbt.inputs[0])
 
-# A payjoin counterparty's input would not have derivation path info
-foreign_input.bip32_derivations.clear()
+        # A payjoin counterparty's input would not have derivation path info
+        foreign_input.bip32_derivations.clear()
 
-# Alter the input so it's owned by the other party
-foreign_input.witness_utxo.script_pubkey = script.p2wpkh(foreign_public_key())
+        # Alter the input so it's owned by the other party
+        foreign_input.witness_utxo.script_pubkey = script.p2wpkh(foreign_public_key())
 
-# We can't let this copy's original non_witness_utxo contradict the witness_utxo we just altered.
-foreign_input.non_witness_utxo = None
+        # We can't let this copy's original non_witness_utxo contradict the witness_utxo we just altered.
+        foreign_input.non_witness_utxo = None
 
-psbt.inputs.append(foreign_input)
+        psbt.inputs.append(foreign_input)
 
         # The payjoin shape
         psbt_parser = self._parse(psbt)
