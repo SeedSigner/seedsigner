@@ -589,9 +589,11 @@ class TestPSBTInputAmountVerification:
     @pytest.mark.parametrize("psbt_base64", LEGACY_INPUTS)
     def test_legacy_input_without_non_witness_utxo_raises(self, psbt_base64: str):
         """
-        The concrete fund-loss case: a legacy sighash commits no input amount, so an inflated
-        witness_utxo yields a *valid* signature on a transaction that burns the difference as
-        miner fee. With no non_witness_utxo to check against, we have to refuse.
+        BIP-174 reserves witness_utxo for segwit inputs, so for a legacy input, a
+        well-formed psbt would only provide its non_witness_utxo. In this test we create
+        an unusual psbt that presents a legacy input and only a witness_utxo. In this case
+        we can't verify the input's amount or the fee we would display. The parse should
+        raise PSBTInputAmountVerificationError.
         """
         psbt = self.build_psbt(psbt_base64)
         inp = psbt.inputs[0]
