@@ -396,12 +396,13 @@ class PSBTParser():
                     raise PSBTMissingInputUtxoError(f"Input {i}: outpoint index {inp.vout} is out of range of its non_witness_utxo")
 
                 try:
+                    # verify() checks that the provided non_witness_utxo matches the txid this
+                    # input spends.
                     inp.verify()
                 except PSBTError as e:
-                    # verify() hashes the non_witness_utxo and raises if that hash doesn't match the
-                    # txid this input references, so it isn't the transaction that created this coin.
-                    # The amount the coordinator declared for this input can't be trusted, so we
-                    # treat this as an attack.
+                    # The provided non_witness_utxo is not the transaction that created this coin.
+                    # As a result, we cannot trust the psbt's claims about the amount this input spends.
+                    # We treat this as an attack.
                     raise PSBTInputAmountVerificationError(f"Input {i}: {e}")
 
                 # With both non_witness_utxo and witness_utxo present, compare them. verify() only
