@@ -512,13 +512,9 @@ class TestPSBTInputAmountVerification:
     @pytest.mark.parametrize("psbt_base64", PSBTTestData.ALL_INPUTS)
     def test_untampered_psbts_verify(self, psbt_base64: str):
         """
-        Every supported script type's fixture carries a verifiable non_witness_utxo.
-
-        is_verified is the assertion that carries the weight here. It is only set by embit's
-        InputScope.verify(), so it is the one flag that distinguishes "we hashed the previous
-        tx ourselves" from "we took the coordinator's word for it". verified_input_amount
-        alone can't tell those apart: it is totaled the same way for a segwit input that was
-        accepted with no non_witness_utxo to hash.
+        There is one test psbt per script type. Each one includes the previous transaction
+        (non_witness_utxo) for every input. With nothing missing, there's no excuse for any
+        input not to verify: parsing should mark every input is_verified and total their amounts.
         """
         psbt = self.build_psbt(psbt_base64)
         assert all(inp.is_verified is False for inp in psbt.inputs)  # not verified until we do it
@@ -532,10 +528,13 @@ class TestPSBTInputAmountVerification:
     @pytest.mark.parametrize("psbt_base64", PSBTTestData.ALL_INPUTS)
     def test_tampered_non_witness_utxo_raises(self, psbt_base64: str):
         """
-        Editing the non_witness_utxo changes the txid it hashes to, so it no longer matches
-        the txid the input claims to spend.
+        Should raise PSBTInputAmountVerificationError if the input's txid doesn't match its
+        non_witness_utxo. Covers every supported script type.
         """
         psbt = self.build_psbt(psbt_base64)
+
+        # Editing the non_witness_utxo changes the txid it hashes to, so it no longer matches
+        # the txid the input claims to spend.
         psbt.inputs[0].non_witness_utxo.vout[0].value += 100_000
 
         with pytest.raises(PSBTInputAmountVerificationError):
@@ -562,10 +561,9 @@ class TestPSBTInputAmountVerification:
     @pytest.mark.parametrize("psbt_base64", WITNESS_UTXO_INPUTS)
     def test_witness_utxo_script_pubkey_disagreeing_with_non_witness_utxo_raises(self, psbt_base64: str):
         """
-        The other half of the cross-check: same amount, different scriptPubKey. Nothing about
-        the fee changes, but InputScope.script_pubkey resolves to the witness_utxo's, which is
-        what _parse_inputs() hands to _get_policy(). A mismatched scriptPubKey therefore means
-        we'd report the wrong script type for a coin we never actually inspected.
+        The input has both utxo fields. Its non_witness_utxo matches the input's txid, and its
+        witness_utxo has the same amount but a different scriptPubKey. The two contradict, so
+        the parse should raise PSBTInputAmountVerificationError.
         """
         psbt = self.build_psbt(psbt_base64)
         witness_utxo = psbt.inputs[0].witness_utxo
@@ -648,9 +646,7 @@ class TestPSBTInputAmountVerification:
     @pytest.mark.parametrize("psbt_base64", PSBTTestData.ALL_INPUTS)
     def test_input_with_no_utxo_data_raises(self, psbt_base64: str):
         """
-        Nothing to verify against and nothing to sum; refuse rather than guess. Without this
-        guard _get_policy() is handed a None script_pubkey and dies with an AttributeError
-        instead of an error the caller can route on.
+        Nothing to verify against and nothing to sum; refuse rather than guess.
         """
         psbt = self.build_psbt(psbt_base64)
         psbt.inputs[0].witness_utxo = None
@@ -662,10 +658,9 @@ class TestPSBTInputAmountVerification:
 
     def test_outpoint_index_past_end_of_non_witness_utxo_raises(self):
         """
-        embit's verify() only compares txids and never checks that vout indexes into the
-        non_witness_utxo it just hashed, so a genuine prev tx paired with an out-of-range
-        outpoint passes verification. Unguarded, the deref raises a bare IndexError that
-        escapes parse() and crashes the view instead of routing to a warning.
+        The input's vout points to an output index past the end of its non_witness_utxo's
+        output list. Basically, it's claiming to spend an output that doesn't exist. When
+        this happens, the parse should raise PSBTMissingInputUtxoError.
         """
         psbt = self.build_psbt(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT)
         inp = psbt.inputs[0]
@@ -680,12 +675,8 @@ class TestPSBTInputAmountVerification:
 
     def test_every_input_is_checked_not_just_the_first(self):
         """
-        Every fixture above has a single input, so none of them can catch a check that stops
-        after input 0. Tampering the *second* input of a 2-input psbt must fail just as loudly,
-        and the error must name the input that actually failed.
-
-        Tampering input 0 is deliberately not covered here; that is exactly what
-        test_tampered_non_witness_utxo_raises already does across all seven script types.
+        A tampered input shouldn't be able to hide behind a legit one. Tampering the second
+        input of a 2-input psbt must raise, and the error must name the input that failed.
         """
         psbt: PSBT = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
         assert len(psbt.inputs) == 2
