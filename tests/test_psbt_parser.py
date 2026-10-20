@@ -509,10 +509,6 @@ class TestPSBTInputAmountVerification:
         return psbt
 
 
-    def parse(self, psbt: PSBT) -> PSBTParser:
-        return PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
-
-
     @pytest.mark.parametrize("psbt_base64", PSBTTestData.ALL_INPUTS)
     def test_untampered_psbts_verify(self, psbt_base64: str):
         """
@@ -527,7 +523,7 @@ class TestPSBTInputAmountVerification:
         psbt = self.build_psbt(psbt_base64)
         assert all(inp.is_verified == False for inp in psbt.inputs)  # not verified until we do it
 
-        psbt_parser = self.parse(psbt)
+        psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
 
         assert all(inp.is_verified for inp in psbt.inputs)
         assert psbt_parser.verified_input_amount == sum([inp.utxo.value for inp in psbt.inputs])
@@ -543,7 +539,7 @@ class TestPSBTInputAmountVerification:
         psbt.inputs[0].non_witness_utxo.vout[0].value += 100_000
 
         with pytest.raises(PSBTInputAmountVerificationError):
-            self.parse(psbt)
+            PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
 
 
     @pytest.mark.parametrize("psbt_base64", WITNESS_UTXO_INPUTS)
@@ -560,7 +556,7 @@ class TestPSBTInputAmountVerification:
         assert psbt.inputs[0].verify() == True
 
         with pytest.raises(PSBTInputAmountVerificationError):
-            self.parse(psbt)
+            PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
 
 
     @pytest.mark.parametrize("psbt_base64", WITNESS_UTXO_INPUTS)
@@ -583,7 +579,7 @@ class TestPSBTInputAmountVerification:
         assert psbt.inputs[0].verify() == True
 
         with pytest.raises(PSBTInputAmountVerificationError):
-            self.parse(psbt)
+            PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
 
 
     @pytest.mark.parametrize("psbt_base64", LEGACY_INPUTS)
@@ -602,7 +598,7 @@ class TestPSBTInputAmountVerification:
         inp.non_witness_utxo = None
 
         with pytest.raises(PSBTInputAmountVerificationError):
-            self.parse(psbt)
+            PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
 
 
     def test_unrecognized_script_type_without_non_witness_utxo_raises(self):
@@ -626,7 +622,7 @@ class TestPSBTInputAmountVerification:
         assert inp.witness_utxo.script_pubkey.script_type() is None
 
         with pytest.raises(PSBTInputAmountVerificationError):
-            self.parse(psbt)
+            PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
 
 
     @pytest.mark.parametrize("psbt_base64", WITNESS_UTXO_INPUTS)
@@ -639,7 +635,9 @@ class TestPSBTInputAmountVerification:
         psbt = self.build_psbt(psbt_base64)
         psbt.inputs[0].non_witness_utxo = None
 
-        assert self.parse(psbt).verified_input_amount == psbt.inputs[0].witness_utxo.value
+        # Parses without raising an exception
+        psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
+        assert psbt_parser.verified_input_amount == psbt.inputs[0].witness_utxo.value
 
 
     def test_input_with_no_utxo_data_raises(self):
@@ -656,7 +654,7 @@ class TestPSBTInputAmountVerification:
         psbt.inputs[0].non_witness_utxo = None
 
         with pytest.raises(PSBTMissingInputUtxoError):
-            self.parse(psbt)
+            PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
 
 
     def test_outpoint_index_past_end_of_non_witness_utxo_raises(self):
@@ -674,7 +672,7 @@ class TestPSBTInputAmountVerification:
         inp.vout = len(inp.non_witness_utxo.vout)
 
         with pytest.raises(PSBTMissingInputUtxoError):
-            self.parse(psbt)
+            PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
 
 
     def test_every_input_is_checked_not_just_the_first(self):
