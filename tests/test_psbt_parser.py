@@ -521,7 +521,7 @@ class TestPSBTInputAmountVerification:
         accepted with no non_witness_utxo to hash.
         """
         psbt = self.build_psbt(psbt_base64)
-        assert all(inp.is_verified == False for inp in psbt.inputs)  # not verified until we do it
+        assert all(inp.is_verified is False for inp in psbt.inputs)  # not verified until we do it
 
         psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
 
@@ -553,7 +553,7 @@ class TestPSBTInputAmountVerification:
         psbt.inputs[0].witness_utxo.value += 100_000
 
         # Confirm the premise: the non_witness_utxo is untouched and still verifies
-        assert psbt.inputs[0].verify() == True
+        assert psbt.inputs[0].verify() is True
 
         with pytest.raises(PSBTInputAmountVerificationError):
             PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
@@ -575,8 +575,10 @@ class TestPSBTInputAmountVerification:
         witness_utxo.script_pubkey = Script(b"\x00\x14" + b"\x11" * 20)
 
         # Confirm the premise: only the scriptPubKey moved, and the non_witness_utxo still verifies
+        prevout = psbt.inputs[0].non_witness_utxo.vout[psbt.inputs[0].vout]
         assert witness_utxo.value == original_value
-        assert psbt.inputs[0].verify() == True
+        assert witness_utxo.script_pubkey.data != prevout.script_pubkey.data
+        assert psbt.inputs[0].verify() is True
 
         with pytest.raises(PSBTInputAmountVerificationError):
             PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
@@ -613,9 +615,12 @@ class TestPSBTInputAmountVerification:
 
         # Bare multisig: a real scriptPubKey form that embit doesn't recognize, since it only
         # knows the p2sh- and p2wsh-wrapped forms.
+        OP_1 = b"\x51"
+        OP_PUSHBYTES_33 = b"\x21"
+        OP_CHECKMULTISIG = b"\xae"
         pubkey = list(inp.bip32_derivations.keys())[0].sec()
         inp.witness_utxo = inp.non_witness_utxo.vout[inp.vout]
-        inp.witness_utxo.script_pubkey = Script(b"\x51\x21" + pubkey + b"\x51\xae")
+        inp.witness_utxo.script_pubkey = Script(OP_1 + OP_PUSHBYTES_33 + pubkey + OP_1 + OP_CHECKMULTISIG)
         inp.non_witness_utxo = None
 
         # Confirm the premise: this really is an unrecognized script type
@@ -640,16 +645,14 @@ class TestPSBTInputAmountVerification:
         assert psbt_parser.verified_input_amount == psbt.inputs[0].witness_utxo.value
 
 
-    def test_input_with_no_utxo_data_raises(self):
+    @pytest.mark.parametrize("psbt_base64", PSBTTestData.ALL_INPUTS)
+    def test_input_with_no_utxo_data_raises(self, psbt_base64: str):
         """
         Nothing to verify against and nothing to sum; refuse rather than guess. Without this
         guard _get_policy() is handed a None script_pubkey and dies with an AttributeError
         instead of an error the caller can route on.
-
-        One fixture is enough: this is the first check in the loop, and once utxo is None the
-        input's script_pubkey is None too, so no script type can reach it differently.
         """
-        psbt = self.build_psbt(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT)
+        psbt = self.build_psbt(psbt_base64)
         psbt.inputs[0].witness_utxo = None
         psbt.inputs[0].non_witness_utxo = None
 
