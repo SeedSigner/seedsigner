@@ -408,12 +408,13 @@ class PSBTParser():
 
                 # With both non_witness_utxo and witness_utxo present, compare them. verify() only
                 # proved the non_witness_utxo, so the witness_utxo must match its output at inp.vout.
-                # Reject the psbt if their amounts or scripts contradict.
                 if inp.witness_utxo is not None:
                     prevout = inp.non_witness_utxo.vout[inp.vout]
                     if prevout.value != inp.witness_utxo.value or prevout.script_pubkey.data != inp.witness_utxo.script_pubkey.data:
+                        # The amounts or scripts contradict. Reject the psbt.
                         raise PSBTInputAmountVerificationError(f"Input {i}: witness_utxo doesn't match verified non_witness_utxo")
 
+            # Every check passed, so this input amount is verified
             verified_input_amount += inp.utxo.value
 
         # Only assigned once every input has passed, so a rejected psbt leaves no partial total
