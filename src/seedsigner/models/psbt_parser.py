@@ -744,10 +744,9 @@ class PSBTParser():
                 self.spend_amount += vout[i].value
 
         # embit computes the fee as inputs minus outputs and does not look at the sign of
-        # the result. A negative fee means the outputs claim more than the inputs fund,
-        # which no valid transaction can do. Both totals are the coordinator's own claims,
-        # so this proves the psbt is malformed but not which side is false. Zero is left
-        # alone: it is a pointless transaction, but not a malformed one.
+        # the result. A negative fee means the outputs spend more than the inputs hold,
+        # which no valid transaction can do. Zero is left alone: it is a pointless
+        # transaction, but not a malformed one.
         self.fee_amount = self.psbt.fee()
         if self.fee_amount < 0:
             raise PSBTNegativeFeeError()
