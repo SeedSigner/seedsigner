@@ -4,9 +4,9 @@ import hashlib
 import hmac
 
 from binascii import hexlify
-from embit import bip39, bip32, bip85
+from embit import bip39, bip32, bip85, ec
 from embit.networks import NETWORKS
-from typing import List
+from typing import List, NamedTuple
 
 from seedsigner.models.settings import SettingsConstants
 
@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 class InvalidSeedException(Exception):
     pass
+
+
+class SilentPaymentKeys(NamedTuple):
+    """This seed's BIP-352 (scan_privkey, spend_pubkey) pair."""
+    scan_privkey: ec.PrivateKey
+    spend_pubkey: ec.PublicKey
 
 
 
@@ -145,9 +151,13 @@ class Seed:
         return True
 
 
+    def _root(self, network: str = SettingsConstants.MAINNET) -> bip32.HDKey:
+        """This seed's BIP-32 master key for `network`."""
+        return bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
+
+
     def get_fingerprint(self, network: str = SettingsConstants.MAINNET) -> str:
-        root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
-        return hexlify(root.child(0).fingerprint).decode('utf-8')
+        return hexlify(self._root(network).child(0).fingerprint).decode('utf-8')
 
 
     def get_xpub(self, wallet_path: str = '/', network: str = SettingsConstants.MAINNET):
@@ -158,11 +168,48 @@ class Seed:
 
     def get_bip85_child_mnemonic(self, bip85_index: int, bip85_num_words: int, network: str = SettingsConstants.MAINNET):
         """Derives the seed's nth BIP-85 child mnemonic"""
-        root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
+        root = self._root(network)
 
         # TODO: Support other BIP-39 wordlist languages!
         return bip85.derive_mnemonic(root, bip85_num_words, bip85_index)
         
+
+    def get_bip352_wallet_derivation_path(self, network: str = SettingsConstants.MAINNET, account: int = 0) -> str:
+        coin_type = 0 if network == SettingsConstants.MAINNET else 1
+        return f"m/352'/{coin_type}'/{account}'"
+
+
+    def get_bip352_scan_spend_keys(self, network: str = SettingsConstants.MAINNET, root: bip32.HDKey = None, account: int = 0) -> SilentPaymentKeys:
+        """This seed's BIP-352 (scan_privkey, spend_pubkey) — the single derivation
+        entry point; used to build the address/descriptor and to spot SP outputs
+        that come back to us (change / self-transfer)."""
+        root = root or self._root(network)
+        # Derive the shared m/352'/coin'/account' prefix once, not per key
+        wallet = root.derive(self.get_bip352_wallet_derivation_path(network, account))
+        scan_privkey = wallet.derive("1h/0").key
+        spend_pubkey = wallet.derive("0h/0").to_public().key
+        return SilentPaymentKeys(scan_privkey, spend_pubkey)
+
+
+    def generate_bip352_silent_payment_address(self, network: str = SettingsConstants.MAINNET, account: int = 0) -> str:
+        from embit.silent_payments.sp import generate_silent_payment_address
+        scan_privkey, spend_pubkey = self.get_bip352_scan_spend_keys(network, account=account)
+        return generate_silent_payment_address(scan_privkey, spend_pubkey, network=SettingsConstants.map_network_to_embit(network))
+
+
+    def generate_bip352_sp_descriptor(self, network: str = SettingsConstants.MAINNET, account: int = 0) -> str:
+        from embit.descriptor.sp import SPScanKey, SilentPaymentDescriptor
+        from embit.descriptor.arguments import KeyOrigin
+        root = self._root(network)
+        scan_privkey, spend_pubkey = self.get_bip352_scan_spend_keys(network, root=root, account=account)
+        origin = KeyOrigin(root.my_fingerprint, bip32.parse_path(self.get_bip352_wallet_derivation_path(network, account)))
+        # The spscan HRP only has a mainnet and a testnet form; embit maps "regtest" to
+        # the mainnet HRP, so collapse it here the way the sp address encoder does.
+        # BIP-352 doesn't define a regtest HRP, so this is the best we can do for now.
+        sp_network = "main" if network == SettingsConstants.MAINNET else "test"
+        sp_key = SPScanKey(scan_privkey, spend_pubkey, origin=origin, network=sp_network)
+        return str(SilentPaymentDescriptor(sp_key))
+
 
     ### override operators    
     def __eq__(self, other):

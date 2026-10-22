@@ -5,7 +5,7 @@
 # To update a pin: change the version, then refresh its hashes from
 # https://pypi.org/pypi/<package>/<version>/json (or pip download + pip hash).
 #
-# pyzbar and urtypes point at commit-pinned GitHub source archives instead of
+# embit, pyzbar and urtypes point at commit-pinned GitHub source archives instead of
 # git+ URLs: pip's hash-checking mode cannot verify a git checkout, but it can
 # verify the archive tarball built from the same commit.
 #
@@ -14,8 +14,8 @@
 # Combining it with unhashed requirements (or `-e .`) in one invocation fails,
 # because any hash in an invocation makes pip require hashes for everything
 # in it.
-embit==0.8.0 \
-    --hash=sha256:8bf4b10073c67400370ce523fb16f035fe759f6fdd987c579bdcc268d75ed770
+embit @ https://github.com/notTanveer/embit/archive/371b9f28371ad34ab2c5d8f156ec00829ff3c4b9.tar.gz \
+    --hash=sha256:374bab961128356405f98fe27aa1d27437818073b67fde7e74d6cbbd8ceed26a
 Pillow==10.3.0 \
     --hash=sha256:048ad577748b9fa4a99a0548c64f2cb8d672d5bf2e643a739ac8faff1164238c \
     --hash=sha256:048eeade4c33fdf7e08da40ef402e748df113fd0b4584e32c4af74fe78baaeb2 \
