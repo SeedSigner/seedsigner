@@ -86,6 +86,9 @@ Pillow==10.3.0 \
     --hash=sha256:f0d0591a0aeaefdaf9a5e545e7485f89910c977087e7de2b6c388aec32011e9f \
     --hash=sha256:fdcbb4068117dfd9ce0138d068ac512843c52295ed996ae6dd1faf537b6dbc27 \
     --hash=sha256:ff61bfd9253c3915e6d41c651d5f962da23eda633cf02262990094a18a55371a
+# pyzbar is a fork of the abandoned upstream NaturalHistoryMuseum/pyzbar; it enables
+# zbar's binary mode so scans return raw byte payloads, which the CompactSeedQR format
+# requires (see NaturalHistoryMuseum/pyzbar#124).
 pyzbar @ https://github.com/seedsigner/pyzbar/archive/c3c237821c6a20b17953efe59b90df0b514a1c03.tar.gz \
     --hash=sha256:b8589bfea4a2b5d439b5dde63bd545f595ec9115ec1dcb49dd55c86cf6fcdc74
 qrcode==8.0 \
