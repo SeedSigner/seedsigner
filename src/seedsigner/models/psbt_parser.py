@@ -241,7 +241,11 @@ class PSBTParser():
     # just stops getting cache hits once the cache is full.
     MAX_CACHED_DERIVATIONS = 1000
 
-    # Input types whose sighash does NOT commit to the input amount.
+    # Input types whose sighash does NOT commit to the input amount, so each must supply
+    # a non_witness_utxo:
+    #   * "p2pkh" and "p2sh": legacy. "p2sh" here is legacy p2sh only; nested segwit
+    #     (p2sh-p2wpkh and p2sh-p2wsh) is segwit, and its sighash commits the amount.
+    #   * `None`: an unrecognized script type, held to the same rule as legacy.
     UNCOMMITTED_AMOUNT_SCRIPT_TYPES = [None, "p2pkh", "p2sh"]
     
     # Warn when the fee exceeds this percentage of what is being sent (outputs other than
@@ -325,17 +329,18 @@ class PSBTParser():
              inputs can be signed by the seed. A mismatch rather than an attack, caught
              here so the flow can say so before showing a transaction.
 
-          4. _verify_input_amounts: verifies each input's claimed amount, then totals them
-             as verified_input_amount. Raises PSBTMissingInputUtxoError if an input is
-             missing the utxo that holds its amount, or PSBTInputAmountVerificationError
-             if an amount is unproven or false.
-
-          5. _parse_inputs: an input must supply every script it commits to and no others.
-             A missing script raises PSBTMissingInputScriptError, a wrong one
+          4. _verify_input_amounts_and_scripts: verifies each input's claimed amount, then
+             totals them as verified_input_amount. Raises PSBTMissingInputUtxoError if an
+             input is missing the utxo that holds its amount, or
+             PSBTInputAmountVerificationError if an amount is unproven or false. Each
+             input must also supply every script it commits to and no others. A missing
+             script raises PSBTMissingInputScriptError, a wrong one
              PSBTInputScriptMismatchError, and an extra one
-             PSBTExtraneousInputScriptError. Every input must then resolve to the same
-             policy otherwise a RuntimeError is raised (TODO: replace the RuntimeError
-             with a PSBTVerificationError subclass so the View can deliberately catch this
+             PSBTExtraneousInputScriptError.
+
+          5. _parse_inputs: every input must resolve to the same policy otherwise a
+             RuntimeError is raised (TODO: replace the RuntimeError with a
+             PSBTVerificationError subclass so the View can deliberately catch this
              scenario and route accordingly).
 
              A policy is one of:
@@ -400,7 +405,7 @@ class PSBTParser():
         self._reject_if_seed_cannot_sign()
 
         # Single source of truth for input amounts: each is verified before it is totaled
-        self._verify_input_amounts()
+        self._verify_input_amounts_and_scripts()
 
         rt = self._parse_inputs(child_key_derivation_cache)
         if rt == False:
@@ -416,22 +421,27 @@ class PSBTParser():
         return True
 
 
-    def _verify_input_amounts(self):
+    def _verify_input_amounts_and_scripts(self):
         """
-        Verify each input's declared amount before it is added to the total. Since SeedSigner is
-        airgapped, we can't look up what an input is actually worth. We're relying on what the
-        coordinator declared. Unchecked, a compromised coordinator could declare false amounts
-        and have us display any fee it liked. See the miner fee attack described in embit's
-        InputScope.verify().
+        Verifies each input's declared amount before it is added to the total. Also
+        verifies that the input supplies every script it commits to and no others. This
+        allows us to determine the input's script type; some types have specific utxo data
+        requirements for verifying the input's amount.
+
+        Since SeedSigner is airgapped, we can't look up what an input is actually worth.
+        We're relying on what the coordinator declared. Unchecked, a compromised
+        coordinator could declare false amounts and have us display any fee it liked. See
+        the miner fee attack described in embit's InputScope.verify().
 
         Despite the name, an input's non_witness_utxo is the *entire* transaction that created
         the coin being spent, so we can hash it and confirm it produces the txid this input
         claims to spend. A witness_utxo is just the one output, with no such proof.
 
-        Coordinators typically only supply the witness_utxo for segwit and taproot inputs, where
-        the sighash commits the input amount. A lie there invalidates the signature instead
-        of burning funds. Legacy sighashes commit no amount at all, so legacy inputs must
-        supply a non_witness_utxo, otherwise a PSBTInputAmountVerificationError is raised.
+        Coordinators typically only supply the witness_utxo for segwit and taproot inputs,
+        where the sighash commits the input amount. A lie there invalidates the signature
+        instead of burning funds. Legacy sighashes (p2pkh and p2sh) commit no amount at
+        all, so legacy inputs must supply a non_witness_utxo, otherwise a
+        PSBTInputAmountVerificationError is raised.
 
         Known limitation: that sighash protection is not absolute. BIP-143 commits only the
         amount of the input being signed. A coordinator who tricks a user into signing the same
@@ -448,20 +458,12 @@ class PSBTParser():
         """
         verified_input_amount = 0
         for i, inp in enumerate(self.psbt.inputs):
-            if inp.non_witness_utxo is None:
-                if inp.witness_utxo is None:
-                    # We have no utxo data at all. This PSBT is invalid: it tries to spend an
-                    # input whose source coin/value is completely unknown and unverifiable.
-                    raise PSBTMissingInputUtxoError(f"Input {i} has no utxo data")
+            if inp.non_witness_utxo is None and inp.witness_utxo is None:
+                # We have no utxo data at all. This PSBT is invalid: it tries to spend an
+                # input whose source coin/value is completely unknown and unverifiable.
+                raise PSBTMissingInputUtxoError(f"Input {i} has no utxo data")
 
-                # Only a witness_utxo, so there is no previous transaction to hash. Raise if the
-                # sighash does not commit to the amount: without that commitment, the signature
-                # would still be valid for a false amount.
-                script_type = PSBTParser._get_script_type(inp, inp.script_pubkey)
-                if script_type in PSBTParser.UNCOMMITTED_AMOUNT_SCRIPT_TYPES:
-                    raise PSBTInputAmountVerificationError(f"Input {i}: {script_type} input has no non_witness_utxo to verify against")
-
-            else:
+            if inp.non_witness_utxo is not None:
                 # Make sure inp.vout points to an output that exists in the non_witness_utxo
                 if inp.vout >= len(inp.non_witness_utxo.vout):
                     raise PSBTMissingInputUtxoError(f"Input {i}: outpoint index {inp.vout} is out of range of its non_witness_utxo")
@@ -484,6 +486,18 @@ class PSBTParser():
                         # The amounts or scripts contradict. Reject the psbt.
                         raise PSBTInputAmountVerificationError(f"Input {i}: witness_utxo doesn't match verified non_witness_utxo")
 
+            # The next check relies on being able to trust the input's scripts. So we must
+            # verify that the input supplies every script it commits to and no others.
+            PSBTParser._verify_input_scripts(inp, inp.script_pubkey)
+
+            if inp.non_witness_utxo is None:
+                # Only a witness_utxo, so there is no previous transaction to hash. Raise if the
+                # sighash does not commit to the amount: without that commitment, the signature
+                # would still be valid for a false amount.
+                script_type = PSBTParser._get_script_type(inp, inp.script_pubkey)
+                if script_type in PSBTParser.UNCOMMITTED_AMOUNT_SCRIPT_TYPES:
+                    raise PSBTInputAmountVerificationError(f"Input {i}: {script_type} input has no non_witness_utxo to verify against")
+
             # Every check passed, so this input amount is verified
             verified_input_amount += inp.utxo.value
 
@@ -493,17 +507,13 @@ class PSBTParser():
 
     def _parse_inputs(self, child_key_derivation_cache: dict):
         """
-        Verifies each input's scripts and determines the wallet policy. Every input must
-        resolve to the same policy, otherwise a RuntimeError is raised.
+        Determines the wallet policy. Every input must resolve to the same policy,
+        otherwise a RuntimeError is raised.
         """
         self.num_inputs = len(self.psbt.inputs)
         for inp in self.psbt.inputs:
             script_pubkey = inp.script_pubkey
 
-            # Verify the input's scripts and reject the psbt if verification fails
-            PSBTParser._verify_input_scripts(inp, script_pubkey)
-
-            # Now we can use those scripts to determine this input's wallet policy
             inp_policy = PSBTParser._get_policy(inp, script_pubkey, self.psbt.xpubs, child_key_derivation_cache)
             if self.policy == None:
                 self.policy = inp_policy

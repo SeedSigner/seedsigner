@@ -2880,12 +2880,12 @@ class TestPSBTParserInputScripts(PSBTParserOwnershipTestBase):
     def _add_foreign_nested_segwit_input(self, psbt: PSBT, derivation_path: str = "m/49h/1h/0h/0/0"):
         """
         Adds a p2sh-p2wpkh input spending from another party's key with no derivation
-        paths specified. Its scriptPubKey and redeem script are both built from that key.
+        paths specified. Its scriptPubKey and redeem script are both built from that key,
+        and its coin is described by a witness_utxo alone.
 
-        The supplied psbt's first input should carry both a witness_utxo and a
-        non_witness_utxo.
+        The supplied psbt's first input should carry a witness_utxo.
         """
-        # Start from a copy of our own input for its utxo fields
+        # Start from a copy of our own input for its witness_utxo
         foreign_input = deepcopy(psbt.inputs[0])
 
         # Strip the derivation paths so the input claims none of the user's keys
@@ -2897,10 +2897,9 @@ class TestPSBTParserInputScripts(PSBTParserOwnershipTestBase):
         foreign_input.redeem_script = script.p2wpkh(public_key)
         foreign_input.witness_utxo.script_pubkey = script.p2sh(foreign_input.redeem_script)
 
-        # The parse verifies input amounts before the script checks, so give this coin a
-        # matching non_witness_utxo and point the input at its new txid.
-        foreign_input.non_witness_utxo.vout[foreign_input.vout].script_pubkey = foreign_input.witness_utxo.script_pubkey
-        foreign_input.txid = foreign_input.non_witness_utxo.txid()
+        # Drop the copied non_witness_utxo, which describes our own coin and contradicts
+        # the witness_utxo altered above.
+        foreign_input.non_witness_utxo = None
 
         psbt.inputs.append(foreign_input)
         return foreign_input
@@ -3055,7 +3054,9 @@ class TestPSBTParserInputScripts(PSBTParserOwnershipTestBase):
         assert psbt_parser.num_inputs == 2
         assert psbt_parser.verified_input_derivation_paths[1] == []
 
-        # Omit its redeem script
+        # Omit its redeem script. Its scriptPubKey alone then reads as legacy p2sh, which
+        # needs a non_witness_utxo to prove its amount. The parse should still report the
+        # missing script.
         foreign_input.redeem_script = None
         with pytest.raises(PSBTMissingInputScriptError):
             self._parse(psbt)
