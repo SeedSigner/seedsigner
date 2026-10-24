@@ -53,6 +53,14 @@ class SettingsConstants:
         (XPUB_QR_FORMAT__SPECTER_LEGACY, _mft("Specter legacy")),
     ]
 
+    BIP85__VIEW_ONLY = "V"
+    BIP85__LOADABLE = "L"
+    ALL_BIP85_OPTIONS = [
+        (OPTION__DISABLED, _mft("Disabled")),
+        (BIP85__VIEW_ONLY, _mft("View-only child seeds")),
+        (BIP85__LOADABLE, _mft("Loadable child seeds")),
+    ]
+
     # Over-specifying current and possible future locales to reduce/eliminate main repo
     # changes when adding/testing new languages.
     LOCALE__ARABIC = "ar"
@@ -664,6 +672,8 @@ class SettingsDefinition:
                       attr_name=SettingsConstants.SETTING__BIP85_CHILD_SEEDS,
                       abbreviated_name="bip85",
                       display_name=_mft("BIP-85 child seeds"),
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      selection_options=SettingsConstants.ALL_BIP85_OPTIONS,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),
 
