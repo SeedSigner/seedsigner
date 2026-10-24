@@ -573,7 +573,7 @@ class ToolsAddressExplorerAddressTypeView(View):
     CHANGE = ButtonOption("Change addresses")
 
 
-    def __init__(self, seed: Seed = None, script_type: str = None, custom_derivation: str = None):
+    def __init__(self, seed: Seed = None, script_type: str = None, custom_derivation: str = None, account: int = 0):
         """
             If the explorer source is a seed, `seed` and `script_type` must be
             specified. `custom_derivation` can be specified as needed.
@@ -585,6 +585,7 @@ class ToolsAddressExplorerAddressTypeView(View):
         self.seed = seed
         self.script_type = script_type
         self.custom_derivation = custom_derivation
+        self.account = account
     
         self.network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
 
@@ -595,6 +596,7 @@ class ToolsAddressExplorerAddressTypeView(View):
             network=self.network,
             embit_network=SettingsConstants.map_network_to_embit(self.network),
             script_type=script_type,
+            account=account,
         )
         if self.seed is not None:
             seed_derivation_override = self.seed.derivation_override(sig_type=SettingsConstants.SINGLE_SIG)
@@ -609,6 +611,7 @@ class ToolsAddressExplorerAddressTypeView(View):
                     network=self.network,
                     wallet_type=SettingsConstants.SINGLE_SIG,
                     script_type=self.script_type,
+                    account=self.account,
                 )
 
             data["derivation_path"] = derivation_path
@@ -644,6 +647,7 @@ class ToolsAddressExplorerAddressTypeView(View):
             wallet_descriptor_display_name=wallet_descriptor_display_name,
             script_type=script_type,
             custom_derivation_path=self.custom_derivation,
+            derivation_path=data.get("derivation_path"),
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:

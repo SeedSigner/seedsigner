@@ -47,6 +47,15 @@ def test_get_standard_derivation_path():
 
         (SC.MAINNET, SC.MULTISIG, SC.LEGACY_P2PKH): "m/45'",
 
+        # account selection
+        (SC.MAINNET, SC.SINGLE_SIG, SC.NATIVE_SEGWIT, 1): "m/84'/0'/1'",
+        (SC.TESTNET, SC.SINGLE_SIG, SC.NESTED_SEGWIT, 7): "m/49'/1'/7'",
+        (SC.REGTEST, SC.SINGLE_SIG, SC.LEGACY_P2PKH, 2**31 - 1): "m/44'/1'/2147483647'",
+        (SC.MAINNET, SC.SINGLE_SIG, SC.TAPROOT, 42): "m/86'/0'/42'",
+        (SC.MAINNET, SC.MULTISIG, SC.NATIVE_SEGWIT, 1): "m/48'/0'/1'/2'",
+        (SC.TESTNET, SC.MULTISIG, SC.NESTED_SEGWIT, 9): "m/48'/1'/9'/1'",
+        (SC.MAINNET, SC.MULTISIG, SC.LEGACY_P2PKH, 1): Exception,
+
         # intentionally fall into exceptions
         (SC.MAINNET, SC.SINGLE_SIG, 'invalid'): Exception,
         (SC.MAINNET, SC.MULTISIG, 'invalid'): Exception,
@@ -72,10 +81,7 @@ def test_get_standard_derivation_path():
             assert func(*args) == expected
 
             # call with named params
-            a_dict = {}
-            if len(args) == 1: a_dict = {'network': args[0]}
-            elif len(args) == 2: a_dict = {'network': args[0], 'wallet_type': args[1]}
-            elif len(args) == 3: a_dict = {'network': args[0], 'wallet_type': args[1], 'script_type': args[2]}
+            a_dict = dict(zip(["network", "wallet_type", "script_type", "account"], args))
             print(f"asserting {func.__name__}(**{a_dict}) == {repr(expected)}")
             assert func(**a_dict) == expected
 
@@ -87,13 +93,34 @@ def test_get_standard_derivation_path():
                 func(*args)
 
             # call with named params
-            a_dict = {}
-            if len(args) == 1: a_dict = {'network': args[0]}
-            elif len(args) == 2: a_dict = {'network': args[0], 'wallet_type': args[1]}
-            elif len(args) == 3: a_dict = {'network': args[0], 'wallet_type': args[1], 'script_type': args[2]}
+            a_dict = dict(zip(["network", "wallet_type", "script_type", "account"], args))
             print(f"asserting {func.__name__}(**{a_dict}) raises Exception")
             with pytest.raises(expected):
                 func(**a_dict)
+
+
+@pytest.mark.parametrize("account", [-1, 2**31, 1.5, "1", None, True, False])
+def test_get_standard_derivation_path_rejects_invalid_accounts(account):
+    with pytest.raises(ValueError):
+        embit_utils.get_standard_derivation_path(account=account)
+
+
+def test_account_one_xpub_and_addresses():
+    from embit import bip39
+
+    seed = bip39.mnemonic_to_seed("abandon " * 11 + "about")
+    derivation_path = embit_utils.get_standard_derivation_path(account=1)
+    xpub = embit_utils.get_xpub(seed, derivation_path, "main")
+
+    assert xpub.to_string() == "xpub6CatWdiZiodmYVtWLtEQsAg1H9ooS1bmsJUBwQ83FE1Fyk386FWcyicJgEZv3quZSJKA5dh5Lo2PbubMGxCfZtRthV6ST2qquL9w3HSzcUn"
+    assert embit_utils.get_single_sig_address(xpub, SC.NATIVE_SEGWIT, 0, False, "main") == "bc1qku0qh0mc00y8tk0n65x2tqw4trlspak0fnjmfz"
+    assert embit_utils.get_single_sig_address(xpub, SC.NATIVE_SEGWIT, 0, True, "main") == "bc1qt0x83f5vmnapgl2gjj9r3d67rcghvjaqrvgpck"
+
+    account_zero_xpub = embit_utils.get_xpub(seed, embit_utils.get_standard_derivation_path(account=0), "main")
+    assert embit_utils.get_single_sig_address(account_zero_xpub, SC.NATIVE_SEGWIT, 0, False, "main") != "bc1qku0qh0mc00y8tk0n65x2tqw4trlspak0fnjmfz"
+
+    multisig_xpub = embit_utils.get_xpub(seed, "m/48'/0'/1'/2'", "main")
+    assert multisig_xpub.to_string() == "xpub6DzhyrnFFYQ1HimDiM388xHnDiRPNdZJFBmmxge3Y1WWcHLtMJLfRuhRHqnQCPbTj3fGKTuKFLHzzwpJkp5Dtc3UtLKZKaVZe1yqMBXd6Vk"
 
 
 def test_get_xpub():
