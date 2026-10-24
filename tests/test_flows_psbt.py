@@ -4,12 +4,13 @@ from embit import bip32, script
 from embit.psbt import PSBT, DerivationPath
 
 from base import FlowTest, FlowStep
-from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_output,
-    foreign_public_key, root_for_seed)
+from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_op_return_output,
+    create_output, foreign_public_key, root_for_seed)
 
 from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
+from seedsigner.models.psbt_parser import OPCODES
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
@@ -372,6 +373,25 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
             FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
             FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
             FlowStep(psbt_views.PSBTMissingInputUtxoView, button_data_selection=psbt_views.PSBTMissingInputUtxoView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_malformed_op_return_terminates_signing_flow(self):
+        """
+        An OP_RETURN push that claims more bytes than its script carries is malformed
+        rather than hostile, but it is still refused during the parse and routes to a
+        warning that aborts the signing flow.
+        """
+        psbt = self._psbt_with_change()
+        truncated_push = script.Script(bytes([OPCODES.OP_RETURN, 10]) + b"abc")
+        psbt.outputs.append(create_op_return_output(b"", script_pubkey=truncated_push))
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMalformedOpReturnView, button_data_selection=psbt_views.PSBTMalformedOpReturnView.DISCARD),
             FlowStep(MainMenuView),
         ])
 
