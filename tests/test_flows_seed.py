@@ -334,6 +334,122 @@ class TestSeedFlows(FlowTest):
         )
 
 
+    def test_export_xpub_account_index_flow(self):
+        """
+            With the account index selection setting enabled, the Export XPUB flow
+            prompts for an account index and derives the xpub at that account.
+        """
+        seed = Seed(mnemonic="blush twice taste dawn feed second opinion lazy thumb play neglect impact".split())
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_INDEX, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [x for x, y in SettingsConstants.ALL_SIG_TYPES])
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [x for x, y in SettingsConstants.ALL_SCRIPT_TYPES])
+        self.settings.set_value(SettingsConstants.SETTING__XPUB_QR_FORMAT, [SettingsConstants.XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT])
+
+        def run_flow(sig_selection, script_type: str, account_input: str, expected_derivation: str):
+            def check_derivation(view: seed_views.SeedExportXpubQRDisplayView):
+                assert view.qr_encoder.derivation == expected_derivation
+
+            self.run_sequence(
+                initial_destination_view_args=dict(seed=seed),
+                sequence=[
+                    FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                    FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=sig_selection),
+                    FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=ButtonOption(dict(SettingsConstants.ALL_SCRIPT_TYPES)[script_type], return_data=script_type)),
+                    FlowStep(seed_views.SeedExportXpubAccountIndexView, screen_return_value=account_input),
+                    FlowStep(seed_views.SeedExportXpubQRFormatView, is_redirect=True),
+                    FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
+                    FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
+                    FlowStep(seed_views.SeedExportXpubQRDisplayView, before_run=check_derivation, screen_return_value=0),
+                    FlowStep(MainMenuView),
+                ]
+            )
+
+        SS = seed_views.SeedExportXpubSigTypeView.SINGLE_SIG
+        MS = seed_views.SeedExportXpubSigTypeView.MULTISIG
+        run_flow(SS, SettingsConstants.NATIVE_SEGWIT, "1", "m/84'/0'/1'")
+        run_flow(SS, SettingsConstants.TAPROOT, "12", "m/86'/0'/12'")
+        run_flow(SS, SettingsConstants.NESTED_SEGWIT, "0", "m/49'/0'/0'")
+        run_flow(SS, SettingsConstants.LEGACY_P2PKH, "", "m/44'/0'/0'")   # empty entry == account 0
+        run_flow(MS, SettingsConstants.NATIVE_SEGWIT, "3", "m/48'/0'/3'/2'")
+        run_flow(MS, SettingsConstants.NESTED_SEGWIT, "01", "m/48'/0'/1'/1'")
+
+        # BIP-45 legacy multisig has no account level; the account step is skipped
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=MS),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=ButtonOption(dict(SettingsConstants.ALL_SCRIPT_TYPES)[SettingsConstants.LEGACY_P2PKH], return_data=SettingsConstants.LEGACY_P2PKH)),
+                FlowStep(seed_views.SeedExportXpubQRFormatView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubWarningView),
+            ]
+        )
+
+        # Custom derivation doesn't prompt for an account index
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=SS),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=ButtonOption(dict(SettingsConstants.ALL_SCRIPT_TYPES)[SettingsConstants.CUSTOM_DERIVATION], return_data=SettingsConstants.CUSTOM_DERIVATION)),
+                FlowStep(seed_views.SeedExportXpubCustomDerivationView),
+            ]
+        )
+
+
+    def test_export_xpub_account_index_invalid_flow(self):
+        """
+            An out-of-range account index shows an error and returns to the entry screen.
+        """
+        seed = Seed(mnemonic="blush twice taste dawn feed second opinion lazy thumb play neglect impact".split())
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_INDEX, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [SettingsConstants.SINGLE_SIG])
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [SettingsConstants.NATIVE_SEGWIT])
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubAccountIndexView, screen_return_value=str(2**31)),
+                FlowStep(seed_views.SeedExportXpubInvalidAccountIndexView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubAccountIndexView, screen_return_value=RET_CODE__BACK_BUTTON),
+            ]
+        )
+
+
+    def test_export_xpub_account_index_disabled_flow(self):
+        """
+            With the setting disabled (default), no account index step is shown.
+        """
+        seed = Seed(mnemonic="blush twice taste dawn feed second opinion lazy thumb play neglect impact".split())
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+
+        assert self.settings.get_value(SettingsConstants.SETTING__ACCOUNT_INDEX) == SettingsConstants.OPTION__DISABLED
+        self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [SettingsConstants.SINGLE_SIG])
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [SettingsConstants.NATIVE_SEGWIT])
+        self.settings.set_value(SettingsConstants.SETTING__XPUB_QR_FORMAT, [SettingsConstants.XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT])
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubQRFormatView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubWarningView),
+            ]
+        )
+
+
     def test_export_xpub_skip_non_option_flow(self):
         """
             Export XPUB flows w/o user choices when no other options for sig_types, script_types, and/or xpub_qr_formats
