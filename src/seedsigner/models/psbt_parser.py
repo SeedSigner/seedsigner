@@ -323,20 +323,14 @@ class PSBTParser():
 
           2. _verify_claimed_derivation_paths: each input and output that claims to be
              controlled by the seed declares a derivation path that must be verified.
-             Raises an Input/Output OwnershipClaimError if a claim fails verification.
 
-          3. _reject_if_seed_cannot_sign: raises PSBTSeedCannotSignError if none of the
-             inputs can be signed by the seed. A mismatch rather than an attack, caught
-             here so the flow can say so before showing a transaction.
+          3. _reject_if_seed_cannot_sign: rejects the psbt if none of the inputs can be
+             signed by the seed. A mismatch rather than an attack, caught here so the flow
+             can say so before showing a transaction.
 
           4. _verify_input_amounts_and_scripts: verifies each input's claimed amount, then
-             totals them as verified_input_amount. Raises PSBTMissingInputUtxoError if an
-             input is missing the utxo that holds its amount, or
-             PSBTInputAmountVerificationError if an amount is unproven or false. Each
-             input must also supply every script it commits to and no others. A missing
-             script raises PSBTMissingInputScriptError, a wrong one
-             PSBTInputScriptMismatchError, and an extra one
-             PSBTExtraneousInputScriptError.
+             totals them as verified_input_amount. Each input must also supply every
+             script it commits to and no others.
 
           5. _parse_inputs: every input must resolve to the same policy otherwise a
              RuntimeError is raised (TODO: replace the RuntimeError with a
@@ -361,8 +355,8 @@ class PSBTParser():
              - multisig: Match each of the seed's verified keys against the pubkeys in
                the script the output commits to.
              Every change_data entry after this point will carry a derivation path that
-             our seed provably owns. Raises PSBTNegativeFeeError if the outputs spend more
-             than the inputs bring in.
+             our seed provably owns. Also rejects a psbt whose outputs spend more than its
+             inputs bring in.
 
         Optimization via child_key_derivation_cache:
         Parsing traverses a derivation path down to an individual address one level at a
@@ -441,8 +435,7 @@ class PSBTParser():
         Coordinators typically only supply the witness_utxo for segwit and taproot inputs,
         where the sighash commits the input amount. A lie there invalidates the signature
         instead of burning funds. Legacy sighashes (p2pkh and p2sh) commit no amount at
-        all, so legacy inputs must supply a non_witness_utxo, otherwise a
-        PSBTInputAmountVerificationError is raised.
+        all, so legacy inputs must supply a non_witness_utxo.
 
         Known limitation: that sighash protection is not absolute. BIP-143 commits only
         the amount of the input being signed. A coordinator who tricks a user into signing
@@ -458,6 +451,13 @@ class PSBTParser():
         witness_utxo but not both, likely to keep psbts small for QR-based signers.
         Warning on it would therefore fire on nearly every ordinary multi-input segwit
         spend.
+
+        Raises:
+          * PSBTMissingInputUtxoError: An input's utxo is missing.
+          * PSBTInputAmountVerificationError: An input's amount is unproven or false.
+          * PSBTMissingInputScriptError: An input is missing a script it commits to.
+          * PSBTInputScriptMismatchError: An input supplies the wrong script.
+          * PSBTExtraneousInputScriptError: An input supplies an extraneous script.
         """
         verified_input_amount = 0
         for i, inp in enumerate(self.psbt.inputs):
@@ -549,18 +549,19 @@ class PSBTParser():
             p2sh-p2wsh:  p2sh(redeem_script)   == scriptPubKey
                          p2wsh(witness_script) == redeem_script
 
-        If any required scripts are missing, raise PSBTMissingInputScriptError.
-
-        If any comparison required above fails, we raise PSBTInputScriptMismatchError.
-
         **** For all script types: ****
         Each input commits to a specific script type. It should not include any extraneous
         scripts that are not required by that script type (e.g. a witness_script on a p2sh
         input). Such a script could distort the parser's understanding of the wallet being
         spent from, which would affect its determination of whether an output is the
         user's change. But it's also possible that a buggy coordinator just created an odd
-        psbt. Either way, we raise PSBTExtraneousInputScriptError for any extraneous
-        script.
+        psbt. Either way, we reject the psbt.
+        ****
+
+        Raises:
+          * PSBTMissingInputScriptError: An input is missing a script it commits to.
+          * PSBTInputScriptMismatchError: An input supplies the wrong script.
+          * PSBTExtraneousInputScriptError: An input supplies an extraneous script.
         """
         # TODO: Support finalized inputs, such as a payjoin receiver's input. Finalizing
         # an input clears its script fields and leaves the script only in its final
