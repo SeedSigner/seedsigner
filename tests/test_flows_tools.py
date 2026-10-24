@@ -340,3 +340,134 @@ class TestToolsImageEntropyFlows(FlowTest):
             FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[Mock()] * ToolsImageEntropyLivePreviewScreen.PREVIEW_POOL_SIZE),
             FlowStep(tools_views.ToolsImageEntropyFinalImageView),
         ])
+
+
+
+class TestToolsDiceGridFlows(FlowTest):
+    """
+    The camera and the photo reader are mocked out; these tests cover routing, the
+    review/correct loop, and that the seed comes from exactly the reviewed rolls.
+    """
+    ROLLS = [(i % 6) + 1 for i in range(100)]
+
+    def setup_method(self):
+        super().setup_method()
+        from unittest.mock import patch
+        from seedsigner.helpers import dice_grid_reader
+        self.camera_patch = patch("seedsigner.hardware.camera.Camera")
+        self.camera_patch.start()
+        self.reading = dice_grid_reader.DiceGridReading(rolls=list(self.ROLLS), uncertain=[False] * 100)
+        self.reader_patch = patch("seedsigner.helpers.dice_grid_reader.read_dice_grid", side_effect=self.read)
+        self.reader_patch.start()
+
+
+    def teardown_method(self):
+        self.camera_patch.stop()
+        self.reader_patch.stop()
+        super().teardown_method()
+
+
+    def read(self, image):
+        """ Stands in for the photo reader: returns self.reading, or raises it. """
+        if isinstance(self.reading, Exception):
+            raise self.reading
+        return self.reading
+
+
+    def expected_mnemonic(self, rolls: list[int]) -> list[str]:
+        from seedsigner.helpers import mnemonic_generation
+        return mnemonic_generation.generate_mnemonic_from_dice("".join(str(r) for r in rolls[:99]))
+
+
+    def test__dice_grid__review_correct_and_finalize(self):
+        """ A corrected roll replaces the reading, and only the first 99 rolls count. """
+        from seedsigner.gui.screens.tools_screens import ToolsDiceGridReviewScreen
+
+        self.reading.uncertain[5] = True
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.DICE),
+            FlowStep(tools_views.ToolsDiceEntropyMnemonicLengthView, screen_return_value=2),  # scan grid
+            FlowStep(tools_views.ToolsDiceGridScanView, screen_return_value=None),              # take the photo
+            FlowStep(tools_views.ToolsDiceGridReviewView, screen_return_value=5),               # click roll 6
+            FlowStep(tools_views.ToolsDiceGridEditRollView, screen_return_value="4"),
+            FlowStep(tools_views.ToolsDiceGridReviewView, screen_return_value=ToolsDiceGridReviewScreen.DONE),
+            FlowStep(seed_views.SeedWordsWarningView),
+        ])
+
+        corrected = list(self.ROLLS)
+        corrected[5] = 4
+        assert self.controller.storage.pending_seed.mnemonic_list == self.expected_mnemonic(corrected)
+        assert self.controller.storage.pending_seed.mnemonic_list != self.expected_mnemonic(self.ROLLS)
+
+        # The 100th die never counts
+        other = list(corrected)
+        other[99] = 1 if corrected[99] != 1 else 2
+        assert self.expected_mnemonic(other) == self.expected_mnemonic(corrected)
+
+        # Nothing about the rolls is left behind
+        assert self.controller.dice_grid_rolls is None
+        assert self.controller.dice_grid_uncertain is None
+
+
+    def test__dice_grid__review_starts_on_first_flagged_roll(self):
+        self.reading.uncertain[37] = True
+        self.reading.uncertain[80] = True
+        self.run_sequence([
+            FlowStep(tools_views.ToolsDiceGridScanView, screen_return_value=None),
+            FlowStep(tools_views.ToolsDiceGridReviewView),
+        ])
+        assert self.controller.dice_grid_selected_index == 37
+
+
+    def test__dice_grid__unread_roll_must_be_entered(self):
+        """ A roll that couldn't be read blocks finishing until it is entered. """
+        from seedsigner.gui.screens.tools_screens import ToolsDiceGridReviewScreen
+
+        self.reading.rolls[12] = 0
+        self.reading.uncertain[12] = True
+        self.run_sequence([
+            FlowStep(tools_views.ToolsDiceGridScanView, screen_return_value=None),
+            FlowStep(tools_views.ToolsDiceGridReviewView, screen_return_value=ToolsDiceGridReviewScreen.DONE),
+            FlowStep(tools_views.ToolsDiceGridUnreadRollView, screen_return_value=0),
+            FlowStep(tools_views.ToolsDiceGridEditRollView, screen_return_value="6"),
+            FlowStep(tools_views.ToolsDiceGridReviewView, screen_return_value=ToolsDiceGridReviewScreen.DONE),
+            FlowStep(seed_views.SeedWordsWarningView),
+        ])
+
+        entered = list(self.ROLLS)
+        entered[12] = 6
+        assert self.controller.storage.pending_seed.mnemonic_list == self.expected_mnemonic(entered)
+
+
+    def test__dice_grid__markers_not_found_retakes_photo(self):
+        from seedsigner.helpers import dice_grid_reader
+        self.reading = dice_grid_reader.MarkersNotFound("no markers")
+
+        self.run_sequence([
+            FlowStep(tools_views.ToolsDiceEntropyMnemonicLengthView, screen_return_value=2),
+            FlowStep(tools_views.ToolsDiceGridScanView, screen_return_value=None),
+            FlowStep(tools_views.ToolsDiceGridMarkersNotFoundView, screen_return_value=0),
+            FlowStep(tools_views.ToolsDiceGridScanView),
+        ])
+        assert self.controller.dice_grid_rolls is None
+
+
+    def test__dice_grid__back_from_review_discards_rolls(self):
+        self.run_sequence([
+            FlowStep(tools_views.ToolsDiceEntropyMnemonicLengthView, screen_return_value=2),
+            FlowStep(tools_views.ToolsDiceGridScanView, screen_return_value=None),
+            FlowStep(tools_views.ToolsDiceGridReviewView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsDiceGridScanView),
+        ])
+        assert self.controller.dice_grid_rolls is None
+
+
+    def test__dice_grid__back_from_edit_keeps_reading(self):
+        self.run_sequence([
+            FlowStep(tools_views.ToolsDiceGridScanView, screen_return_value=None),
+            FlowStep(tools_views.ToolsDiceGridReviewView, screen_return_value=3),
+            FlowStep(tools_views.ToolsDiceGridEditRollView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsDiceGridReviewView),
+        ])
+        assert self.controller.dice_grid_rolls == self.ROLLS

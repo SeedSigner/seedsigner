@@ -7,12 +7,37 @@ from typing import Any
 from PIL import Image, ImageDraw
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.camera import Camera
-from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconTextLine, SeedSignerIconConstants, TextArea
+from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconButton, IconTextLine, SeedSignerIconConstants, TextArea
 
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, ButtonOption, KeyboardScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, ButtonOption, KeyboardScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.gui.keyboard import Keyboard
+
+
+
+def crop_camera_frame_to_canvas(frame: Image.Image, canvas_width: int, canvas_height: int) -> Image.Image:
+    """ Crop any excess from a camera frame whose aspect ratio differs from the display's. """
+    # TODO: This cropping may be unnecessary if the camera resolution TODO in
+    # ToolsImageEntropyLivePreviewScreen is solved.
+    box = None
+    if canvas_width != frame.width:
+        half_width_diff = int(abs(canvas_width - frame.width)/2)
+        box = (
+            half_width_diff,
+            0,
+            frame.width - half_width_diff,
+            frame.height
+        )
+    elif canvas_height != frame.height:
+        half_height_diff = int(abs(canvas_height - frame.height)/2)
+        box = (
+            0,
+            half_height_diff,
+            frame.width,
+            frame.height - half_height_diff
+        )
+    return frame.crop(box=box)
 
 
 
@@ -74,27 +99,7 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
             with self.renderer.lock:
                 # Account for the possibly different aspect ratio of the camera frame
                 # vs the display; crop any excess.
-                # TODO: This cropping may be unnecessary if the above TODO about the
-                # camera resolution is solved.
-                box = None
-                if self.canvas_width != frame.width:
-                    half_width_diff = int(abs(self.canvas_width - frame.width)/2)
-                    box = (
-                        half_width_diff,
-                        0,
-                        frame.width - half_width_diff,
-                        frame.height
-                    )
-                elif self.canvas_height != frame.height:
-                    half_height_diff = int(abs(self.canvas_height - frame.height)/2)
-                    box = (
-                        0,
-                        half_height_diff,
-                        frame.width,
-                        frame.height - half_height_diff
-                    )
-
-                self.renderer.canvas.paste(frame.crop(box=box))
+                self.renderer.canvas.paste(crop_camera_frame_to_canvas(frame, self.canvas_width, self.canvas_height))
 
             # Decide whether this frame can be added to the preview pool.
             # Rule 1: the frame must not be a single flat color (e.g. an all-black frame
@@ -294,8 +299,8 @@ class ToolsImageEntropyFinalImageScreen(BaseScreen):
 class ToolsDiceEntropyEntryScreen(KeyboardScreen):
 
     def __post_init__(self):
-        # TRANSLATOR_NOTE: current roll number vs total rolls (e.g. roll 7 of 50)
-        self.title = _("Dice Roll {}/{}").format(1, self.return_after_n_chars)
+        self.cursor_position = len(self.initial_value)
+        self.update_title()
         self.custom_additional_keys = [Keyboard.KEY_BACKSPACE]
 
         # Specify the keys in the keyboard
@@ -327,8 +332,260 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
     
 
     def update_title(self) -> bool:
+        # TRANSLATOR_NOTE: current roll number vs total rolls (e.g. roll 7 of 50)
         self.title = _("Dice Roll {}/{}").format(self.cursor_position + 1, self.return_after_n_chars)
         return True
+
+
+
+@dataclass
+class ToolsDiceGridScanScreen(BaseScreen):
+    """
+    Live camera preview for framing the dice grid sheet. Returns None once the user
+    clicks to take the photo (the View captures the full-resolution still), or
+    RET_CODE__BACK_BUTTON.
+    """
+    def __post_init__(self):
+        super().__post_init__()
+        self.camera = Camera.get_instance()
+        max_dimension = max(self.canvas_width, self.canvas_height)
+        self.camera.start_video_stream_mode(resolution=(max_dimension, max_dimension), framerate=24, format="rgb")
+
+
+    def _draw_framing_guide(self):
+        """ Corner brackets around a portrait area shaped like the sheet's markers and frame. """
+        guide_height = int(self.canvas_height * 0.82)
+        guide_width = int(guide_height * 0.74)
+        left = int((self.canvas_width - guide_width) / 2)
+        top = int((self.canvas_height - guide_height) / 2) - GUIConstants.COMPONENT_PADDING
+        right, bottom = left + guide_width, top + guide_height
+        arm = int(guide_width / 6)
+        for x, y, dx, dy in ((left, top, 1, 1), (right, top, -1, 1), (right, bottom, -1, -1), (left, bottom, 1, -1)):
+            self.renderer.draw.line((x, y, x + dx * arm, y), fill=GUIConstants.ACCENT_COLOR, width=3)
+            self.renderer.draw.line((x, y, x, y + dy * arm), fill=GUIConstants.ACCENT_COLOR, width=3)
+
+
+    def _draw_instructions(self, text: str, color: str = GUIConstants.BODY_FONT_COLOR):
+        self.renderer.draw.text(
+            xy=(int(self.renderer.canvas_width/2), self.renderer.canvas_height - GUIConstants.EDGE_PADDING),
+            text=text,
+            fill=color,
+            font=Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_button_font_size()),
+            stroke_width=4,
+            stroke_fill=GUIConstants.BACKGROUND_COLOR,
+            anchor="ms"
+        )
+
+
+    def _run(self):
+        # The button click that brought the user here may still be held down; it must
+        # not take the photo. Wait for all buttons to be released first.
+        is_maybe_still_holding = True
+
+        while True:
+            if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
+                # Have to manually update last input time since we're not in a wait_for loop
+                self.hw_inputs.update_last_input_time()
+                self.camera.stop_video_stream_mode()
+                return RET_CODE__BACK_BUTTON
+
+            frame: Image.Image = self.camera.read_video_stream(as_image=True)
+            if frame is None:
+                # Camera probably isn't ready yet
+                time.sleep(0.01)
+                continue
+
+            if not self.hw_inputs.check_for_low(keys=HardwareButtonsConstants.KEYS__ANYCLICK):
+                is_maybe_still_holding = False
+
+            elif not is_maybe_still_holding:
+                # A fresh, explicit click: take the photo
+                self.hw_inputs.update_last_input_time()
+                self.camera.stop_video_stream_mode()
+                with self.renderer.lock:
+                    self._draw_instructions(_("Capturing image..."), color=GUIConstants.ACCENT_COLOR)
+                    self.renderer.show_image()
+                return None
+
+            with self.renderer.lock:
+                self.renderer.canvas.paste(crop_camera_frame_to_canvas(frame, self.canvas_width, self.canvas_height))
+                self._draw_framing_guide()
+                # TRANSLATOR_NOTE: Live camera view; the dice grid sheet's four corner markers must all be in the photo
+                self._draw_instructions("< " + _("back") + "  |  " + _("all 4 markers in view"))
+                self.renderer.show_image()
+
+
+
+@dataclass
+class ToolsDiceGridReviewScreen(BaseTopNavScreen):
+    """
+    Shows dice read from a photo as a grid laid out like the dice on the sheet, for
+    the user to check against the real dice. Rolls flagged as uncertain are
+    highlighted and unreadable ones show "?". The last `unused_cells` cells hold dice
+    that are rolled and packed with the rest but don't contribute to the seed.
+
+    Returns the index of a roll the user clicked to correct, DONE when the user
+    confirms (KEY3 or the check button), or RET_CODE__BACK_BUTTON.
+    """
+    DONE = "done"
+
+    rolls: list[int] = None
+    uncertain: list[bool] = None
+    num_rolls: int = 99                 # rolls used; any cells after these are unused
+    grid_size: int = 10
+    selected_index: int = 0
+
+    def __post_init__(self):
+        # TRANSLATOR_NOTE: Check the dice values read from a photo against the actual dice
+        self.title = _("Review Rolls")
+        super().__post_init__()
+
+        right_panel_width = 60
+        grid_area_width = self.canvas_width - GUIConstants.EDGE_PADDING - right_panel_width
+        grid_area_height = self.canvas_height - self.top_nav.height - GUIConstants.EDGE_PADDING
+        self.cell_size = int(min(grid_area_width, grid_area_height) / self.grid_size)
+        grid_extent = self.cell_size * self.grid_size
+        self.grid_x = GUIConstants.EDGE_PADDING + int((grid_area_width - grid_extent) / 2)
+        self.grid_y = self.top_nav.height + int((grid_area_height - grid_extent) / 2)
+        self.font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, self.cell_size - 2)
+
+        # Same KEY3-aligned "save" button as the KeyboardScreen uses
+        self.save_button = IconButton(
+            icon_name=SeedSignerIconConstants.CHECK,
+            icon_color=GUIConstants.SUCCESS_COLOR,
+            width=right_panel_width - GUIConstants.COMPONENT_PADDING,
+            screen_x=self.canvas_width - right_panel_width + GUIConstants.COMPONENT_PADDING,
+            screen_y=int((self.canvas_height - GUIConstants.BUTTON_HEIGHT) / 2) + 60,
+        )
+        self.components.append(self.save_button)
+        self.selected_index = max(0, min(self.selected_index, self.num_rolls - 1))
+
+
+    def _render_grid(self):
+        draw = self.renderer.draw
+        size = self.cell_size
+        extent = size * self.grid_size
+        draw.rectangle((self.grid_x, self.grid_y, self.grid_x + extent, self.grid_y + extent), fill=GUIConstants.BACKGROUND_COLOR)
+
+        # Faint lines halfway across and down help keep track of rows and columns
+        middle = int(self.grid_size / 2) * size
+        draw.line((self.grid_x + middle, self.grid_y, self.grid_x + middle, self.grid_y + extent), fill=GUIConstants.INACTIVE_COLOR)
+        draw.line((self.grid_x, self.grid_y + middle, self.grid_x + extent, self.grid_y + middle), fill=GUIConstants.INACTIVE_COLOR)
+
+        is_grid_selected = not self.top_nav.is_selected and not self.save_button.is_selected
+        for index in range(self.grid_size * self.grid_size):
+            row, col = divmod(index, self.grid_size)
+            x, y = self.grid_x + col * size, self.grid_y + row * size
+            box = (x + 1, y + 1, x + size - 1, y + size - 1)
+
+            if index >= self.num_rolls:
+                text, color = "-", GUIConstants.LABEL_FONT_COLOR
+            elif self.rolls[index] == 0:
+                text, color = "?", GUIConstants.ERROR_COLOR
+            elif self.uncertain[index]:
+                text, color = str(self.rolls[index]), GUIConstants.WARNING_COLOR
+            else:
+                text, color = str(self.rolls[index]), GUIConstants.BODY_FONT_COLOR
+
+            if index < self.num_rolls and (self.rolls[index] == 0 or self.uncertain[index]):
+                draw.rectangle(box, fill=GUIConstants.BUTTON_BACKGROUND_COLOR)
+            if is_grid_selected and index == self.selected_index:
+                draw.rectangle(box, fill=GUIConstants.ACCENT_COLOR)
+                color = GUIConstants.BUTTON_SELECTED_FONT_COLOR
+
+            draw.text((x + size / 2, y + size / 2), text, fill=color, font=self.font, anchor="mm")
+
+
+    def _render(self):
+        super()._render()
+        self._render_grid()
+        self.renderer.show_image()
+
+
+    def _run(self):
+        while True:
+            user_input = self.hw_inputs.wait_for(HardwareButtonsConstants.ALL_KEYS)
+
+            with self.renderer.lock:
+                row, col = divmod(self.selected_index, self.grid_size)
+
+                if user_input == HardwareButtonsConstants.KEY3 or (
+                        self.save_button.is_selected and user_input in HardwareButtonsConstants.KEYS__ANYCLICK):
+                    # Show the save button reacting to the click, then exit
+                    self.save_button.is_selected = True
+                    self.save_button.render()
+                    self.renderer.show_image()
+                    return self.DONE
+
+                elif self.top_nav.is_selected:
+                    if user_input in HardwareButtonsConstants.KEYS__ANYCLICK:
+                        return self.top_nav.selected_button
+                    elif user_input == HardwareButtonsConstants.KEY_DOWN:
+                        self.top_nav.is_selected = False
+                        self.top_nav.render_buttons()
+                    else:
+                        continue
+
+                elif self.save_button.is_selected:
+                    if user_input == HardwareButtonsConstants.KEY_LEFT:
+                        self.save_button.is_selected = False
+                        self.save_button.render()
+                    else:
+                        continue
+
+                elif user_input in HardwareButtonsConstants.KEYS__ANYCLICK:
+                    return self.selected_index
+
+                elif user_input == HardwareButtonsConstants.KEY_UP:
+                    if row == 0:
+                        self.top_nav.is_selected = True
+                        self.top_nav.render_buttons()
+                    else:
+                        self.selected_index -= self.grid_size
+
+                elif user_input == HardwareButtonsConstants.KEY_DOWN:
+                    if self.selected_index + self.grid_size < self.num_rolls:
+                        self.selected_index += self.grid_size
+
+                elif user_input == HardwareButtonsConstants.KEY_LEFT:
+                    if col > 0:
+                        self.selected_index -= 1
+
+                elif user_input == HardwareButtonsConstants.KEY_RIGHT:
+                    if col == self.grid_size - 1 or self.selected_index + 1 >= self.num_rolls:
+                        self.save_button.is_selected = True
+                        self.save_button.render()
+                    else:
+                        self.selected_index += 1
+
+                else:
+                    continue
+
+                self._render_grid()
+                self.renderer.show_image()
+
+
+
+@dataclass
+class ToolsDiceGridEditRollScreen(ToolsDiceEntropyEntryScreen):
+    """
+    The regular dice entry keyboard, for correcting a single roll read from a dice
+    grid photo. The current reading starts out selected.
+    """
+    roll_number: int = 1                # 1-based position in the grid, as the user counts
+    current_value: int = 0              # 0 if the roll couldn't be read
+
+    def __post_init__(self):
+        self.return_after_n_chars = 1
+        super().__post_init__()
+        if 1 <= self.current_value <= 6:
+            self.keyboard.set_selected_key(selected_letter=self.keys_charset[self.current_value - 1])
+
+
+    def update_title(self) -> bool:
+        # TRANSLATOR_NOTE: Title when correcting one roll read from a dice grid photo (e.g. "Roll 37")
+        self.title = _("Roll {}").format(self.roll_number)
+        return False
 
 
 
