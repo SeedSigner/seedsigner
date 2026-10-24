@@ -970,15 +970,25 @@ class SignMessageQrDecoder(BaseSingleFrameQrDecoder):
 
             signmessage {derivation_path} ascii:{message}
         """
-        parts = segment.split()
-        self.derivation_path = parts[1].replace("h", "'")
-        fmt = parts[2].split(":")[0]
-        self.message = segment.split(f"{fmt}:")[1]
+        # Split off the two leading fields; everything after them is the payload, which
+        # may itself contain spaces and colons.
+        parts = segment.split(maxsplit=2)
+        if len(parts) < 3:
+            logger.info("Sign message: missing derivation path and/or message")
+            return DecodeQRStatus.INVALID
+
+        fmt, separator, message = parts[2].partition(":")
+        if not separator:
+            logger.info("Sign message: missing the format separator")
+            return DecodeQRStatus.INVALID
 
         # TODO: support formats other than ascii?
         if fmt != "ascii":
             logger.info(f"Sign message: Unsupported format: {fmt}")
             return DecodeQRStatus.INVALID
+
+        self.derivation_path = parts[1].replace("h", "'")
+        self.message = message
 
         self.complete = True
         self.collected_segments = 1
