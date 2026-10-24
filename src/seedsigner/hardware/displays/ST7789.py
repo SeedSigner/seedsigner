@@ -18,6 +18,9 @@ class ST7789(BaseDisplayDriver):
 
     class for ST7789  240*240 1.3inch OLED displays.
     """
+    # ST7789 panels need the controller's inversion on to show normal colors.
+    NORMAL_COLORS_REQUIRE_INVERSION = True
+
     def __post_init__(self):
         #Initialize DC RST pin
         self._dc = 22
