@@ -1,5 +1,6 @@
 import pytest
-from seedsigner.models.seed import InvalidSeedException, Seed, ElectrumSeed
+from seedsigner.models.seed import InvalidSeedException, Seed, ElectrumSeed, ShamirSeed, DuplicateShamirShareException
+from seedsigner.models.seed_storage import SeedStorage
 
 from seedsigner.models.settings import SettingsConstants
 
@@ -83,3 +84,150 @@ def test_electrum_seed_rejects_most_bip39_mnemonics():
 	mnemonic = "only gain spot output unknown craft simple cram absorb suggest ridge famous".split()
 	Seed(mnemonic)
 	ElectrumSeed(mnemonic)
+
+
+def test_shamir_share_import_seed():
+	# Test data from iancoleman.io
+	# 20-word shares, no passphrase
+	share_set_formatted = [
+        ["yield","upgrade","acrobat","leader","briefing","capacity","again","epidemic","minister","frozen","impulse","math","guilt","lily","install","market","modify","envelope","index","become"],
+        ["yield","upgrade","beard","leader","ceramic","total","morning","critical","brother","slap","lungs","medical","dilemma","expect","olympic","jacket","ruin","airline","promise","literary"]
+    ]
+
+	expected_fingerprint = "dd6d846c"
+	seed = ShamirSeed(share_set_formatted, passphrase="")
+	assert seed.get_fingerprint() == expected_fingerprint
+
+	# 20-word shares, with passphrase
+	share_set_formatted = [
+        ["window","lunch","ceramic","leader","cover","satisfy","emerald","obesity","impact","purple","gravity","plains","gasoline","example","cluster","deadline","license","golden","window","teaspoon"],
+        ["window","lunch","beard","leader","civil","burden","that","extend","husband","oven","forget","husband","identify","arena","furl","diploma","focus","unwrap","belong","artwork"]
+    ]
+
+	expected_fingerprint = "91b4f98b"
+	seed = ShamirSeed(share_set_formatted, passphrase="mupassphrase")
+	assert seed.get_fingerprint() == expected_fingerprint
+
+	# 33-word shares, no passphrase
+	share_set_formatted = [
+        ["slush","flea","agency","academic","angel","lobe","flea","library","writing","clogs","cards","liberty","river","fiction","therapy","peasant","uncover","lend","extend","herald","vampire","seafood","smug","method","syndrome","grin","moisture","aunt","aviation","expand","orange","western","froth"],
+        ["slush","flea","birthday","academic","angry","hazard","vampire","tendency","violence","club","vexed","ocean","energy","material","station","mixture","thumb","submit","process","strategy","lungs","numerous","unhappy","location","grasp","both","presence","member","grasp","picture","owner","darkness","saver"],
+        ["slush","flea","cleanup","academic","armed","coal","scroll","fangs","capture","fused","adorn","argue","military","cylinder","dismiss","general","forbid","pleasure","glimpse","wavy","award","trouble","belong","spider","fiber","wisdom","image","fatigue","surface","favorite","wolf","spelling","distance"],
+        ["slush","flea","desert","academic","avoid","nuclear","sympathy","scene","remind","shaft","budget","taste","window","engage","easel","ranked","fragment","scout","retailer","express","browser","music","friendly","pharmacy","husky","explain","lawsuit","chew","smear","camera","unfair","belong","modern"],
+        ["slush","flea","email","academic","arcade","emission","forward","short","adequate","location","disease","fitness","paper","syndrome","coding","knit","random","order","railroad","emerald","canyon","thorn","adjust","ceiling","knife","false","kidney","gums","mountain","disease","software","flame","famous"]
+    ]
+
+	expected_fingerprint = "6a26b810"
+	seed = ShamirSeed(share_set_formatted, passphrase="")
+	assert seed.get_fingerprint() == expected_fingerprint
+
+	# 33-word shares, with passphrase
+	share_set_formatted = [
+        ["blessing","leader","agency","academic","alien","valid","husky","inherit","duckling","favorite","angel","skin","hazard","response","peanut","process","spew","treat","breathe","boring","sweater","either","valid","dismiss","herd","program","increase","typical","chest","pumps","legal","tension","acrobat"],
+        ["blessing","leader","birthday","academic","amount","escape","physics","leaf","dining","furl","being","domain","editor","glasses","finance","chest","argue","garden","satoshi","wolf","marathon","elite","salt","salary","clock","military","review","ting","security","length","trust","apart","system"],
+        ["blessing","leader","cleanup","academic","angry","depend","costume","work","leaf","believe","general","museum","alto","spew","greatest","favorite","cowboy","slow","endorse","beam","patrol","intimate","source","canyon","actress","body","ceramic","silent","kitchen","camera","genre","deadline","iris"],
+        ["blessing","leader","desert","academic","aluminum","fake","iris","permit","sympathy","genre","security","flavor","species","upgrade","pajamas","shaft","kidney","sister","clogs","mobile","thorn","gross","marathon","penalty","dismiss","guilt","modern","provide","fatal","shelter","railroad","require","permit"],
+        ["blessing","leader","email","academic","anxiety","blessing","diet","slim","military","listen","smith","carbon","artwork","bike","salt","purchase","unhappy","observe","burden","rebuild","imply","dismiss","slow","penalty","award","receiver","industry","peanut","squeeze","husband","armed","evaluate","drink"]
+    ]
+	
+	expected_fingerprint = "60863147"
+	seed = ShamirSeed(share_set_formatted, passphrase="mupassphrase")
+	assert seed.get_fingerprint() == expected_fingerprint
+
+
+def make_multigroup_shares(secret):
+	"""Build a legacy 2-of-3 group backup with mixed member thresholds."""
+	from itertools import count
+	from embit.slip39 import Share, ShareSet
+
+	identifier = 1234
+	random_values = count()
+	random_byte = lambda _low, _high: next(random_values) % 256
+	encrypted = ShareSet.encrypt(secret, identifier, 0)
+	group_secrets = ShareSet.split_secret(encrypted, 2, 3, randint=random_byte)
+	groups = {}
+	for group_index, group_secret in group_secrets:
+		member_threshold, member_count = (1, 1) if group_index == 2 else (2, 3)
+		members = ShareSet.split_secret(
+			group_secret, member_threshold, member_count, randint=random_byte
+		)
+		groups[group_index] = [
+			Share(
+				len(secret) * 8, identifier, 0, group_index, 2, 3,
+				member_index, member_threshold, int.from_bytes(value, "big"),
+			).mnemonic().split()
+			for member_index, value in members
+		]
+	return groups
+
+
+def add_pending_share(storage, words):
+	for index, word in enumerate(words):
+		storage.update_pending_mnemonic(word, index)
+	storage.add_pending_shamir_share()
+
+
+def test_single_group_progress_uses_member_threshold():
+	shares = [
+		"shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed".split(),
+		"shadow pistol academic acid actress prayer class unknown daughter sweater depict flip twice unkind craft early superior advocate guest smoking".split(),
+	]
+	storage = SeedStorage()
+	storage.init_pending_shamir_share_set(num_words=20)
+	add_pending_share(storage, shares[0])
+
+	assert not storage.can_finalize_pending_shamir_share_set()
+	assert storage.get_pending_shamir_progress()["shares_remaining"] == 1
+	add_pending_share(storage, shares[1])
+	assert storage.can_finalize_pending_shamir_share_set()
+
+
+@pytest.mark.parametrize("secret_length", [16, 32])
+def test_multigroup_backup_recovers_with_an_incomplete_extra_group(secret_length):
+	secret = bytes(range(secret_length))
+	groups = make_multigroup_shares(secret)
+	storage = SeedStorage()
+	storage.init_pending_shamir_share_set(num_words=len(groups[0][0]))
+
+	for share in groups[0][:2]:
+		add_pending_share(storage, share)
+	assert not storage.can_finalize_pending_shamir_share_set()
+	assert storage.get_pending_shamir_progress() == {
+		"group_threshold": 2,
+		"completed_groups": 1,
+		"shares_entered": 2,
+		"shares_remaining": None,
+		"current_group_index": 0,
+		"current_group_shares": 2,
+		"current_group_threshold": 2,
+	}
+
+	add_pending_share(storage, groups[1][0])
+	assert not storage.can_finalize_pending_shamir_share_set()
+	assert storage.get_pending_shamir_progress()["current_group_shares"] == 1
+
+	add_pending_share(storage, groups[2][0])
+	assert storage.can_finalize_pending_shamir_share_set()
+	storage.convert_pending_shamir_share_set_to_pending_seed()
+	assert storage.get_pending_seed().seed_bytes == secret
+
+
+def test_duplicate_share_is_rejected_without_poisoning_multigroup_backup():
+	secret = bytes(range(16))
+	groups = make_multigroup_shares(secret)
+	storage = SeedStorage()
+	storage.init_pending_shamir_share_set(num_words=20)
+	add_pending_share(storage, groups[0][0])
+
+	for index, word in enumerate(groups[0][0]):
+		storage.update_pending_mnemonic(word, index)
+	with pytest.raises(DuplicateShamirShareException):
+		storage.add_pending_shamir_share()
+	assert storage.pending_shamir_share_set_length == 1
+	assert storage.pending_mnemonic == groups[0][0]
+
+	add_pending_share(storage, groups[0][1])
+	add_pending_share(storage, groups[2][0])
+	assert storage.can_finalize_pending_shamir_share_set()
+	storage.convert_pending_shamir_share_set_to_pending_seed()
+	assert storage.get_pending_seed().seed_bytes == secret
