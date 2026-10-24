@@ -104,6 +104,23 @@ class TestResumeFlowLeak(FlowTest):
         self.run_sequence(sequence)
 
 
+class TestStalePartCleanup(FlowTest):
+    """F4: an explicit new rebuild must not resume abandoned parts."""
+
+    def test_explicit_new_rebuild_clears_abandoned_parts(self):
+        self.settings.set_value(SettingsConstants.SETTING__SEED_XOR, SettingsConstants.OPTION__ENABLED)
+        storage = self.controller.storage
+        storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_A.split()))
+
+        self.run_sequence([
+            FlowStep(seed_views.LoadSeedView,
+                     button_data_selection=seed_views.LoadSeedView.REBUILD_SEED_XOR),
+            FlowStep(seed_views.RebuildSeedXORManageView),
+        ])
+
+        assert storage.rebuild_seedxor_parts == []
+
+
 class TestDiscardPartsByIdentity(FlowTest):
     """F2 regression: DISCARD_PARTS must not delete a pre-existing user seed
     that merely shares a mnemonic with a typed/scanned part."""

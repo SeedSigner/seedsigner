@@ -214,8 +214,8 @@ class LoadSeedView(View):
             return Destination(ToolsMenuView)
 
         elif button_data[selected_menu_num] == self.REBUILD_SEED_XOR:
-            # Starting the SeedXOR rebuild flow; clear any stale resume flag from a
-            #   previously aborted flow so it cannot misroute this or a later flow.
+            # Explicitly starting a new rebuild: clear all state left by an abandoned flow.
+            self.controller.clear_rebuild_seedxor_data()
             self.controller.resume_main_flow = None
             return Destination(RebuildSeedXORManageView)
 
@@ -2302,12 +2302,6 @@ class RebuildSeedXORLoadPartView(View):
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
     USE_LOADED_SEED = ButtonOption("Use loaded seed", SeedSignerIconConstants.SEEDS)
-
-    def __init__(self):
-        super().__init__()
-        # Clear previous rebuild data when starting a new flow
-        if not self.controller.storage.rebuild_seedxor_parts:
-            self.controller.clear_rebuild_seedxor_data()
 
     def run(self):
         # Current part number is the count + 1
