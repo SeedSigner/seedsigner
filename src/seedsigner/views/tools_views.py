@@ -506,6 +506,8 @@ class ToolsAddressExplorerSelectSourceView(View):
     SCAN_DESCRIPTOR = ButtonOption("Scan wallet descriptor", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD, return_data=12)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD, return_data=24)
+    TYPE_12NUMBER = ButtonOption("Enter 12-number seed", FontAwesomeIconConstants.CALCULATOR, return_data=12)
+    TYPE_24NUMBER = ButtonOption("Enter 24-number seed", FontAwesomeIconConstants.CALCULATOR, return_data=24)
     TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
 
     def run(self):
@@ -517,6 +519,8 @@ class ToolsAddressExplorerSelectSourceView(View):
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             button_data.append(ButtonOption(button_str, SeedSignerIconConstants.FINGERPRINT))
         button_data = button_data + [self.SCAN_SEED, self.SCAN_DESCRIPTOR, self.TYPE_12WORD, self.TYPE_24WORD]
+        if self.settings.get_value(SettingsConstants.SETTING__SEED_NUMBERS) == SettingsConstants.OPTION__ENABLED:
+            button_data = button_data + [self.TYPE_12NUMBER, self.TYPE_24NUMBER]
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
 
@@ -558,6 +562,11 @@ class ToolsAddressExplorerSelectSourceView(View):
             from seedsigner.views.seed_views import SeedMnemonicEntryView
             self.controller.storage.init_pending_mnemonic(num_words=button_data[selected_menu_num].return_data)
             return Destination(SeedMnemonicEntryView)
+
+        elif button_data[selected_menu_num] in [self.TYPE_12NUMBER, self.TYPE_24NUMBER]:
+            from seedsigner.views.seed_numbers_views import SeedNumbersFormatView
+            self.controller.storage.init_pending_mnemonic(num_words=button_data[selected_menu_num].return_data)
+            return Destination(SeedNumbersFormatView)
 
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
             from seedsigner.views.seed_views import SeedElectrumMnemonicStartView
