@@ -9,16 +9,85 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent"
 ]
+dependencies = [
+  # Runtime dependencies, pinned to exactly what SeedSigner OS ships (Buildroot
+  # packages in the seedsigner-os repo). uv.lock pins every transitive as well and
+  # records sha256 hashes for all PyPI artifacts.
+  "embit==0.8.0",
+  "Pillow==10.3.0",
+  "qrcode==8.0",
+  # Our forks, pinned by git commit: the same commits as the v0.1.9-ss / v0.1.0 tags
+  # that seedsigner-os builds. A git commit is content-addressed, unlike GitHub's
+  # /archive/*.tar.gz bytes, and uv records the resolved commit in uv.lock.
+  "pyzbar @ git+https://github.com/seedsigner/pyzbar@c3c237821c6a20b17953efe59b90df0b514a1c03",
+  "urtypes @ git+https://github.com/selfcustody/urtypes@7fb280eab3b3563dfc57d2733b0bf5cbc0a96a6a",
+]
 description = "Build an offline, airgapped Bitcoin signing device for less than $50!"
 name = "seedsigner"
 readme = "README.md"
-requires-python = ">=3.10"
+# 3.10 = minimum supported; 3.12 = what SeedSigner OS ships (3.12.10). CI tests both.
+requires-python = ">=3.10,<3.13"
 version = "0.8.7"
 
 [project.urls]
 "Bug Tracker" = "https://github.com/SeedSigner/seedsigner/issues"
 Homepage = "https://seedsigner.com/"
 Repository = "https://github.com/SeedSigner/seedsigner"
+
+[project.optional-dependencies]
+# Hardware libs. SeedSigner OS ships these as Buildroot packages at the same versions;
+# this extra exists only for a manual Raspberry Pi OS install
+# (docs/raspberry_pi_os_build_instructions.md) and is never installed by CI.
+raspi = [
+  "picamera==1.13",
+  "numpy==1.25.0",  # transitive picamera dependency
+  "RPi.GPIO==0.7.1",
+  "spidev==3.6",
+]
+
+[dependency-groups]
+test = [
+  "coverage[toml]==7.6.12",
+  "pytest==7.4.2",
+  "pytest-cov==4.1.0",
+]
+# Babel's setuptools commands (python setup.py extract_messages / compile_catalog).
+# Also synced on its own by the SeedSigner OS image build (`uv sync --only-group l10n`)
+# to compile the .mo catalogs. setuptools is a real member: uv venvs ship without it
+# and setup.py needs it.
+l10n = [
+  "Babel==2.16.0",
+  "setuptools==84.0.0",
+]
+# `uv sync` installs this group by default: everything a contributor needs.
+dev = [
+  { include-group = "test" },
+  { include-group = "l10n" },
+  "poethepoet==0.48.0",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+# Pin the transitive dependencies that the old requirements*.txt files pinned by hand.
+# Constraints never add a package; they only apply when something else pulls it in.
+constraint-dependencies = [
+  "colorama==0.4.6",
+  "exceptiongroup==1.2.2",
+  "iniconfig==2.3.0",
+  "packaging==26.3",
+  "pluggy==1.6.0",
+  "tomli==2.2.1",
+]
+
+# Common commands, run as `uv run poe <task>` (`uv run poe` lists them).
+# Extra CLI arguments are appended to `cmd` tasks.
+[tool.poe.tasks]
+test = { cmd = "python -m pytest", help = "Run the test suite (extra args go to pytest)" }
+screenshots = { cmd = "python -m pytest tests/screenshot_generator/generator.py", help = "Generate screenshots into ./seedsigner-screenshots (add --locale es for one language)" }
+coverage = { shell = "coverage erase && coverage run --parallel -m pytest && coverage run --parallel -m pytest tests/screenshot_generator/generator.py --locale es && coverage combine && coverage report && coverage html", help = "Tests + screenshots with combined coverage; writes coverage_html_report/" }
+translations-extract = { cmd = "python setup.py extract_messages", help = "Rescan src/ for translatable strings and regenerate l10n/messages.pot" }
+translations-compile = { cmd = "python setup.py compile_catalog", help = "Compile the .po catalogs into the .mo files the app loads (add -l es for one language)" }
+run = { cmd = "python main.py", cwd = "src", help = "Run the app locally (dev image / emulator)" }
 
 [tool.coverage.html]
 directory = "coverage_html_report"
