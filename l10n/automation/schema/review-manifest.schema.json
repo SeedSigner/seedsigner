@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/SeedSigner/seedsigner/dev/l10n/automation/schema/review-manifest.schema.json",
+  "title": "SeedSigner l10n review manifest",
+  "description": "Structured, machine-validated summary produced by the read-only PR diff job and consumed by the trusted follow-up comment job. The producing job runs untrusted PR code, so this manifest is treated as untrusted data: the consumer validates it against this schema and re-derives the rendered comment from these fields rather than trusting any pre-rendered text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "stream",
+    "generated_at",
+    "repository",
+    "pr",
+    "regen_ok",
+    "source_strings"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Manifest format version. Consumers must reject versions they do not understand.",
+      "const": "1.0"
+    },
+    "stream": {
+      "description": "Rolling-stream identifier this manifest belongs to.",
+      "type": "string",
+      "enum": ["messages-pot"]
+    },
+    "generated_at": {
+      "description": "UTC timestamp when the manifest was produced.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "repository": {
+      "description": "owner/name of the repository the PR targets.",
+      "type": "string",
+      "pattern": "^[^/\\s]+/[^/\\s]+$"
+    },
+    "pr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "head_sha", "base_ref"],
+      "properties": {
+        "number": {
+          "description": "Pull request number. The consumer MUST cross-check that this PR's authoritative head SHA equals the triggering workflow_run head SHA before acting on it.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "head_sha": {
+          "description": "Head commit SHA the diff was computed against.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$"
+        },
+        "base_sha": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{7,40}$"
+        },
+        "base_ref": {
+          "description": "Base branch name (e.g. dev).",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "regen_ok": {
+      "description": "True when messages.pot was successfully regenerated from both the base and head source. False means the diff below may be incomplete.",
+      "type": "boolean"
+    },
+    "source_strings": {
+      "description": "Translation impact of this PR: source strings added/removed/changed, computed by extracting the catalog from the base branch source and from the PR head source and diffing the two.",
+      "$ref": "#/$defs/diff"
+    },
+    "notes": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "type": "string", "maxLength": 2000 }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["msgid", "msgctxt", "plural"],
+      "properties": {
+        "msgid": { "type": "string", "maxLength": 10000 },
+        "msgctxt": { "type": ["string", "null"], "maxLength": 10000 },
+        "plural": {
+          "description": "True when the message defines a plural form.",
+          "type": "boolean"
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "removed", "changed", "total_base", "total_head"],
+      "properties": {
+        "added": { "type": "integer", "minimum": 0 },
+        "removed": { "type": "integer", "minimum": 0 },
+        "changed": { "type": "integer", "minimum": 0 },
+        "total_base": { "type": "integer", "minimum": 0 },
+        "total_head": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "removed", "changed", "counts", "truncated"],
+      "properties": {
+        "added": { "type": "array", "maxItems": 50, "items": { "$ref": "#/$defs/entry" } },
+        "removed": { "type": "array", "maxItems": 50, "items": { "$ref": "#/$defs/entry" } },
+        "changed": { "type": "array", "maxItems": 50, "items": { "$ref": "#/$defs/entry" } },
+        "counts": { "$ref": "#/$defs/counts" },
+        "truncated": {
+          "description": "True when the added/removed/changed arrays were capped and do not list every entry (counts remain exact).",
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
