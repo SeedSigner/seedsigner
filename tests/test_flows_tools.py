@@ -340,3 +340,28 @@ class TestToolsImageEntropyFlows(FlowTest):
             FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[Mock()] * ToolsImageEntropyLivePreviewScreen.PREVIEW_POOL_SIZE),
             FlowStep(tools_views.ToolsImageEntropyFinalImageView),
         ])
+
+
+class TestMultisigDescriptorFingerprint(FlowTest):
+    def test__key_without_origin_is_shown_without_a_fingerprint(self):
+        """A plain public key has no master fingerprint to display."""
+        from unittest.mock import patch
+        from embit.descriptor import Descriptor
+        from seedsigner.gui.screens import seed_screens
+
+        descriptor = Descriptor.from_string(
+            "wsh(sortedmulti(1,[73c5da0a/48h/1h/0h/2h]"
+            "tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/"
+            "{0,1}/*,030fecd5d4d2871d26e1650777ff6e0bc157a57dcc521cf9743ddd456374b8afc1))"
+        )
+        self.controller.multisig_wallet_descriptor = descriptor
+
+        with patch.object(seed_views.MultisigWalletDescriptorView, "run_screen", return_value=0) as run_screen:
+            destination = seed_views.MultisigWalletDescriptorView().run()
+
+        assert destination.View_cls is MainMenuView
+        run_screen.assert_called_once()
+        args, kwargs = run_screen.call_args
+        assert args == (seed_screens.MultisigWalletDescriptorScreen,)
+        assert kwargs["policy"] == "1 of 2"
+        assert kwargs["fingerprints"] == ["73c5da0a", "No origin"]
