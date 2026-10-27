@@ -1115,6 +1115,7 @@ class KeyboardScreen(BaseTopNavScreen):
         * key_height: Specify `None` to maximize key height to available space.
         * keys_charset: Specify the chars displayed on the keys of the keyboard.
         * keys_to_values: Optional mapping from key_charset to input value (e.g. dice icon to digit).
+        * key_confirm_inputs: Hardware inputs that lock in a highlighted keyboard key.
         * return_after_n_chars: exits and returns the user's input after n characters.
         * show_save_button: Render a KEY3 soft button for save & exit
         * initial_value: initialize the TextEntryDisplay with an existing string
@@ -1126,6 +1127,7 @@ class KeyboardScreen(BaseTopNavScreen):
     key_height: int = None
     keys_charset: str = None
     keys_to_values: dict = None
+    key_confirm_inputs: list = field(default_factory=lambda: [HardwareButtonsConstants.KEY_PRESS])
     return_after_n_chars: int = None
     show_save_button: bool = False
     initial_value: str = ""
@@ -1221,10 +1223,16 @@ class KeyboardScreen(BaseTopNavScreen):
     def _run(self):
         self.cursor_position = len(self.user_input)
 
+        click_inputs = list(dict.fromkeys(
+            [HardwareButtonsConstants.KEY_PRESS] + self.key_confirm_inputs
+        ))
+        if self.show_save_button and HardwareButtonsConstants.KEY3 not in click_inputs:
+            click_inputs.append(HardwareButtonsConstants.KEY3)
+
         # Start the interactive update loop
         while True:
             input = self.hw_inputs.wait_for(
-                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3]
+                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + click_inputs
             )
 
             with self.renderer.lock:
@@ -1233,6 +1241,10 @@ class KeyboardScreen(BaseTopNavScreen):
                 # Check possible exit conditions   
                 if self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
                     return RET_CODE__BACK_BUTTON
+
+                elif self.top_nav.is_selected and input in self.key_confirm_inputs:
+                    # Side-button confirmation is only valid for a highlighted keyboard key.
+                    continue
 
                 elif self.show_save_button and input == HardwareButtonsConstants.KEY3:
                     # Save!
@@ -1277,8 +1289,10 @@ class KeyboardScreen(BaseTopNavScreen):
                             self.cursor_position -= 1
                             title_needs_update = True
                             
-                elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
+                elif input in self.key_confirm_inputs and ret_val not in Keyboard.ADDITIONAL_KEYS:
                     # User has locked in the current letter
+                    self.render_key_confirmation_feedback()
+
                     if self.keys_to_values:
                         # Map the Key display char to its output value (e.g. dice icon to digit)
                         ret_val = self.keys_to_values[ret_val]
@@ -1302,13 +1316,18 @@ class KeyboardScreen(BaseTopNavScreen):
                 elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
                     # Live joystick movement; haven't locked this new letter in yet.
                     # Leave current spot blank for now. Only update the active keyboard keys
-                    # when a selection has been locked in (KEY_PRESS) or removed ("del").
+                    # when a selection has been locked in or removed ("del").
                     pass
 
                 # Render the text entry display and cursor block
                 self.text_entry_display.render(self.user_input)
 
                 self.renderer.show_image()
+
+
+    def render_key_confirmation_feedback(self):
+        """Optionally render feedback for a dedicated keyboard confirmation input."""
+        pass
 
 
     def update_title(self) -> bool:
