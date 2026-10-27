@@ -241,6 +241,71 @@ class TestToolsFlows(FlowTest):
             FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
             FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_descriptor_into_decoder),  # simulate read descriptor QR
             FlowStep(seed_views.MultisigWalletDescriptorView, screen_return_value=0),
+            FlowStep(seed_views.MultisigNoMatchingSeedWarningView, button_data_selection=seed_views.MultisigNoMatchingSeedWarningView.CONTINUE),
+            FlowStep(seed_views.SeedAddressVerificationView),
+            FlowStep(seed_views.SeedAddressVerificationSuccessView),
+        ])
+
+
+    def test__verify_address__multisig__cancel_warning(self):
+        """
+        When no matching seed is loaded, verifying a multisig address shows
+        MultisigNoMatchingSeedWarningView; canceling returns to the back stack.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("2N5eN5vUpgsLHAGzKm2VfmYyvNwXmCug5dH")
+
+        def load_descriptor_into_decoder(view: scan_views.ScanView):
+            p2sh_descriptor = "sh(sortedmulti(2,[0f889044/45h]tpubD8NkS3Gngj7L4FJRYrwojKhsx2seBhrNrXVdvqaUyvtVe1YDCVcziZVa9g3KouXz7FN5CkGBkoC16nmNu2HcG9ubTdtCbSW8DEXSMHmmu62/{0,1}/*,[03cd0a2b/45h]tpubD8HkLLgkdJkVitn1i9CN4HpFKJdom48iKm9PyiXYz5hivn1cGz6H3VeS6ncmCEgamvzQA2Qofu2YSTwWzvuaYWbJDEnvTUtj5R96vACdV6L/{0,1}/*,[769f695c/45h]tpubD98hRDKvtATTM8hy5Vvt5ZrvDXwJvrUZm1p1mTKDmd7FqUHY9Wj2k4X1CvxjjtTf3JoChWqYbnWjfkRJ65GQnpVJKbbMfjnGzCwoBUXafyM/{0,1}/*))#uardwtq4"
+            view.decoder.add_data(p2sh_descriptor)
+
+        settings = Controller.get_instance().settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_descriptor_into_decoder),
+            FlowStep(seed_views.MultisigWalletDescriptorView, screen_return_value=0),
+            FlowStep(seed_views.MultisigNoMatchingSeedWarningView, button_data_selection=seed_views.MultisigNoMatchingSeedWarningView.CANCEL),
+            FlowStep(seed_views.MultisigWalletDescriptorView),
+        ])
+
+
+    def test__verify_address__multisig__with_matching_seed(self):
+        """
+        When a matching seed is loaded, verifying a multisig address bypasses
+        MultisigNoMatchingSeedWarningView and proceeds directly to address verification.
+        """
+        controller = Controller.get_instance()
+        # Zoe test seed fingerprint is 0f889044, matching one of the keys in the descriptor
+        seed = Seed(mnemonic="sign sword lift deer ocean insect web lazy sick pencil start select".split())
+        controller.storage.set_pending_seed(seed)
+        controller.storage.finalize_pending_seed()
+
+        def load_address_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("2N5eN5vUpgsLHAGzKm2VfmYyvNwXmCug5dH")
+
+        def load_descriptor_into_decoder(view: scan_views.ScanView):
+            p2sh_descriptor = "sh(sortedmulti(2,[0f889044/45h]tpubD8NkS3Gngj7L4FJRYrwojKhsx2seBhrNrXVdvqaUyvtVe1YDCVcziZVa9g3KouXz7FN5CkGBkoC16nmNu2HcG9ubTdtCbSW8DEXSMHmmu62/{0,1}/*,[03cd0a2b/45h]tpubD8HkLLgkdJkVitn1i9CN4HpFKJdom48iKm9PyiXYz5hivn1cGz6H3VeS6ncmCEgamvzQA2Qofu2YSTwWzvuaYWbJDEnvTUtj5R96vACdV6L/{0,1}/*,[769f695c/45h]tpubD98hRDKvtATTM8hy5Vvt5ZrvDXwJvrUZm1p1mTKDmd7FqUHY9Wj2k4X1CvxjjtTf3JoChWqYbnWjfkRJ65GQnpVJKbbMfjnGzCwoBUXafyM/{0,1}/*))#uardwtq4"
+            view.decoder.add_data(p2sh_descriptor)
+
+        settings = controller.settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_descriptor_into_decoder),
+            FlowStep(seed_views.MultisigWalletDescriptorView, screen_return_value=0),
             FlowStep(seed_views.SeedAddressVerificationView),
             FlowStep(seed_views.SeedAddressVerificationSuccessView),
         ])
