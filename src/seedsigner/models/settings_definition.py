@@ -133,6 +133,7 @@ class SettingsConstants:
         # --------- Beta languages ------------------------------------------------------
         LOCALE__CZECH: "(beta) Čeština",
         LOCALE__CHINESE_SIMPLIFIED: "(beta) 简体中文 (Chinese Simplified)",
+        LOCALE__GREEK: "(beta) Ελληνικά (Greek)",  # OpenSans includes Greek chars
         LOCALE__HINDI: "(beta) हिन्दी (Hindi)",
         LOCALE__INDONESIAN: "(beta) Indonesia (Indonesian)",
         LOCALE__JAPANESE: "(beta) 日本語 (Japanese)",
@@ -143,9 +144,9 @@ class SettingsConstants:
         LOCALE__SWAHILI: "(beta) Kiswahili (Swahili)",
         LOCALE__THAI: "(beta) ไทย (Thai)",
         LOCALE__VIETNAMESE: "(beta) Tiếng Việt (Vietnamese)",
+        LOCALE__UKRAINIAN: "(beta) українська (Ukrainian)",  # OpenSans includes cyrillic chars
 
         # --------- In Progress Languages -----------------------------------------------
-        LOCALE__GREEK: "(incomplete) Ελληνικά (Greek)",  # OpenSans includes Greek chars
         LOCALE__NORWEGIAN: "(incomplete) Norsk (Norwegian)",
         LOCALE__RUSSIAN: "(incomplete) русский (Russian)",  # OpenSans includes cyrillic chars
         LOCALE__TURKISH: "(incomplete) Türkçe (Turkish)",
@@ -183,7 +184,6 @@ class SettingsConstants:
         LOCALE__TAGALOG: "Tagalog",
         # LOCALE__TAMIL: "தமிழ் (Tamil)",
         # LOCALE__TELUGU: "తెలుగు (Telugu)",
-        LOCALE__UKRAINIAN: "українська (Ukrainian)",   # OpenSans includes cyrillic chars
         # LOCALE__URDU: "اردو (Urdu)",
     }
 
