@@ -555,6 +555,20 @@ class SeedBIP85SelectChildIndexScreen(KeyboardScreen):
 
 
 @dataclass
+class SeedAccountNumberScreen(KeyboardScreen):
+    def __post_init__(self):
+        self.title = _("Account Number")
+        self.rows = 3
+        self.cols = 5
+        self.keys_charset = "0123456789"
+        self.show_save_button = True
+        self.initial_value = str(self.initial_value or "0")
+        self.custom_additional_keys = [Keyboard.KEY_BACKSPACE_5]
+        super().__post_init__()
+
+
+
+@dataclass
 class SeedWordsBackupTestPromptScreen(ButtonListScreen):
     def __post_init__(self):
         self.title = _("Verify Backup?")
