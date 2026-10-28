@@ -136,9 +136,21 @@ def parse_derivation_path(derivation_path: str) -> dict:
 
     sections = derivation_path.split("/")
 
+    details = dict(
+        script_type=None,
+        network=None,
+        is_change=None,
+        index=None,
+        wallet_derivation_path=None,
+        clean_match=False,
+    )
+
+    if len(sections) < 3 or sections[0] != "m":
+        return details
+
     if sections[1] == "48h":
         # So far this helper is only meant for single sig message signing
-        raise Exception("Not implemented")
+        raise NotImplementedError("Signing messages for multisig paths not supported")
 
     lookups = {
         "script_types": {
@@ -153,14 +165,11 @@ def parse_derivation_path(derivation_path: str) -> dict:
         }
     }
 
-    details = dict()
-    details["script_type"] = lookups["script_types"].get(sections[1])
-    if not details["script_type"]:
-        details["script_type"] = SettingsConstants.CUSTOM_DERIVATION
+    details["script_type"] = lookups["script_types"].get(sections[1], SettingsConstants.CUSTOM_DERIVATION)
     details["network"] = lookups["networks"].get(sections[2])
 
     # Check if there's a standard change path
-    if sections[-2] in ["0", "1"]:
+    if len(sections) >= 4 and sections[-2] in ["0", "1"]:
         details["is_change"] = sections[-2] == "1"
     else:
         details["is_change"] = None
@@ -177,12 +186,7 @@ def parse_derivation_path(derivation_path: str) -> dict:
     else:
         details["wallet_derivation_path"] = None
 
-    details["clean_match"] = True
-    for k, v in details.items():
-        if v is None:
-            # At least one field couldn't be parsed
-            details["clean_match"] = False
-            break
+    details["clean_match"] = all(v is not None for v in details.values())
 
     return details
 

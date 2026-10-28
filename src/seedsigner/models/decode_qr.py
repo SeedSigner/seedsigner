@@ -985,12 +985,20 @@ class SignMessageQrDecoder(BaseSingleFrameQrDecoder):
             logger.info(f"Sign message: Unsupported format: {fmt}")
             return DecodeQRStatus.INVALID
 
+        if parts[0] != "signmessage":
+            logger.warning(f"Sign message: Invalid command token: {parts[0]}")
+            return DecodeQRStatus.INVALID
+
         format_prefix = f"{fmt}:"
-        try:
-            self.message = segment.split(format_prefix, 1)[1]
-        except IndexError:
+        # Robust message extraction: find format_prefix after the derivation path
+        # to avoid splitting prematurely if derivation path contains substring format_prefix
+        path_idx = segment.find(parts[1])
+        prefix_start = segment.find(format_prefix, path_idx + len(parts[1]))
+        if prefix_start == -1:
             logger.warning("Sign message: Failed to extract message content")
             return DecodeQRStatus.INVALID
+
+        self.message = segment[prefix_start + len(format_prefix):]
 
         self.derivation_path = parts[1].replace("h", "'")
 

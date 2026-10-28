@@ -455,3 +455,25 @@ def test_parse_derivation_path():
             assert actual_result["index"] == expected_result[3]
         else:
             assert actual_result["index"] == int(derivation_path.split("/")[-1])
+
+
+
+def test_parse_derivation_path_short_and_invalid_paths():
+    """
+    Short, partial, or malformed derivation paths should safely return clean_match=False
+    without raising unhandled IndexError.
+    """
+    for short_path in ["m/84h", "0/0", "m", "", "m/84'/0'", "invalid"]:
+        result = embit_utils.parse_derivation_path(short_path)
+        assert result["clean_match"] is False
+
+
+def test_parse_derivation_path_bip48_multisig():
+    """
+    BIP-48 multisig derivation paths should raise NotImplementedError.
+    """
+    with pytest.raises(NotImplementedError):
+        embit_utils.parse_derivation_path("m/48h/0h/0h/2h")
+
+    with pytest.raises(NotImplementedError):
+        embit_utils.parse_derivation_path("m/48'/0'/0'/2'")
