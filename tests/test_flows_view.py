@@ -14,6 +14,17 @@ from seedsigner.views.view import CameraConnectionErrorView, MainMenuView, NotYe
 
 class TestViewFlows(FlowTest):
 
+    def test_back_from_scan_via_main_menu(self):
+        """
+        Opening the generic scanner from Main Menu and pressing BACK should
+        return to MainMenuView through the back stack.
+        """
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(ScanView),
+            FlowStep(MainMenuView),
+        ])
+
     def test_restart_flow(self):
         """
         Basic flow from MainMenuView to RestartView
