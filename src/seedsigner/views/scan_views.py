@@ -67,6 +67,7 @@ class ScanView(View):
                     text=_(self.invalid_qr_type_message) + f""", received "{self.decoder.qr_type.replace("__", ": ").replace("_", " ")}\" format""",
                     button_text="Back",
                     next_destination=Destination(BackStackView, skip_current_view=True),
+                    show_back_button=False
                 ))
 
             if self.decoder.is_seed:
