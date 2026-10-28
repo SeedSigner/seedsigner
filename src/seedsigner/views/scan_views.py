@@ -5,7 +5,7 @@ from gettext import gettext as _
 from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.view import BackStackView, ErrorView, MainMenuView, NotYetImplementedView, View, Destination
-from seedsigner.gui.screens.screen import ButtonOption
+from seedsigner.gui.screens.screen import ButtonOption, RET_CODE__BACK_BUTTON
 
 logger = logging.getLogger(__name__)
 
@@ -161,9 +161,7 @@ class ScanView(View):
                 return Destination(NotYetImplementedView)
 
         elif self.decoder.is_invalid:
-            # For now, don't even try to re-do the attempted operation, just reset and
-            # start everything over.
-            self.controller.resume_main_flow = None
+            # Preserve `resume_main_flow` so the user can BACK out and retry their scan.
             return Destination(ScanInvalidQRTypeView)
 
         return Destination(MainMenuView)
@@ -218,7 +216,7 @@ class ScanInvalidQRTypeView(View):
         # order to avoid the perception that something is broken on our end. This should
         # either change to use the red ErrorScreen or the "Error" title should be
         # changed to something softer.
-        self.run_screen(
+        selected_menu_num = self.run_screen(
             WarningScreen,
             title=_("Error"),
             status_headline=_("Unknown QR Type"),
@@ -226,4 +224,9 @@ class ScanInvalidQRTypeView(View):
             button_data=[ButtonOption("Back to Main Menu")],
         )
 
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # The user explicitly clicked "Back to Main Menu"; wipe their active flow state.
+        self.controller.resume_main_flow = None
         return Destination(MainMenuView, clear_history=True)

@@ -3,10 +3,10 @@ from unittest.mock import patch
 # Must import test base before the Controller
 from base import FlowTest, FlowStep
 
-from seedsigner.gui.screens.screen import RET_CODE__POWER_BUTTON
+from seedsigner.gui.screens.screen import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
 from seedsigner.hardware.camera import CameraConnectionError
 from seedsigner.models.settings import Settings
-from seedsigner.views.scan_views import ScanView
+from seedsigner.views.scan_views import ScanView, ScanInvalidQRTypeView
 from seedsigner.views.tools_views import ToolsCalcFinalWordNumWordsView, ToolsMenuView
 from seedsigner.views.view import CameraConnectionErrorView, MainMenuView, NotYetImplementedView, PowerOptionsView, PowerOffView, RestartView, UnhandledExceptionView, View
 
@@ -83,3 +83,29 @@ class TestViewFlows(FlowTest):
                 FlowStep(CameraConnectionErrorView),
                 FlowStep(MainMenuView),
             ])
+
+
+    def test_invalid_qr_main_menu_flow(self):
+        """
+        Scanning an invalid QR from Main Menu should give the user the option
+        to go back and retry or exit the flow and return to the Main Menu
+        """
+
+        def load_invalid_qr(view: ScanView):
+            view.decoder.add_data("this text will not make sense to the decoder")
+
+        # Sequence 1: User clicks on "Return to Main Menu"
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(ScanView, before_run=load_invalid_qr),
+            FlowStep(ScanInvalidQRTypeView),
+            FlowStep(MainMenuView)
+        ])
+
+        # Sequence 2: User clicks on BACK, returns to Scan View for a rescan
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(ScanView, before_run=load_invalid_qr),
+            FlowStep(ScanInvalidQRTypeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(ScanView)
+        ])
