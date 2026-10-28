@@ -824,4 +824,12 @@ class TestMessageSigningFlows(FlowTest):
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
         expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
 
+        def load_short_derivation_into_decoder(view: View):
+            self.load_signmessage_into_decoder(view, "m/84h", self.SHORT_MESSAGE)
+        expect_unsupported_derivation(load_short_derivation_into_decoder)
+
+        def load_multisig_derivation_into_decoder(view: View):
+            self.load_signmessage_into_decoder(view, "m/48h/0h/0h/2h", self.SHORT_MESSAGE)
+        expect_unsupported_derivation(load_multisig_derivation_into_decoder)
+
 
