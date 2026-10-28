@@ -107,7 +107,7 @@ class SettingsConstants:
     LOCALE__TELUGU = "te"
     LOCALE__THAI = "th"
     LOCALE__TURKISH = "tr"
-    LOCALE__UKRANIAN = "uk"
+    LOCALE__UKRAINIAN = "uk"
     LOCALE__URDU = "ur"
     LOCALE__VIETNAMESE = "vi"
 
@@ -183,7 +183,7 @@ class SettingsConstants:
         LOCALE__TAGALOG: "Tagalog",
         # LOCALE__TAMIL: "தமிழ் (Tamil)",
         # LOCALE__TELUGU: "తెలుగు (Telugu)",
-        LOCALE__UKRANIAN: "українська (Ukranian)",   # OpenSans includes cyrillic chars
+        LOCALE__UKRAINIAN: "українська (Ukrainian)",   # OpenSans includes cyrillic chars
         # LOCALE__URDU: "اردو (Urdu)",
     }
 
