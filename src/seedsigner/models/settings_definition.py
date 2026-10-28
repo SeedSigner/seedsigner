@@ -100,8 +100,8 @@ class SettingsConstants:
     LOCALE__SLOVAK = "sk"
     LOCALE__SLOVENIAN = "sl"
     LOCALE__SPANISH = "es"
-    LOCALE__SWEDISH = "sv"
     LOCALE__SWAHILI = "sw"
+    LOCALE__SWEDISH = "sv"
     LOCALE__TAGALOG = "tl"
     LOCALE__TAMIL = "ta"
     LOCALE__TELUGU = "te"
@@ -137,11 +137,11 @@ class SettingsConstants:
         LOCALE__HINDI: "(beta) हिन्दी (Hindi)",
         LOCALE__INDONESIAN: "(beta) Indonesia (Indonesian)",
         LOCALE__JAPANESE: "(beta) 日本語 (Japanese)",
+        LOCALE__SWAHILI: "(beta) Kiswahili (Swahili)",
         LOCALE__KOREAN: "(beta) 한국어 (Korean)",
         LOCALE__PERSIAN: "(beta) فارسی (Persian)",
         LOCALE__POLISH: "(beta) Polski",
         LOCALE__PORTUGUESE_BR: "(beta) Português (Brasil)",
-        LOCALE__SWAHILI: "(beta) Kiswahili (Swahili)",
         LOCALE__THAI: "(beta) ไทย (Thai)",
         LOCALE__VIETNAMESE: "(beta) Tiếng Việt (Vietnamese)",
         LOCALE__UKRAINIAN: "(beta) українська (Ukrainian)",  # OpenSans includes cyrillic chars
@@ -171,9 +171,9 @@ class SettingsConstants:
         LOCALE__LATVIAN: "Latviešu",
         LOCALE__LITHUANIAN: "Lietuvių",
         LOCALE__HUNGARIAN: "Magyar",
-        LOCALE__MALAY: "Melayu",
         LOCALE__MALTESE: "Malti",
         # LOCALE__MARATHI: "मराठी (Marathi)",
+        LOCALE__MALAY: "Melayu",
         LOCALE__PORTUGUESE_PT: "Português (Portugal)",
         # LOCALE__PUNJABI: "ਪੰਜਾਬੀ (Punjabi)",
         LOCALE__ROMANIAN: "Română",
