@@ -1,11 +1,12 @@
 import os
 from typing import Callable
 
-from unittest.mock import PropertyMock, patch
+from unittest.mock import PropertyMock, call, patch
 
 # Must import test base before the Controller
 from base import FlowTest, FlowStep
 
+from seedsigner.gui import Renderer
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsDefinition, SettingsConstants
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
@@ -69,6 +70,35 @@ class TestSettingsFlows(FlowTest):
             FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=RET_CODE__BACK_BUTTON),  # BACK to exit
             FlowStep(settings_views.SettingsMenuView),
         ])
+
+
+    def test_invert_colors(self):
+        """
+        Changing "Invert colors" should be applied to the display right away, for both
+        "Enabled" and "Disabled".
+        """
+        # Which option are we testing?
+        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED)
+        enabled = ButtonOption(settings_entry.get_selection_option_display_name_by_value(SettingsConstants.OPTION__ENABLED))
+        disabled = ButtonOption(settings_entry.get_selection_option_display_name_by_value(SettingsConstants.OPTION__DISABLED))
+
+        # The test suite's Renderer is a mock (see base.py), so its display records
+        # everything the settings View asks of it.
+        display = Renderer.get_instance().disp
+        display.set_color_inversion.reset_mock()
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_views.SettingsMenuView.ADVANCED),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_views.SettingsMenuView.HARDWARE),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=ButtonOption(settings_entry.display_name)),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, button_data_selection=enabled),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, button_data_selection=disabled),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(settings_views.SettingsMenuView),
+        ])
+
+        assert display.set_color_inversion.call_args_list == [call(True), call(False)]
 
 
     def test_io_test(self):
