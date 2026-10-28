@@ -100,14 +100,14 @@ class SettingsConstants:
     LOCALE__SLOVAK = "sk"
     LOCALE__SLOVENIAN = "sl"
     LOCALE__SPANISH = "es"
-    LOCALE__SWEDISH = "sv"
     LOCALE__SWAHILI = "sw"
+    LOCALE__SWEDISH = "sv"
     LOCALE__TAGALOG = "tl"
     LOCALE__TAMIL = "ta"
     LOCALE__TELUGU = "te"
     LOCALE__THAI = "th"
     LOCALE__TURKISH = "tr"
-    LOCALE__UKRANIAN = "uk"
+    LOCALE__UKRAINIAN = "uk"
     LOCALE__URDU = "ur"
     LOCALE__VIETNAMESE = "vi"
 
@@ -133,19 +133,20 @@ class SettingsConstants:
         # --------- Beta languages ------------------------------------------------------
         LOCALE__CZECH: "(beta) Čeština",
         LOCALE__CHINESE_SIMPLIFIED: "(beta) 简体中文 (Chinese Simplified)",
+        LOCALE__GREEK: "(beta) Ελληνικά (Greek)",  # OpenSans includes Greek chars
         LOCALE__HINDI: "(beta) हिन्दी (Hindi)",
         LOCALE__INDONESIAN: "(beta) Indonesia (Indonesian)",
         LOCALE__JAPANESE: "(beta) 日本語 (Japanese)",
+        LOCALE__SWAHILI: "(beta) Kiswahili (Swahili)",
         LOCALE__KOREAN: "(beta) 한국어 (Korean)",
         LOCALE__PERSIAN: "(beta) فارسی (Persian)",
         LOCALE__POLISH: "(beta) Polski",
         LOCALE__PORTUGUESE_BR: "(beta) Português (Brasil)",
-        LOCALE__SWAHILI: "(beta) Kiswahili (Swahili)",
         LOCALE__THAI: "(beta) ไทย (Thai)",
         LOCALE__VIETNAMESE: "(beta) Tiếng Việt (Vietnamese)",
+        LOCALE__UKRAINIAN: "(beta) українська (Ukrainian)",  # OpenSans includes cyrillic chars
 
         # --------- In Progress Languages -----------------------------------------------
-        LOCALE__GREEK: "(incomplete) Ελληνικά (Greek)",  # OpenSans includes Greek chars
         LOCALE__NORWEGIAN: "(incomplete) Norsk (Norwegian)",
         LOCALE__RUSSIAN: "(incomplete) русский (Russian)",  # OpenSans includes cyrillic chars
         LOCALE__TURKISH: "(incomplete) Türkçe (Turkish)",
@@ -170,9 +171,9 @@ class SettingsConstants:
         LOCALE__LATVIAN: "Latviešu",
         LOCALE__LITHUANIAN: "Lietuvių",
         LOCALE__HUNGARIAN: "Magyar",
-        LOCALE__MALAY: "Melayu",
         LOCALE__MALTESE: "Malti",
         # LOCALE__MARATHI: "मराठी (Marathi)",
+        LOCALE__MALAY: "Melayu",
         LOCALE__PORTUGUESE_PT: "Português (Portugal)",
         # LOCALE__PUNJABI: "ਪੰਜਾਬੀ (Punjabi)",
         LOCALE__ROMANIAN: "Română",
@@ -183,7 +184,6 @@ class SettingsConstants:
         LOCALE__TAGALOG: "Tagalog",
         # LOCALE__TAMIL: "தமிழ் (Tamil)",
         # LOCALE__TELUGU: "తెలుగు (Telugu)",
-        LOCALE__UKRANIAN: "українська (Ukranian)",   # OpenSans includes cyrillic chars
         # LOCALE__URDU: "اردو (Urdu)",
     }
 
