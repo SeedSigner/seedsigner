@@ -454,6 +454,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTSurplusDerivationPathsView),
                 ScreenshotConfig(psbt_views.PSBTMixedDerivationPathTypesView),
                 ScreenshotConfig(psbt_views.PSBTMalformedOpReturnView),
+                ScreenshotConfig(psbt_views.PSBTUnsupportedOutputScriptView),
                 ScreenshotConfig(psbt_views.PSBTOutputOwnershipContradictionView),
                 ScreenshotConfig(psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True),  screenshot_name="PSBTAddressVerificationFailedView_multisig_change"),
                 ScreenshotConfig(psbt_views.PSBTAddressVerificationFailedView, dict(is_change=False), screenshot_name="PSBTAddressVerificationFailedView_multisig_selftransfer"),

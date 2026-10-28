@@ -143,6 +143,17 @@ class PSBTMalformedOpReturnError(PSBTVerificationError):
     pass
 
 
+class PSBTUnsupportedOutputScriptError(PSBTVerificationError):
+    """
+    An output pays to a scriptPubKey that has no address representation (embit's
+    script_type() does not recognize it), so there is no destination we can show the user.
+
+    This is a psbt we cannot display rather than a proven deception, so we do not treat it
+    as an attack.
+    """
+    pass
+
+
 class PSBTSeedCannotSignError(PSBTVerificationError):
     """
     The selected seed holds no key that could sign any input.
@@ -757,7 +768,12 @@ class PSBTParser():
                 self.change_amount += vout[i].value
 
             else:
-                addr = vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
+                try:
+                    addr = vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
+                except ValueError as e:
+                    # embit cannot render an address for a script type it doesn't
+                    # recognize, so we have no destination to show the user.
+                    raise PSBTUnsupportedOutputScriptError(f"Output {i}: {e}") from e
                 self.destination_addresses.append(addr)
                 self.destination_amounts.append(vout[i].value)
                 self.spend_amount += vout[i].value
