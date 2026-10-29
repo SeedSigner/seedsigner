@@ -101,6 +101,7 @@ class SettingsConstants:
     LOCALE__SLOVENIAN = "sl"
     LOCALE__SPANISH = "es"
     LOCALE__SWEDISH = "sv"
+    LOCALE__SWAHILI = "sw"
     LOCALE__TAGALOG = "tl"
     LOCALE__TAMIL = "ta"
     LOCALE__TELUGU = "te"
@@ -139,6 +140,7 @@ class SettingsConstants:
         LOCALE__PERSIAN: "(beta) فارسی (Persian)",
         LOCALE__POLISH: "(beta) Polski",
         LOCALE__PORTUGUESE_BR: "(beta) Português (Brasil)",
+        LOCALE__SWAHILI: "(beta) Kiswahili (Swahili)",
         LOCALE__THAI: "(beta) ไทย (Thai)",
         LOCALE__VIETNAMESE: "(beta) Tiếng Việt (Vietnamese)",
 
