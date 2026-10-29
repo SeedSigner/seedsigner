@@ -211,7 +211,7 @@ class PSBTOverviewView(View):
             num_self_transfer_outputs=num_self_transfer_outputs,
             num_change_outputs=num_change_outputs,
             destination_addresses=psbt_parser.destination_addresses,
-            has_op_return=psbt_parser.op_return_data is not None,
+            op_return_amounts=psbt_parser.op_return_amounts,
             is_high_fee_tx=psbt_parser.is_high_fee,
         )
 
@@ -334,6 +334,7 @@ class PSBTMathView(View):
             num_recipients=psbt_parser.num_destinations,
             fee_amount=psbt_parser.fee_amount,
             change_amount=psbt_parser.change_amount,
+            op_return_amount=psbt_parser.op_return_amount,
             is_high_fee_tx=psbt_parser.is_high_fee,
         )
 
@@ -396,8 +397,8 @@ class PSBTAddressDetailsView(View):
             # Move on to display change
             return Destination(PSBTChangeDetailsView, view_args={"change_address_num": 0})
 
-        elif psbt_parser.op_return_data:
-            return Destination(PSBTOpReturnView)
+        elif psbt_parser.num_op_returns > 0:
+            return PSBTOpReturnView.destination_for(psbt_parser, op_return_num=0)
 
         else:
             # There's no change output to verify. Move on to sign the PSBT.
@@ -503,8 +504,8 @@ class PSBTChangeDetailsView(View):
             if self.change_address_num < psbt_parser.num_change_outputs - 1:
                 return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
 
-            elif psbt_parser.op_return_data:
-                return Destination(PSBTOpReturnView)
+            elif psbt_parser.num_op_returns > 0:
+                return PSBTOpReturnView.destination_for(psbt_parser, op_return_num=0)
 
             else:
                 # There's no more change to verify. Move on to sign the PSBT.
@@ -914,10 +915,128 @@ class PSBTMissingInputUtxoView(View):
 
 
 
+class PSBTOpReturnBurnWarningView(View):
+    """
+        Shown before an OP_RETURN output that burns sats, which are lost for good.
+    """
+    def __init__(self, op_return_num: int = 0):
+        super().__init__()
+        self.op_return_num = op_return_num
+
+
+    def run(self):
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+        amount = psbt_parser.op_return_amounts[self.op_return_num]
+
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
+            # TRANSLATOR_NOTE: Sats destroyed by an OP_RETURN output (e.g. "10,000 sats")
+            status_headline=_("{amount} sats").format(amount=f"{amount:,}"),
+            # TRANSLATOR_NOTE: "op_return" names the output (e.g. "OP_RETURN (#3)")
+            text=_("{op_return} burns these sats to a permanently unspendable output.").format(
+                op_return=PSBTOpReturnView.label_for(psbt_parser, self.op_return_num)),
+            button_data=[ButtonOption("Continue")],
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        return Destination(
+            PSBTOpReturnView,
+            view_args={"op_return_num": self.op_return_num},
+            skip_current_view=True,  # Prevent going BACK to the warning
+        )
+
+
+
 class PSBTOpReturnView(View):
     """
-        Shows the OP_RETURN data
+        Shows one page of one OP_RETURN output's data. `op_return_num` picks the output
+        and `page_num` the page within it.
     """
+
+    # How much of a payload fits on one screen, in characters of text or bytes of hex.
+    # 80 is the old relay limit, so any OP_RETURN that used to be standard still fits on
+    # one screen.
+    MAX_UNITS_PER_PAGE = 80
+
+    # Each extra line of text above the payload (a "burns sats" warning, or a label that
+    # wraps) costs this much of the page.
+    UNITS_PER_LINE = 16
+
+    # Beyond this many pages, stop and say the payload was cut short. The screen always
+    # shows the real size, so the user knows how much they didn't see.
+    MAX_PAGES = 10
+
+
+    def __init__(self, op_return_num: int = 0, page_num: int = 0):
+        super().__init__()
+        self.op_return_num = op_return_num
+        self.page_num = page_num
+
+
+    @staticmethod
+    def label_for(psbt_parser: PSBTParser, op_return_num: int) -> str:
+        # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
+        label = _("OP_RETURN")
+        if psbt_parser.num_op_returns > 1:
+            label += f" (#{op_return_num + 1})"
+        return label
+
+
+    @staticmethod
+    def destination_for(psbt_parser: PSBTParser, op_return_num: int) -> Destination:
+        # An OP_RETURN that burns sats gets a warning before its first page
+        burns_sats = psbt_parser.op_return_amounts[op_return_num] > 0
+        view = PSBTOpReturnBurnWarningView if burns_sats else PSBTOpReturnView
+        return Destination(view, view_args={"op_return_num": op_return_num})
+
+
+    @staticmethod
+    def paginate(payload: bytes, has_warning: bool = False) -> tuple[list[str], bool, bool]:
+        """
+            Splits a payload into pages for the screen. Returns the pages, whether they
+            are hex, and whether any of the payload had to be dropped.
+
+            `has_warning` means the screen will also show a "burns sats" line, which
+            leaves less room for the payload. Text-or-hex is decided once for the whole
+            payload, so a page never splits a multi-byte character.
+        """
+        try:
+            text = payload.decode(errors="strict")
+        except UnicodeDecodeError:
+            # Contains data that can't be converted to UTF-8; probably encoded and not
+            # meant to be human readable.
+            text = None
+
+        # Decoding alone isn't enough: control characters decode fine but draw as a row
+        # of empty boxes, which looks like a rendering bug. Show those as hex too. Line
+        # breaks are the exception; a multi-line message is still text.
+        is_hex = text is None or not "".join(text.splitlines()).isprintable()
+
+        units = payload if is_hex else text
+        per_page = PSBTOpReturnView.MAX_UNITS_PER_PAGE
+        if has_warning:
+            per_page -= PSBTOpReturnView.UNITS_PER_LINE
+
+        is_truncated = len(units) > per_page * PSBTOpReturnView.MAX_PAGES
+        if is_truncated:
+            # A truncated payload's label can wrap to a second line, so every page gives
+            # up a line
+            per_page -= PSBTOpReturnView.UNITS_PER_LINE
+            units = units[:per_page * PSBTOpReturnView.MAX_PAGES]
+
+        pages = [units[i:i + per_page] for i in range(0, len(units), per_page)]
+        if not pages:
+            # A bare OP_RETURN still gets a page: the output may still carry sats
+            pages = [units]
+
+        if is_hex:
+            pages = [page.hex() for page in pages]
+
+        return pages, is_hex, is_truncated
+
+
     def run(self):
         from seedsigner.gui.screens.psbt_screens import PSBTOpReturnScreen
         psbt_parser: PSBTParser = self.controller.psbt_parser
@@ -926,18 +1045,51 @@ class PSBTOpReturnView(View):
             # Should not be able to get here
             raise Exception("Routing error")
 
-        title = _("OP_RETURN")
-        button_data = [ButtonOption("Next")]
+        payload = psbt_parser.op_return_data[self.op_return_num]
+        amount = psbt_parser.op_return_amounts[self.op_return_num]
+        pages, is_hex, is_truncated = PSBTOpReturnView.paginate(payload, has_warning=amount > 0)
+
+        title = PSBTOpReturnView.label_for(psbt_parser, self.op_return_num)
+
+        has_more_pages = self.page_num < len(pages) - 1
+        has_more_op_returns = self.op_return_num < psbt_parser.num_op_returns - 1
+
+        # Count bytes, not characters: a page of text may hold multi-byte characters
+        shown = "".join(pages)
+        bytes_shown = len(shown) // 2 if is_hex else len(shown.encode())
+
+        if has_more_pages:
+            # TRANSLATOR_NOTE: Button to show the next part of an OP_RETURN payload too long for one screen
+            button_data = [ButtonOption("More")]
+        elif has_more_op_returns:
+            # TRANSLATOR_NOTE: Button to move on to the transaction's next OP_RETURN output
+            button_data = [ButtonOption("Next OP_RETURN")]
+        else:
+            button_data = [ButtonOption("Next")]
 
         selected_menu_num = self.run_screen(
             PSBTOpReturnScreen,
             title=title,
             button_data=button_data,
-            op_return_data=psbt_parser.op_return_data,
+            page_text=pages[self.page_num],
+            is_hex=is_hex,
+            total_bytes=len(payload),
+            amount=amount,
+            page_num=self.page_num,
+            num_pages=len(pages),
+            bytes_shown=bytes_shown,
+            is_truncated=is_truncated,
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
+        if has_more_pages:
+            return Destination(PSBTOpReturnView, view_args={
+                "op_return_num": self.op_return_num, "page_num": self.page_num + 1})
+
+        elif has_more_op_returns:
+            return PSBTOpReturnView.destination_for(psbt_parser, op_return_num=self.op_return_num + 1)
 
         return Destination(PSBTFinalizeView)
 

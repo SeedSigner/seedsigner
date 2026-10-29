@@ -861,7 +861,7 @@ def test_parse_op_return_content():
     psbt_parser = PSBTParser(p=tx, seed=seed, network=SettingsConstants.REGTEST)
 
     # Remember to do the comparison as bytes
-    assert psbt_parser.op_return_data == "Chancellor on the brink of third bailout".encode()
+    assert psbt_parser.op_return_data == ["Chancellor on the brink of third bailout".encode()]
 
     # PSBT is an internal self-spend to the its own receive addr, but the parser categorizes it as "change"
     assert psbt_parser.change_data == [
@@ -2830,7 +2830,7 @@ def test_parse_op_return_content_direct_push():
     psbt = create_op_return_psbt([create_op_return_output(message)])
     psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
 
-    assert psbt_parser.op_return_data == message
+    assert psbt_parser.op_return_data == [message]
 
 
 
@@ -2851,7 +2851,7 @@ def test_parse_op_return_content_pushdata2():
     psbt = create_op_return_psbt([create_op_return_output(message)])
     psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
 
-    assert psbt_parser.op_return_data == message
+    assert psbt_parser.op_return_data == [message]
 
 
 
@@ -2864,7 +2864,7 @@ def test_parse_op_return_with_no_payload():
     ])
     psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
 
-    assert psbt_parser.op_return_data == b""
+    assert psbt_parser.op_return_data == [b""]
 
 
 
@@ -3066,3 +3066,67 @@ class TestPSBTParserInputScripts(PSBTParserOwnershipTestBase):
         foreign_input.redeem_script = script.p2wpkh(foreign_public_key("m/49h/1h/0h/0/1"))
         with pytest.raises(PSBTInputScriptMismatchError):
             self._parse(psbt)
+
+
+
+def test_op_return_value_is_tracked_separately():
+    """
+        Should track sats sent to an OP_RETURN in their own total, outside spend and
+        change, so that spend + change + fee + burned adds up to the inputs.
+    """
+    burned = 10_000
+
+    psbt = create_op_return_psbt([create_op_return_output(b"burn", value=burned)])
+    psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+    assert psbt_parser.op_return_amounts == [burned]
+    assert psbt_parser.op_return_amount == burned
+
+    # Counted in neither of the other totals
+    assert psbt_parser.spend_amount == 0
+    assert psbt_parser.change_amount == (psbt_parser.verified_input_amount - burned
+        - psbt_parser.fee_amount)
+
+    # And with its own total, everything on screen adds back up to the inputs
+    assert psbt_parser.verified_input_amount == (psbt_parser.spend_amount
+        + psbt_parser.change_amount + psbt_parser.fee_amount + psbt_parser.op_return_amount)
+
+
+
+def test_a_transaction_mixing_every_kind_of_op_return():
+    """
+        Should report each output as its own entry with its own value, and keep the
+        totals adding up to the inputs, with every kind of OP_RETURN in one transaction:
+        readable text, binary, a large payload, two pushes in one script, a bare
+        OP_RETURN, and burned sats on outputs that aren't the first.
+    """
+    payloads = [
+        b"Chancellor on the brink of third bailout",   # readable text
+        bytes(range(0x80, 0xcb)),                      # not valid UTF-8
+        b"F" * 4096,                                   # larger than any screen
+        b"",                                           # bare OP_RETURN
+    ]
+    outputs = [
+        create_op_return_output(payloads[0]),
+        create_op_return_output(payloads[1], value=1_000),
+        create_op_return_output(payloads[2]),
+        create_op_return_output(payloads[3], value=2_000,
+            script_pubkey=script.Script(bytes([OPCODES.OP_RETURN]))),
+    ]
+    # Two pushes in one script
+    outputs.insert(2, create_op_return_output(
+        b"", script_pubkey=op_return_script(b"first push, ", b"second push")))
+    payloads.insert(2, b"first push, second push")
+
+    psbt = create_op_return_psbt(outputs)
+    psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+    assert psbt_parser.num_op_returns == 5
+    assert psbt_parser.op_return_data == payloads
+    assert psbt_parser.op_return_amounts == [0, 1_000, 0, 0, 2_000]
+    assert psbt_parser.op_return_amount == 3_000
+
+    # None of it leaked into the spend or the change, and the arithmetic still closes
+    assert psbt_parser.spend_amount == 0
+    assert psbt_parser.verified_input_amount == (psbt_parser.spend_amount
+        + psbt_parser.change_amount + psbt_parser.fee_amount + psbt_parser.op_return_amount)
