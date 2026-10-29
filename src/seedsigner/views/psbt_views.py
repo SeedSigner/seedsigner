@@ -916,8 +916,70 @@ class PSBTMissingInputUtxoView(View):
 
 class PSBTOpReturnView(View):
     """
-        Shows the OP_RETURN data
+        Shows one page of the OP_RETURN data. `page_num` picks the page.
     """
+
+    # How much of a payload fits on one screen, in characters of text or bytes of hex.
+    # 80 is the old relay limit, so any OP_RETURN that used to be standard still fits on
+    # one screen.
+    MAX_UNITS_PER_PAGE = 80
+
+    # Each extra line of text above the payload (a label that wraps) costs this much of
+    # the page.
+    UNITS_PER_LINE = 16
+
+    # Beyond this many pages, stop and say the payload was cut short. The screen always
+    # shows the real size, so the user knows how much they didn't see.
+    MAX_PAGES = 10
+
+
+    def __init__(self, page_num: int = 0):
+        super().__init__()
+        self.page_num = page_num
+
+
+    @staticmethod
+    def paginate(payload: bytes) -> tuple[list[str], bool, bool]:
+        """
+            Splits a payload into pages for the screen. Returns the pages, whether they
+            are hex, and whether any of the payload had to be dropped.
+
+            Text-or-hex is decided once for the whole payload, so a page never splits a
+            multi-byte character.
+        """
+        try:
+            text = payload.decode(errors="strict")
+        except UnicodeDecodeError:
+            # Contains data that can't be converted to UTF-8; probably encoded and not
+            # meant to be human readable.
+            text = None
+
+        # Decoding alone isn't enough: control characters decode fine but draw as a row
+        # of empty boxes, which looks like a rendering bug. Show those as hex too. Line
+        # breaks are the exception; a multi-line message is still text.
+        is_hex = text is None or not "".join(text.splitlines()).isprintable()
+
+        units = payload if is_hex else text
+        per_page = PSBTOpReturnView.MAX_UNITS_PER_PAGE
+
+        is_truncated = len(units) > per_page * PSBTOpReturnView.MAX_PAGES
+        if is_truncated:
+            # A truncated payload's label can wrap to a second line, so every page gives
+            # up a line
+            per_page -= PSBTOpReturnView.UNITS_PER_LINE
+            units = units[:per_page * PSBTOpReturnView.MAX_PAGES]
+
+        pages = [units[i:i + per_page] for i in range(0, len(units), per_page)]
+        if not pages:
+            # A bare OP_RETURN still gets a page: the output may still carry sats
+            pages = [units]
+
+        if is_hex:
+            pages = [page.hex() for page in pages]
+
+        return pages, is_hex, is_truncated
+
+
     def run(self):
         from seedsigner.gui.screens.psbt_screens import PSBTOpReturnScreen
         psbt_parser: PSBTParser = self.controller.psbt_parser
@@ -926,18 +988,41 @@ class PSBTOpReturnView(View):
             # Should not be able to get here
             raise Exception("Routing error")
 
+        payload = psbt_parser.op_return_data
+        pages, is_hex, is_truncated = PSBTOpReturnView.paginate(payload)
+
         title = _("OP_RETURN")
-        button_data = [ButtonOption("Next")]
+
+        has_more_pages = self.page_num < len(pages) - 1
+
+        # Count bytes, not characters: a page of text may hold multi-byte characters
+        shown = "".join(pages)
+        bytes_shown = len(shown) // 2 if is_hex else len(shown.encode())
+
+        if has_more_pages:
+            # TRANSLATOR_NOTE: Button to show the next part of an OP_RETURN payload too long for one screen
+            button_data = [ButtonOption("More")]
+        else:
+            button_data = [ButtonOption("Next")]
 
         selected_menu_num = self.run_screen(
             PSBTOpReturnScreen,
             title=title,
             button_data=button_data,
-            op_return_data=psbt_parser.op_return_data,
+            page_text=pages[self.page_num],
+            is_hex=is_hex,
+            total_bytes=len(payload),
+            page_num=self.page_num,
+            num_pages=len(pages),
+            bytes_shown=bytes_shown,
+            is_truncated=is_truncated,
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
+        if has_more_pages:
+            return Destination(PSBTOpReturnView, view_args={"page_num": self.page_num + 1})
 
         return Destination(PSBTFinalizeView)
 

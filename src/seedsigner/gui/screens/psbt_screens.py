@@ -734,7 +734,16 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
 
 @dataclass
 class PSBTOpReturnScreen(ButtonListScreen):
-    op_return_data: bytes = None
+    """
+        Shows one page of one OP_RETURN output's payload.
+    """
+    page_text: str = ""
+    is_hex: bool = False
+    total_bytes: int = 0
+    page_num: int = 0
+    num_pages: int = 1
+    bytes_shown: int = 0
+    is_truncated: bool = False
 
     def __post_init__(self):
         # Customize defaults
@@ -742,45 +751,89 @@ class PSBTOpReturnScreen(ButtonListScreen):
 
         super().__post_init__()
 
-        try:
-            # Simple case: display human-readable text
+        screen_y = self.top_nav.height
+
+        # The label says what the user can't tell from the page itself: that it's hex,
+        # the full size, that it was cut short, which page this is. Readable text that
+        # fits on one screen has nothing to say and gets no label.
+        qualifiers = []
+        is_last_page = self.page_num == self.num_pages - 1
+
+        if self.is_truncated and is_last_page:
+            # This is the page where the data runs out. Without this line, the last page
+            # of a cut-short payload would look just like the last page of a complete one.
+            # TRANSLATOR_NOTE: How much of an OP_RETURN payload could not be displayed. "not_shown" and "total" are byte counts (e.g. "3,456 of 4,096 bytes not shown")
+            qualifiers.append(_("{not_shown} of {total} bytes not shown").format(
+                not_shown=f"{self.total_bytes - self.bytes_shown:,}", total=f"{self.total_bytes:,}"))
+
+        elif self.num_pages > 1 or self.is_truncated:
+            # TRANSLATOR_NOTE: Size of an OP_RETURN payload. "num_bytes" is the byte count (e.g. "300 bytes")
+            qualifiers.append(_("{num_bytes} bytes").format(num_bytes=f"{self.total_bytes:,}"))
+
+        if self.is_hex:
+            # TRANSLATOR_NOTE: Shown when displaying OP_RETURN as non-human-readable hexadecimal data
+            qualifiers.append(_("raw hex data"))
+
+        if self.is_truncated and not is_last_page:
+            # TRANSLATOR_NOTE: The OP_RETURN payload is too large to show all of
+            qualifiers.append(_("truncated"))
+
+        if qualifiers:
+            size_text = ", ".join(qualifiers)
+            if self.num_pages > 1 and not (self.is_truncated and is_last_page):
+                # TRANSLATOR_NOTE: Which page of an OP_RETURN payload is on screen. "page" is the current page, "num_pages" the total (e.g. "2 of 5")
+                size_text += "  " + _("{page} of {num_pages}").format(page=self.page_num + 1, num_pages=self.num_pages)
+
             self.components.append(TextArea(
-                text=self.op_return_data.decode(errors="strict"),  # "strict" is a good enough heuristic to decide if it's human readable
-                font_size=GUIConstants.get_top_nav_title_font_size(),
-                is_text_centered=True,
-                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
-                height=self.buttons[0].screen_y - self.top_nav.height - 2*GUIConstants.COMPONENT_PADDING,
+                text=size_text,
+                # Warning color for hidden data
+                font_color=(GUIConstants.WARNING_COLOR if self.is_truncated
+                    else GUIConstants.LABEL_FONT_COLOR),
+                font_size=GUIConstants.LABEL_FONT_SIZE,
+                screen_y=screen_y,
+            ))
+            screen_y = self.components[-1].screen_y + self.components[-1].height
+
+        screen_y += GUIConstants.COMPONENT_PADDING
+
+        if self.total_bytes == 0:
+            # Say so rather than leave a blank screen that looks like a rendering bug
+            self.components.append(TextArea(
+                # TRANSLATOR_NOTE: Shown in place of an OP_RETURN payload when the output carries no data
+                text=_("(no data)"),
+                font_color=GUIConstants.LABEL_FONT_COLOR,
+                screen_y=screen_y,
+                height=self.buttons[0].screen_y - screen_y - GUIConstants.COMPONENT_PADDING,
             ))
             return
-        except UnicodeDecodeError:
-            # Contains data that can't be converted to UTF-8; probably encoded and not
-            # meant to be human readable.
-            font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.get_body_font_size())
-            (left, top, right, bottom) = font.getbbox("X", anchor="ls")
-            chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
-            decoded_str = self.op_return_data.hex()
-            num_lines = math.ceil(len(decoded_str) / chars_per_line)
-            text = ""
-            for i in range(num_lines):
-                text += (decoded_str[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
-            text = text[:-1]
 
-            # TRANSLATOR_NOTE: Shown when displaying OP_RETURN as non-human-readable hexadecimal data
-            hex_label = _("raw hex data")
-            label = TextArea(
-                text=hex_label,
-                font_color=GUIConstants.LABEL_FONT_COLOR,
-                font_size=GUIConstants.LABEL_FONT_SIZE,
-                screen_y=self.top_nav.height,
-            )
-            self.components.append(label)
-
+        if not self.is_hex:
+            # Simple case: display human-readable text
             self.components.append(TextArea(
-                text=text,
-                font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
-                font_size=GUIConstants.get_body_font_size(),
-                screen_y=label.screen_y + label.height + GUIConstants.COMPONENT_PADDING,
+                text=self.page_text,
+                font_size=GUIConstants.get_top_nav_title_font_size(),
+                is_text_centered=True,
+                screen_y=screen_y,
+                height=self.buttons[0].screen_y - screen_y - GUIConstants.COMPONENT_PADDING,
             ))
+            return
+
+        # Not readable text, so show it as hex
+        font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.get_body_font_size())
+        (left, top, right, bottom) = font.getbbox("X", anchor="ls")
+        chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
+        num_lines = math.ceil(len(self.page_text) / chars_per_line)
+        text = ""
+        for i in range(num_lines):
+            text += (self.page_text[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
+        text = text[:-1]
+
+        self.components.append(TextArea(
+            text=text,
+            font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+            font_size=GUIConstants.get_body_font_size(),
+            screen_y=screen_y,
+        ))
 
 
 

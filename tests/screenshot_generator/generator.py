@@ -47,6 +47,7 @@ from seedsigner.views.screensaver import OpeningSplashView
 from seedsigner.views.view import CameraConnectionErrorView, NetworkMismatchErrorView, OptionDisabledView, PowerOffView
 
 from .utils import ScreenshotComplete, ScreenshotConfig, ScreenshotRenderer
+from psbt_testing_util import op_return_script
 
 import warnings; warnings.warn = lambda *args, **kwargs: None
 
@@ -82,13 +83,11 @@ mnemonic_12b = ["abandon"] * 11 + ["about"]
 seed_12b = Seed(mnemonic=mnemonic_12b, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
 
 def add_op_return_to_psbt(psbt: PSBT, raw_payload_data: bytes):
-    # Push the payload the way Bitcoin Core does: directly for 75 bytes or fewer, via
-    # OP_PUSHDATA1 above that.
-    if len(raw_payload_data) <= OPCODES.OP_PUSHDATA_MAX_DIRECT:
-        push = bytes([len(raw_payload_data)])
+    # A bare OP_RETURN pushes nothing; op_return_script(b"") would push OP_0, a 0x00 byte
+    if raw_payload_data:
+        script = op_return_script(raw_payload_data)
     else:
-        push = bytes([OPCODES.OP_PUSHDATA1, len(raw_payload_data)])
-    script = Script(bytes([OPCODES.OP_RETURN]) + push + raw_payload_data)
+        script = Script(bytes([OPCODES.OP_RETURN]))
     output = OutputScope()
     output.script_pubkey = script
     output.value = 0
@@ -110,6 +109,13 @@ def keep_only_last_output(psbt: PSBT) -> PSBT:
     return psbt
 
 
+def op_return_filler(num_bytes: int) -> bytes:
+    """
+        Numbered filler text, so a screenshot shows at a glance which part of a long
+        payload is on screen.
+    """
+    return ("".join(f"{i:04d} " for i in range(num_bytes//5 + 1)))[:num_bytes].encode()
+
 # Prep a PSBT with a human-readable OP_RETURN
 raw_payload_data = "Chancellor on the brink of third bailout for banks".encode()
 psbt = keep_only_last_output(PSBT.from_base64(BASE64_MULTISIG_PSBT))
@@ -118,6 +124,16 @@ BASE64_PSBT_WITH_OP_RETURN_TEXT = add_op_return_to_psbt(psbt, raw_payload_data)
 # Prep a PSBT with a (repeatably) random 80-byte OP_RETURN
 random.seed(6102)
 BASE64_PSBT_WITH_OP_RETURN_RAW_BYTES = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), random.randbytes(80))
+
+# A payload too long for one screen, so the paging and the "N of M" label show.
+BASE64_PSBT_WITH_OP_RETURN_LONG = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), op_return_filler(300))
+
+# Too large even for paging. Bitcoin Core v30 allows up to 100,000 bytes by default, so
+# sizes like this are now ordinary.
+BASE64_PSBT_WITH_OP_RETURN_TRUNCATED = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), op_return_filler(4096))
+
+# A bare OP_RETURN: an output that exists and pushes nothing
+BASE64_PSBT_WITH_OP_RETURN_EMPTY = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), b"")
 
 mnemonic_12 = "forum undo fragile fade shy sign arrest garment culture tube off merit".split()
 mnemonic_24 = "attack pizza motion avocado network gather crop fresh patrol unusual wild holiday candy pony ranch winter theme error hybrid van cereal salon goddess expire".split()
@@ -460,6 +476,9 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTOverviewView, screenshot_name="PSBTOverviewView_op_return",    mock_context_manager=mock_psbt_with_op_return_loaded),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_text",         mock_context_manager=mock_psbt_with_op_return_loaded),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_raw_hex_data", mock_context_manager=mock_psbt_with_op_return_raw_bytes_loaded),
+                ScreenshotConfig(psbt_views.PSBTOpReturnView, dict(page_num=1), screenshot_name="PSBTOpReturnView_paged",     mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_LONG)),
+                ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_truncated",                   mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_TRUNCATED)),
+                ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_empty",                       mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_EMPTY)),
                 ScreenshotConfig(psbt_views.PSBTSurplusDerivationPathsView),
                 ScreenshotConfig(psbt_views.PSBTMixedDerivationPathTypesView),
                 ScreenshotConfig(psbt_views.PSBTMalformedOpReturnView),
