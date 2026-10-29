@@ -1,4 +1,5 @@
 from binascii import a2b_base64
+from itertools import product
 from unittest.mock import patch
 
 from embit import bip32, script
@@ -9,6 +10,7 @@ from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_op_retu
     create_op_return_psbt, create_output, foreign_public_key, root_for_seed)
 
 from seedsigner.controller import Controller
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
@@ -520,6 +522,7 @@ class TestPSBTOpReturnPaging(BaseTest):
 
     def test_a_page_holds_what_it_has_room_for(self):
         per_page = PSBTOpReturnView.MAX_UNITS_PER_PAGE
+        per_line = PSBTOpReturnView.UNITS_PER_LINE
 
         for length in (0, 1, per_page):
             assert PSBTOpReturnView.paginate(b"a" * length) == ([("a" * length)], False, False)
@@ -527,6 +530,12 @@ class TestPSBTOpReturnPaging(BaseTest):
         # One character more needs a second page
         pages, _, _ = PSBTOpReturnView.paginate(b"a" * (per_page + 1))
         assert len(pages) == 2
+
+        # And a screen that also has to warn about burned value has one line less
+        pages, _, _ = PSBTOpReturnView.paginate(b"a" * per_page, has_warning=True)
+        assert len(pages) == 2
+        pages, _, _ = PSBTOpReturnView.paginate(b"a" * (per_page - per_line), has_warning=True)
+        assert len(pages) == 1
 
         # Hex draws two characters per byte, so it is paged against its own figure
         payload = bytes(range(0x80, 0x80 + per_page)) * 2
@@ -581,6 +590,37 @@ class TestPSBTOpReturnPaging(BaseTest):
         assert PSBTOpReturnView.paginate(b"") == ([""], False, False)
 
 
+    def test_each_screen_receives_its_own_output_and_page(self):
+        """
+            Should give each screen its own output's page, size and amount.
+        """
+        # The first output burns, so its pages are a line shorter
+        per_page = PSBTOpReturnView.MAX_UNITS_PER_PAGE - PSBTOpReturnView.UNITS_PER_LINE
+        first, second = b"a" * per_page + b"bbbb", b"second payload"
+
+        self.controller.psbt_parser = PSBTParser(
+            p=create_op_return_psbt([
+                create_op_return_output(first, value=7_000),
+                create_op_return_output(second),
+            ]),
+            seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+        expected = [
+            (0, 0, "a" * per_page, len(first), 7_000),
+            (0, 1, "bbbb", len(first), 7_000),
+            (1, 0, "second payload", len(second), 0),
+        ]
+
+        for op_return_num, page_num, page_text, total_bytes, amount in expected:
+            with patch.object(psbt_views.View, "run_screen") as mock_run_screen:
+                mock_run_screen.return_value = 0
+                PSBTOpReturnView(op_return_num=op_return_num, page_num=page_num).run()
+
+            kwargs = mock_run_screen.call_args.kwargs
+            assert (kwargs["page_text"], kwargs["total_bytes"], kwargs["amount"],
+                kwargs["page_num"]) == (page_text, total_bytes, amount, page_num)
+
+
     def test_bytes_not_shown_counts_bytes_not_characters(self):
         """
             Should count the bytes left out, not characters, when the text has
@@ -606,23 +646,46 @@ class TestPSBTOpReturnPaging(BaseTest):
 
 class TestPSBTOverviewOpReturnRows(BaseTest):
     """
-    Which rows the flow diagram draws for the OP_RETURN outputs.
+    Which rows the flow diagram draws for the OP_RETURN outputs, and which get the burn
+    mark.
     """
+    MARK = " (!)"
 
-    def _rows(self, num_op_returns: int) -> list:
+    def _rows(self, amounts: list) -> list:
         from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen
-        return PSBTOverviewScreen.op_return_rows(num_op_returns)
+        return PSBTOverviewScreen.op_return_rows(amounts)
 
 
     def test_a_row_each_up_to_three_then_elided(self):
+        assert self._rows(None) == []
+
         for count in range(0, 4):
-            assert len(self._rows(count)) == count
+            assert len(self._rows([0] * count)) == count
 
         # Past three, always exactly three rows however many outputs there are
         for count in range(4, 12):
-            rows = self._rows(count)
+            rows = self._rows([0] * count)
             assert len(rows) == 3
             assert "1" in rows[0] and str(count) in rows[2]
+
+
+    def test_only_the_outputs_that_burn_are_marked(self):
+        """
+            Should mark only the rows of outputs that burn, and the ellipsis when any
+            output it hides burns, for every arrangement of up to six outputs.
+        """
+        for count in range(1, 7):
+            for burns in product([False, True], repeat=count):
+                rows = self._rows([10_000 if b else 0 for b in burns])
+                marked = [row.endswith(self.MARK) for row in rows]
+
+                if count <= 3:
+                    assert marked == list(burns), f"{burns} -> {rows}"
+                else:
+                    assert marked == [burns[0], any(burns[1:-1]), burns[-1]], f"{burns} -> {rows}"
+
+                # However the burns fall, a transaction that burns shows at least one mark
+                assert any(marked) == any(burns)
 
 
 
@@ -657,6 +720,28 @@ class TestPSBTOpReturnFlows(PSBTSigningFlowTestBase):
             FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
             FlowStep(psbt_views.PSBTSignedQRDisplayView),
             FlowStep(MainMenuView),
+        ])
+
+
+    def test_a_burning_op_return_is_preceded_by_a_warning(self):
+        """
+            Should show the burn warning before the output that burns, and skip it on the
+            way back from that output.
+        """
+        self._load_psbt_for_signing(create_op_return_psbt([
+            create_op_return_output(b"first"),
+            create_op_return_output(b"burns", value=100_000),
+        ]))
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnBurnWarningView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(psbt_views.PSBTOpReturnView),
         ])
 
 

@@ -24,7 +24,7 @@ class PSBTOverviewScreen(ButtonListScreen):
     num_self_transfer_outputs: int = 0
     num_change_outputs: int = 0
     destination_addresses: list[str] = None
-    num_op_returns: int = 0
+    op_return_amounts: list[int] = None
     is_high_fee_tx: bool = False
 
     # Appended to a row that needs the user's attention, drawn in the dire warning color
@@ -32,22 +32,29 @@ class PSBTOverviewScreen(ButtonListScreen):
     
 
     @staticmethod
-    def op_return_rows(num_op_returns: int) -> list:
+    def op_return_rows(op_return_amounts: list) -> list:
         """
             One row per OP_RETURN output for the flow diagram, collapsed past three to the
             first and last with an ellipsis between, since the chart has no minimum row
-            height and too many rows would squash it.
+            height and too many rows would squash it. Each output that burns sats gets the
+            warning mark, so it points at the right one, and the ellipsis gets it if any
+            output it hides burns.
         """
-        if num_op_returns <= 3:
+        amounts = op_return_amounts or []
+
+        def row(text: str, burns: bool) -> str:
+            return text + PSBTOverviewScreen.WARNING_MARK if burns else text
+
+        if len(amounts) <= 3:
             # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
-            return [_("OP_RETURN")] * num_op_returns
+            return [row(_("OP_RETURN"), amount > 0) for amount in amounts]
 
         return [
             # TRANSLATOR_NOTE: "num" is the OP_RETURN output's position in the transaction (e.g. "OP_RETURN 1")
-            _("OP_RETURN {num}").format(num=1),
+            row(_("OP_RETURN {num}").format(num=1), amounts[0] > 0),
             # TRANSLATOR_NOTE: Indicates that items have been omitted from a series: e.g. "1, 2, 3, [...], 8"
-            _("[ ... ]"),
-            _("OP_RETURN {num}").format(num=num_op_returns),
+            row(_("[ ... ]"), any(amount > 0 for amount in amounts[1:-1])),
+            row(_("OP_RETURN {num}").format(num=len(amounts)), amounts[-1] > 0),
         ]
 
 
@@ -184,7 +191,7 @@ class PSBTOverviewScreen(ButtonListScreen):
                 fee_label += PSBTOverviewScreen.WARNING_MARK
             destination_column.append(fee_label)
 
-            destination_column.extend(PSBTOverviewScreen.op_return_rows(self.num_op_returns))
+            destination_column.extend(PSBTOverviewScreen.op_return_rows(self.op_return_amounts))
 
             if self.num_change_outputs > 0:
                 for i in range(0, self.num_change_outputs):
@@ -512,6 +519,7 @@ class PSBTMathScreen(ButtonListScreen):
     num_recipients: int = 0
     fee_amount: int = 0
     change_amount: int = 0
+    op_return_amount: int = 0
     is_high_fee_tx: bool = False
 
 
@@ -523,14 +531,20 @@ class PSBTMathScreen(ButtonListScreen):
 
         super().__post_init__()
 
+        # Only show the "burned" line when something was burned (most OP_RETURNs carry no
+        # value). Decided before the amount is reformatted into a string below.
+        shows_burned_amount = self.op_return_amount > 0
+
         if self.input_amount > 1e6:
             denomination = _("btc")
             self.input_amount /= 1e8
             self.spend_amount /= 1e8
             self.change_amount /= 1e8
+            self.op_return_amount /= 1e8
             self.input_amount = f"{self.input_amount:,.8f}"
             self.spend_amount = f"{self.spend_amount:,.8f}"
             self.change_amount = f"{self.change_amount:,.8f}"
+            self.op_return_amount = f"{self.op_return_amount:,.8f}"
 
             # Note: We keep the fee denominated in sats; just left pad it so it still
             # lines up properly.
@@ -541,8 +555,9 @@ class PSBTMathScreen(ButtonListScreen):
             self.spend_amount = f"{self.spend_amount:,}"
             self.fee_amount = f"{self.fee_amount:,}"
             self.change_amount = f"{self.change_amount:,}"
+            self.op_return_amount = f"{self.op_return_amount:,}"
 
-        longest_amount = max(len(self.input_amount), len(self.spend_amount), len(self.fee_amount), len(self.change_amount))
+        longest_amount = max(len(self.input_amount), len(self.spend_amount), len(self.fee_amount), len(self.change_amount), len(self.op_return_amount))
         if len(self.input_amount) < longest_amount:
             self.input_amount = " " * (longest_amount - len(self.input_amount)) + self.input_amount
 
@@ -554,6 +569,9 @@ class PSBTMathScreen(ButtonListScreen):
 
         if len(self.change_amount) < longest_amount:
             self.change_amount = " " * (longest_amount - len(self.change_amount)) + self.change_amount
+
+        if len(self.op_return_amount) < longest_amount:
+            self.op_return_amount = " " * (longest_amount - len(self.op_return_amount)) + self.op_return_amount
 
         # Render the info to temp Image
         # TODO: Test rendering the numeric amounts without the supersampling
@@ -608,6 +626,17 @@ class PSBTMathScreen(ButtonListScreen):
                 cur_y,
                 f"-{self.spend_amount}",
                 info_text=ngettext("recipient", "recipients", self.num_recipients),
+            )
+
+        # Burned sats get their own line so the numbers on screen add up to the inputs
+        if shows_burned_amount:
+            cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
+            render_amount(
+                cur_y,
+                f"-{self.op_return_amount}",
+                # TRANSLATOR_NOTE: Sats destroyed by an OP_RETURN output; sits alongside "recipients", "fee", and "change" in the transaction's arithmetic
+                info_text=_("burned") + PSBTOverviewScreen.WARNING_MARK,
+                info_text_color=GUIConstants.DIRE_WARNING_COLOR,
             )
 
         cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
@@ -767,6 +796,7 @@ class PSBTOpReturnScreen(ButtonListScreen):
     page_text: str = ""
     is_hex: bool = False
     total_bytes: int = 0
+    amount: int = 0
     page_num: int = 0
     num_pages: int = 1
     bytes_shown: int = 0
@@ -813,9 +843,20 @@ class PSBTOpReturnScreen(ButtonListScreen):
 
             self.components.append(TextArea(
                 text=size_text,
-                # Warning color for hidden data
+                # Warning color for hidden data; dire is kept for burned sats
                 font_color=(GUIConstants.WARNING_COLOR if self.is_truncated
                     else GUIConstants.LABEL_FONT_COLOR),
+                font_size=GUIConstants.LABEL_FONT_SIZE,
+                screen_y=screen_y,
+            ))
+            screen_y = self.components[-1].screen_y + self.components[-1].height
+
+        # No "(!)" here: that mark picks out a row on the screens that list every output
+        if self.amount > 0:
+            self.components.append(TextArea(
+                # TRANSLATOR_NOTE: An OP_RETURN output destroys any value sent to it. "amount" is in sats (e.g. "burns 10,000 sats")
+                text=_("burns {amount} sats").format(amount=f"{self.amount:,}"),
+                font_color=GUIConstants.DIRE_WARNING_COLOR,
                 font_size=GUIConstants.LABEL_FONT_SIZE,
                 screen_y=screen_y,
             ))
