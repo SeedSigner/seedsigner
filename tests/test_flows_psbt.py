@@ -209,14 +209,7 @@ class TestPSBTFlows(FlowTest):
 
 
 
-class TestPSBTOwnershipClaimRouting(FlowTest):
-    """
-    A psbt whose own description of itself does not hold up, or whose arithmetic is
-    impossible, is refused during parsing, before the user is shown anything about the
-    transaction. These cover what the user meets when that happens: a warning screen that
-    ends the flow, not a crash.
-    """
-
+class PSBTSigningFlowTestBase(FlowTest):
     def _load_psbt_for_signing(self, psbt: PSBT, seed: Seed = None):
         """
         Stage the psbt in the Controller and load the signing seed into storage, as if
@@ -228,6 +221,15 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         self.controller.storage.set_pending_seed(seed if seed is not None else PSBTTestData.seed)
         self.controller.storage.finalize_pending_seed()
 
+
+
+class TestPSBTOwnershipClaimRouting(PSBTSigningFlowTestBase):
+    """
+    A psbt whose own description of itself does not hold up, or whose arithmetic is
+    impossible, is refused during parsing, before the user is shown anything about the
+    transaction. These cover what the user meets when that happens: a warning screen that
+    ends the flow, not a crash.
+    """
 
     def _psbt_with_change(self):
         psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
@@ -600,3 +602,79 @@ class TestPSBTOpReturnPaging(BaseTest):
         per_page = PSBTOpReturnView.MAX_UNITS_PER_PAGE - PSBTOpReturnView.UNITS_PER_LINE
         assert kwargs["bytes_shown"] == per_page * PSBTOpReturnView.MAX_PAGES * 4
 
+
+
+class TestPSBTOverviewOpReturnRows(BaseTest):
+    """
+    Which rows the flow diagram draws for the OP_RETURN outputs.
+    """
+
+    def _rows(self, num_op_returns: int) -> list:
+        from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen
+        return PSBTOverviewScreen.op_return_rows(num_op_returns)
+
+
+    def test_a_row_each_up_to_three_then_elided(self):
+        for count in range(0, 4):
+            assert len(self._rows(count)) == count
+
+        # Past three, always exactly three rows however many outputs there are
+        for count in range(4, 12):
+            rows = self._rows(count)
+            assert len(rows) == 3
+            assert "1" in rows[0] and str(count) in rows[2]
+
+
+
+class TestPSBTOpReturnFlows(PSBTSigningFlowTestBase):
+    """
+    Routing through every OP_RETURN output and every page of each.
+    """
+
+    def test_paging_walks_every_page_of_every_output(self):
+        """
+            Should walk every page of the first output, then every page of the second.
+        """
+        per_page = psbt_views.PSBTOpReturnView.MAX_UNITS_PER_PAGE
+
+        self._load_psbt_for_signing(create_op_return_psbt([
+            create_op_return_output(b"a" * (per_page + 1)),   # two pages
+            create_op_return_output(b"b" * (per_page + 1)),   # two pages
+        ]))
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+
+            # Both pages of the first output, then both pages of the second
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_a_bare_op_return_still_gets_a_screen(self):
+        """
+            Should give a bare OP_RETURN its own screen.
+        """
+        self._load_psbt_for_signing(create_op_return_psbt([
+            create_op_return_output(b"", script_pubkey=script.Script(bytes([OPCODES.OP_RETURN])))
+        ]))
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+            FlowStep(MainMenuView),
+        ])

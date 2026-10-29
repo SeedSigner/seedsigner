@@ -24,12 +24,32 @@ class PSBTOverviewScreen(ButtonListScreen):
     num_self_transfer_outputs: int = 0
     num_change_outputs: int = 0
     destination_addresses: list[str] = None
-    has_op_return: bool = False
+    num_op_returns: int = 0
     is_high_fee_tx: bool = False
 
     # Appended to a row that needs the user's attention, drawn in the dire warning color
     WARNING_MARK = " (!)"
     
+
+    @staticmethod
+    def op_return_rows(num_op_returns: int) -> list:
+        """
+            One row per OP_RETURN output for the flow diagram, collapsed past three to the
+            first and last with an ellipsis between, since the chart has no minimum row
+            height and too many rows would squash it.
+        """
+        if num_op_returns <= 3:
+            # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
+            return [_("OP_RETURN")] * num_op_returns
+
+        return [
+            # TRANSLATOR_NOTE: "num" is the OP_RETURN output's position in the transaction (e.g. "OP_RETURN 1")
+            _("OP_RETURN {num}").format(num=1),
+            # TRANSLATOR_NOTE: Indicates that items have been omitted from a series: e.g. "1, 2, 3, [...], 8"
+            _("[ ... ]"),
+            _("OP_RETURN {num}").format(num=num_op_returns),
+        ]
+
 
     def __post_init__(self):
         # Customize defaults
@@ -137,12 +157,17 @@ class PSBTOverviewScreen(ButtonListScreen):
             
             destination_column = []
 
+            # The rows `truncate_at` can actually shrink. The rest are fixed labels.
+            truncatable_column = []
+
             if len(self.destination_addresses) + self.num_self_transfer_outputs <= 3:
                 for addr in self.destination_addresses:
-                    destination_column.append(truncate_destination_addr(addr))
+                    truncatable_column.append(truncate_destination_addr(addr))
 
                 for i in range(0, self.num_self_transfer_outputs):
-                    destination_column.append(truncate_destination_addr(_("self-transfer")))
+                    truncatable_column.append(truncate_destination_addr(_("self-transfer")))
+
+                destination_column.extend(truncatable_column)
             else:
                 # destination_column.append(f"{len(self.destination_addresses)} recipients")
                 destination_column.append(_("recipient 1"))
@@ -159,33 +184,35 @@ class PSBTOverviewScreen(ButtonListScreen):
                 fee_label += PSBTOverviewScreen.WARNING_MARK
             destination_column.append(fee_label)
 
-            if self.has_op_return:
-                # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
-                destination_column.append(_("OP_RETURN"))
+            destination_column.extend(PSBTOverviewScreen.op_return_rows(self.num_op_returns))
 
             if self.num_change_outputs > 0:
                 for i in range(0, self.num_change_outputs):
                     # TRANSLATOR_NOTE: Label for a change output in the PSBT Overview flow diagram
                     destination_column.append(_("change"))
 
-            max_destination_text_width = 0
-            for destination in destination_column:
-                left, top, right, bottom  = font.getbbox(destination)
-                tw, th = right - left, bottom - top
-                max_destination_text_width = max(tw, max_destination_text_width)
-            
-            return (max_destination_text_width, destination_column)
+            def widest(column):
+                max_text_width = 0
+                for destination in column:
+                    left, top, right, bottom  = font.getbbox(destination)
+                    tw, th = right - left, bottom - top
+                    max_text_width = max(tw, max_text_width)
+                return max_text_width
+
+            return (widest(destination_column), widest(truncatable_column), destination_column)
         
         if len(self.destination_addresses) + self.num_self_transfer_outputs > 3:
             # We're not going to display any destination addrs so truncation doesn't matter
-            (destination_text_width, destination_column) = calculate_destination_col_width()
+            (destination_text_width, _unused, destination_column) = calculate_destination_col_width()
         else:
             destination_text_width = None
             destination_column = None
-            # Steadliy widen out the destination column until we run out of space
+            # Steadily widen out the destination column until we run out of space.
+            # Measured on the addresses alone: a wider fixed label (e.g. "OP_RETURN 1")
+            # sets the width on its own, so truncating the addresses can't narrow it.
             for i in range(6, 14):
-                (new_width, new_col_text) = calculate_destination_col_width(truncate_at=i)
-                if new_width > max_destination_col_width:
+                (new_width, new_truncatable_width, new_col_text) = calculate_destination_col_width(truncate_at=i)
+                if new_truncatable_width > max_destination_col_width:
                     if not destination_text_width:
                         destination_text_width = new_width
                     if not destination_column:

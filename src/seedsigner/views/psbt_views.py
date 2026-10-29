@@ -211,7 +211,7 @@ class PSBTOverviewView(View):
             num_self_transfer_outputs=num_self_transfer_outputs,
             num_change_outputs=num_change_outputs,
             destination_addresses=psbt_parser.destination_addresses,
-            has_op_return=psbt_parser.op_return_data is not None,
+            num_op_returns=psbt_parser.num_op_returns,
             is_high_fee_tx=psbt_parser.is_high_fee,
         )
 
@@ -396,7 +396,7 @@ class PSBTAddressDetailsView(View):
             # Move on to display change
             return Destination(PSBTChangeDetailsView, view_args={"change_address_num": 0})
 
-        elif psbt_parser.op_return_data:
+        elif psbt_parser.num_op_returns > 0:
             return Destination(PSBTOpReturnView)
 
         else:
@@ -503,7 +503,7 @@ class PSBTChangeDetailsView(View):
             if self.change_address_num < psbt_parser.num_change_outputs - 1:
                 return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
 
-            elif psbt_parser.op_return_data:
+            elif psbt_parser.num_op_returns > 0:
                 return Destination(PSBTOpReturnView)
 
             else:
@@ -916,7 +916,8 @@ class PSBTMissingInputUtxoView(View):
 
 class PSBTOpReturnView(View):
     """
-        Shows one page of the OP_RETURN data. `page_num` picks the page.
+        Shows one page of one OP_RETURN output's data. `op_return_num` picks the output
+        and `page_num` the page within it.
     """
 
     # How much of a payload fits on one screen, in characters of text or bytes of hex.
@@ -933,8 +934,9 @@ class PSBTOpReturnView(View):
     MAX_PAGES = 10
 
 
-    def __init__(self, page_num: int = 0):
+    def __init__(self, op_return_num: int = 0, page_num: int = 0):
         super().__init__()
+        self.op_return_num = op_return_num
         self.page_num = page_num
 
 
@@ -988,12 +990,16 @@ class PSBTOpReturnView(View):
             # Should not be able to get here
             raise Exception("Routing error")
 
-        payload = psbt_parser.op_return_data
+        payload = psbt_parser.op_return_data[self.op_return_num]
         pages, is_hex, is_truncated = PSBTOpReturnView.paginate(payload)
 
+        # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
         title = _("OP_RETURN")
+        if psbt_parser.num_op_returns > 1:
+            title += f" (#{self.op_return_num + 1})"
 
         has_more_pages = self.page_num < len(pages) - 1
+        has_more_op_returns = self.op_return_num < psbt_parser.num_op_returns - 1
 
         # Count bytes, not characters: a page of text may hold multi-byte characters
         shown = "".join(pages)
@@ -1002,6 +1008,9 @@ class PSBTOpReturnView(View):
         if has_more_pages:
             # TRANSLATOR_NOTE: Button to show the next part of an OP_RETURN payload too long for one screen
             button_data = [ButtonOption("More")]
+        elif has_more_op_returns:
+            # TRANSLATOR_NOTE: Button to move on to the transaction's next OP_RETURN output
+            button_data = [ButtonOption("Next OP_RETURN")]
         else:
             button_data = [ButtonOption("Next")]
 
@@ -1022,7 +1031,11 @@ class PSBTOpReturnView(View):
             return Destination(BackStackView)
 
         if has_more_pages:
-            return Destination(PSBTOpReturnView, view_args={"page_num": self.page_num + 1})
+            return Destination(PSBTOpReturnView, view_args={
+                "op_return_num": self.op_return_num, "page_num": self.page_num + 1})
+
+        elif has_more_op_returns:
+            return Destination(PSBTOpReturnView, view_args={"op_return_num": self.op_return_num + 1})
 
         return Destination(PSBTFinalizeView)
 
