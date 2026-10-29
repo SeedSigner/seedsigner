@@ -18,7 +18,7 @@ from seedsigner.models.psbt_parser import (OPCODES, PSBTExtraneousInputScriptErr
     PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
     PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
-    PSBTSurplusDerivationPathsError)
+    PSBTSurplusDerivationPathsError, PSBTUnsupportedOutputScriptError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
@@ -3066,3 +3066,30 @@ class TestPSBTParserInputScripts(PSBTParserOwnershipTestBase):
         foreign_input.redeem_script = script.p2wpkh(foreign_public_key("m/49h/1h/0h/0/1"))
         with pytest.raises(PSBTInputScriptMismatchError):
             self._parse(psbt)
+
+
+
+@pytest.mark.parametrize("script_pubkey", [
+    # Bare multisig: a real scriptPubKey form that embit only recognizes when wrapped
+    Script(b"\x51\x21" + bytes.fromhex("02" + "11" * 32) + b"\x51\xae"),
+    # OP_TRUE
+    Script(b"\x51"),
+    # Empty script
+    Script(b""),
+])
+def test_unrecognized_output_script_type_raises(script_pubkey: Script):
+    """
+        Should raise PSBTUnsupportedOutputScriptError when an external output pays to a
+        script that has no address representation, rather than letting embit's ValueError
+        escape the parse.
+    """
+    psbt: PSBT = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+    output = create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 10_000)
+    output.script_pubkey = script_pubkey
+    psbt.outputs.append(output)
+
+    # Confirm the premise: embit doesn't recognize this script type
+    assert script_pubkey.script_type() is None
+
+    with pytest.raises(PSBTUnsupportedOutputScriptError):
+        PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)

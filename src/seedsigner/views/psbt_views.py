@@ -8,7 +8,7 @@ from seedsigner.models.psbt_parser import (PSBTExtraneousInputScriptError,
     PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
     PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
-    PSBTSurplusDerivationPathsError)
+    PSBTSurplusDerivationPathsError, PSBTUnsupportedOutputScriptError)
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
@@ -148,6 +148,10 @@ class PSBTOverviewView(View):
 
             except PSBTOutputOwnershipContradictionError:
                 self.set_redirect(Destination(PSBTOutputOwnershipContradictionView, clear_history=True))
+                return
+
+            except PSBTUnsupportedOutputScriptError:
+                self.set_redirect(Destination(PSBTUnsupportedOutputScriptView, clear_history=True))
                 return
 
             except PSBTNegativeFeeError:
@@ -679,6 +683,34 @@ class PSBTMalformedOpReturnView(View):
             status_headline=None,
             # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
             text=_("This transaction's OP_RETURN data is malformed."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTUnsupportedOutputScriptView(View):
+    """
+    Reached when an output pays to a script that has no address representation (see
+    PSBTUnsupportedOutputScriptError).
+
+    We cannot show the user where those funds are going, so we do not allow them to
+    continue, but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
+            text=_("This transaction pays to an output script type that cannot be displayed."),
             button_data=[self.DISCARD],
             show_back_button=False,
         )

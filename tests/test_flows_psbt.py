@@ -467,6 +467,26 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         ])
 
 
+    def test_unsupported_output_script_terminates_signing_flow(self):
+        """
+        An output paying to a script with no address representation leaves nothing to
+        show the user as its destination, so it routes to a warning that aborts the
+        signing flow.
+        """
+        psbt = self._psbt_with_change()
+        output = create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 10_000)
+        output.script_pubkey = script.Script(b"\x51")  # OP_TRUE
+        psbt.outputs.append(output)
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnsupportedOutputScriptView, button_data_selection=psbt_views.PSBTUnsupportedOutputScriptView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
     def test_wrong_seed_routes_back_to_seed_selection_flow(self):
         """
         The wrong seed for a psbt redirects before any transaction detail is rendered and

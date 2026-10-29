@@ -105,14 +105,13 @@ class DecodeQR:
         
         if not self.decoder:
             # Did not find any recognizable format
+            self.qr_type = QRType.INVALID
             return DecodeQRStatus.INVALID
 
         # Process the binary formats first
         if self.qr_type == QRType.SEED__COMPACTSEEDQR:
             rt = self.decoder.add(data, QRType.SEED__COMPACTSEEDQR)
-            if rt == DecodeQRStatus.COMPLETE:
-                self.complete = True
-            return rt
+            return self._record_decoder_status(rt)
 
         # Convert to string data
         if type(data) == bytes:
@@ -137,9 +136,19 @@ class DecodeQR:
         else:
             # All other formats use the same method signature
             rt = self.decoder.add(qr_str, self.qr_type)
-            if rt == DecodeQRStatus.COMPLETE:
-                self.complete = True
-            return rt
+            return self._record_decoder_status(rt)
+
+
+    def _record_decoder_status(self, rt):
+        """Keep ScanView's is_complete / is_invalid in sync with decoder.add()."""
+        if rt == DecodeQRStatus.COMPLETE:
+            self.complete = True
+        elif rt == DecodeQRStatus.INVALID:
+            # Prefix was recognized (e.g. "signmessage ...") but the payload is
+            # unusable. Surface as invalid so the UI shows an error instead of
+            # silently returning to the Main Menu.
+            self.qr_type = QRType.INVALID
+        return rt
 
 
     # TODO: Refactor all of these specific `get_` to just something generic like
@@ -971,9 +980,17 @@ class SignMessageQrDecoder(BaseSingleFrameQrDecoder):
             signmessage {derivation_path} ascii:{message}
         """
         parts = segment.split()
+        # signmessage {derivation_path} {fmt}:{message}
+        # Hostile / truncated QRs must be INVALID, not IndexError.
+        if len(parts) < 3 or ":" not in parts[2]:
+            return DecodeQRStatus.INVALID
+
         self.derivation_path = parts[1].replace("h", "'")
-        fmt = parts[2].split(":")[0]
-        self.message = segment.split(f"{fmt}:")[1]
+        fmt = parts[2].split(":", 1)[0]
+        prefix = f"{fmt}:"
+        if not fmt or prefix not in segment:
+            return DecodeQRStatus.INVALID
+        self.message = segment.split(prefix, 1)[1]
 
         # TODO: support formats other than ascii?
         if fmt != "ascii":
