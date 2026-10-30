@@ -3480,8 +3480,8 @@ class TestPSBTParserInputOwnership(PSBTParserOwnershipTestBase):
         psbt leaves out the input's merkle root, which is an optional field. Without it we
         cannot rebuild the address, so the claim is neither confirmed nor contradicted.
 
-        The parse should drop the claim and treat that input as not ours. With another
-        input of ours, the psbt should still parse.
+        The parse should drop the claim, leaving that input with no verified derivation
+        paths. With another input of ours, the psbt should still parse.
         """
         internal_derivation_path = "m/86h/1h/0h/0/0"
         internal_public_key = self._root().derive(internal_derivation_path).get_public_key()

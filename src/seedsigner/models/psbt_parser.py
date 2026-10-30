@@ -313,13 +313,12 @@ class PSBTParser():
         # entry lists every derivation path the seed genuinely owns there, in the order
         # the psbt lists them. On an input, the key at each listed path is also one the
         # input's committed script spends with. An input or output that does not claim
-        # any of our keys gets an empty list, as does an input carrying a held finding
-        # (see parse()).
+        # any of our keys gets an empty list, as does an input carrying a held finding.
         self.verified_input_derivation_paths: List[List[DerivationPath]] = []
         self.verified_output_derivation_paths: List[List[DerivationPath]] = []
 
         # The findings held until the outputs have been read, in the order they were
-        # found (see parse()), and the index of each output that carries one.
+        # found, and the index of each output that carries one.
         self.held_findings: List[PSBTVerificationError] = []
         self.held_output_indices: List[int] = []
 
@@ -405,16 +404,9 @@ class PSBTParser():
         Held findings:
         The parse reports the most serious problem it finds. A finding we treat as an
         attack stops the parse at the step that finds it, since nothing found later can
-        outrank it. A milder finding is held until the outputs have been read, so that an
-        attack found there is still the one reported.
-
-        These findings are held:
-          * a false claim on an input.
-          * an input or output with entries in both derivation path maps.
-          * an input or output claiming one of our keys at a derivation path too short
-            for any wallet to use.
-          * an output claiming more derivation path entries than it can use.
-          * an input that this seed can sign only through a taproot script path spend.
+        outrank it. Parsing may uncover other milder findings along the way. Those are
+        held aside while the remaining checks run. A held finding is raised only if those
+        remaining checks find nothing more serious.
 
         Optimization via child_key_derivation_cache:
         Parsing traverses a derivation path down to an individual address one level at a
@@ -469,7 +461,8 @@ class PSBTParser():
             return False
 
         if self.held_findings:
-            # The outputs have now had their chance to report a deception
+            # The checks to this point did not raise any attack-level exceptions, but a
+            # milder finding was held. The psbt is still rejected.
             raise self.held_findings[0]
 
         # Every total is known now, so settle this once rather than per view.
@@ -577,8 +570,9 @@ class PSBTParser():
     def _parse_inputs(self, child_key_derivation_cache: dict):
         """
         Verifies each input's claims on this seed and determines the wallet policy.
-        Perceived attacks are raised immediately. Milder errors are held (see parse()).
-        Every input must resolve to the same policy, otherwise a RuntimeError is raised.
+        Perceived attacks are raised immediately. Milder errors are held, and processing
+        of the inputs continues uninterrupted. Every input must resolve to the same policy,
+        otherwise a RuntimeError is raised.
 
         First we re-derive each key the input claims for our seed, which confirms that the
         key is ours. But the script an input commits to is what decides who can spend it;
@@ -587,6 +581,15 @@ class PSBTParser():
 
         We need to be certain which inputs are ours because they determine what a valid
         change output should look like.
+
+        Holds:
+          * PSBTInputOwnershipClaimError: An input carries a false claim on this seed.
+          * PSBTMixedDerivationPathTypesError: An input has entries in both derivation
+            path maps.
+          * PSBTUnsupportedDerivationPathError: An input claims one of our keys at a
+            derivation path too short for any wallet to use.
+          * PSBTUnsupportedScriptPathError: This seed can sign an input only through a
+            taproot script path spend.
         """
         self.num_inputs = len(self.psbt.inputs)
         self.verified_input_derivation_paths = []
@@ -595,8 +598,8 @@ class PSBTParser():
             try:
                 verified_derivation_paths = PSBTParser._get_seed_derivation_paths(inp, self.root, child_key_derivation_cache)
             except (PSBTInputOwnershipClaimError, PSBTMixedDerivationPathTypesError, PSBTUnsupportedDerivationPathError) as e:
-                # Held rather than raised (see parse()), and this input is treated as
-                # not ours.
+                # Held rather than raised, and this input is left with no verified
+                # derivation paths.
                 self.held_findings.append(e)
                 verified_derivation_paths = []
 
@@ -665,7 +668,7 @@ class PSBTParser():
             if script_committed_derivation_paths == [] and has_leaf_key_claim:
                 # None of our claims on this input passed. At least one of them is a key
                 # in a script tree leaf, so this seed could only sign the input through a
-                # script path spend. Held rather than raised (see parse()).
+                # script path spend. Held rather than raised.
                 self.held_findings.append(PSBTUnsupportedScriptPathError("Input can only be signed through a taproot script path spend"))
 
             self.verified_input_derivation_paths.append(script_committed_derivation_paths)
@@ -798,8 +801,7 @@ class PSBTParser():
 
     def _hold_output_finding(self, output_index: int, finding: PSBTVerificationError):
         """
-        Holds a finding on an output until the outputs have been read (see parse()), and
-        records the output so that it is counted as a spend rather than as change.
+        Holds a finding along with the index of the output that carries it.
         """
         self.held_findings.append(finding)
         self.held_output_indices.append(output_index)
@@ -814,6 +816,13 @@ class PSBTParser():
         Most of the work here is sorting through the psbt's claims about which, if any,
         outputs are paying a key that can be derived from our seed, and then doing all
         possible independent verifications for the given output data.
+
+        Perceived attacks are raised immediately. Milder errors are held, and processing
+        of the outputs continues uninterrupted.
+
+        Holds:
+          * PSBTSurplusDerivationPathsError: An output claims more derivation path entries
+            than it can use.
         """
 
         """********************* How output ownership is determined *********************
@@ -1686,6 +1695,11 @@ class PSBTParser():
         claim on an input is merely unsignable.
 
         Raises PSBTOutputOwnershipClaimError on the first false claim detected.
+
+        Holds:
+          * PSBTMixedDerivationPathTypesError: An output has entries in both derivation
+            path maps.
+          * PSBTUnsupportedDerivationPathError: An output claims the master key itself.
         """
         self.verified_output_derivation_paths = []
         for i, out in enumerate(self.psbt.outputs):
