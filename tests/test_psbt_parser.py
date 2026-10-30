@@ -25,7 +25,8 @@ from seedsigner.models.settings_definition import SettingsConstants
 
 from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_key,
     create_op_return_output, create_op_return_psbt, create_output, foreign_public_key,
-    op_return_script, p2tr_with_script_tree, root_for_seed, tapleaf_hash)
+    op_return_script, p2tr_with_script_tree, root_for_seed, set_input_locking_script,
+    tapleaf_hash)
 
 
 
@@ -275,14 +276,7 @@ class TestPSBTParser:
             derivation=bip32.parse_path(odd_parity_derivation_path)
         ))
         taproot_input.taproot_internal_key = x_only_public_key
-        taproot_input.witness_utxo.script_pubkey = script.p2tr(x_only_public_key)
-
-        # Re-keying the input invalidates the non_witness_utxo, which still pays to the
-        # original script. Editing it to match is not an option either: that changes the
-        # txid it hashes to, so it would no longer be the tx this input claims to spend.
-        # Drop it. Taproot is segwit, so a witness-only input is what a coordinator would
-        # normally send anyway.
-        taproot_input.non_witness_utxo = None
+        set_input_locking_script(taproot_input, script.p2tr(x_only_public_key))
 
         # The zeroed-fingerprint fallback check must recognize this input as the seed's,
         # even though embit's internal parity byte for the pubkey is wrong. Taproot
@@ -1344,10 +1338,7 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         foreign_input.bip32_derivations.clear()
 
         # Alter the input so it's owned by the other party
-        foreign_input.witness_utxo.script_pubkey = script.p2wpkh(foreign_public_key())
-
-        # We can't let this copy's original non_witness_utxo contradict the witness_utxo we just altered.
-        foreign_input.non_witness_utxo = None
+        set_input_locking_script(foreign_input, script.p2wpkh(foreign_public_key()))
 
         psbt.inputs.append(foreign_input)
 
@@ -1480,10 +1471,7 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         leaf_public_key = self._root().derive(leaf_derivation_path).get_public_key()
         merkle_root = tapleaf_hash(leaf_public_key)
         psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
-        psbt.inputs[0].witness_utxo.script_pubkey = p2tr_with_script_tree(NUMS_INTERNAL_KEY, merkle_root)
-        # Drop the non_witness_utxo, which describes the original coin and contradicts
-        # the witness_utxo altered above.
-        psbt.inputs[0].non_witness_utxo = None
+        set_input_locking_script(psbt.inputs[0], p2tr_with_script_tree(NUMS_INTERNAL_KEY, merkle_root))
         psbt.inputs[0].taproot_merkle_root = merkle_root
         psbt.inputs[0].taproot_bip32_derivations.clear()
         claim_seed_owns_key(psbt.inputs[0], leaf_derivation_path, leaf_public_key, is_taproot=True, leaf_hashes=[merkle_root])
@@ -1791,10 +1779,7 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         # control
         psbt = self._psbt_with_change()
         psbt.inputs[0].bip32_derivations.clear()
-        psbt.inputs[0].witness_utxo.script_pubkey = script.p2wpkh(master_public_key)
-        # Drop the non_witness_utxo, which describes the original coin and contradicts
-        # the witness_utxo altered above.
-        psbt.inputs[0].non_witness_utxo = None
+        set_input_locking_script(psbt.inputs[0], script.p2wpkh(master_public_key))
         claim_seed_owns_key(psbt.inputs[0], "m", master_public_key)
 
         # embit is willing to sign it
@@ -1813,10 +1798,7 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         # control
         psbt = self._psbt_with_change()
         psbt.inputs[0].bip32_derivations.clear()
-        psbt.inputs[0].witness_utxo.script_pubkey = script.p2wpkh(one_level_public_key)
-        # Drop the non_witness_utxo, which describes the original coin and contradicts
-        # the witness_utxo altered above.
-        psbt.inputs[0].non_witness_utxo = None
+        set_input_locking_script(psbt.inputs[0], script.p2wpkh(one_level_public_key))
         claim_seed_owns_key(psbt.inputs[0], "m/5", one_level_public_key)
         with pytest.raises(PSBTUnsupportedDerivationPathError):
             self._parse(psbt)
@@ -3134,11 +3116,7 @@ class TestPSBTParserInputScripts(PSBTParserOwnershipTestBase):
         # scriptPubKey that commits to that redeem script.
         public_key = foreign_public_key(derivation_path)
         foreign_input.redeem_script = script.p2wpkh(public_key)
-        foreign_input.witness_utxo.script_pubkey = script.p2sh(foreign_input.redeem_script)
-
-        # Drop the copied non_witness_utxo, which describes our own coin and contradicts
-        # the witness_utxo altered above.
-        foreign_input.non_witness_utxo = None
+        set_input_locking_script(foreign_input, script.p2sh(foreign_input.redeem_script))
 
         psbt.inputs.append(foreign_input)
         return foreign_input
@@ -3336,10 +3314,7 @@ class TestPSBTParserInputOwnership(PSBTParserOwnershipTestBase):
         # derivation path entries
         foreign_input = deepcopy(psbt.inputs[0])
         foreign_input.bip32_derivations.clear()
-        foreign_input.witness_utxo.script_pubkey = script.p2wpkh(foreign_public_key())
-        # Drop the copied non_witness_utxo, which describes our own coin and contradicts
-        # the witness_utxo altered above.
-        foreign_input.non_witness_utxo = None
+        set_input_locking_script(foreign_input, script.p2wpkh(foreign_public_key()))
         psbt.inputs.append(foreign_input)
 
         # With no claim on it, the other party's input is simply not ours
@@ -3404,10 +3379,7 @@ class TestPSBTParserInputOwnership(PSBTParserOwnershipTestBase):
 
         # Rebuild the input's script and the scriptPubKey that commits to it
         inp.witness_script = script.multisig(2, cosigner_public_keys)
-        inp.witness_utxo.script_pubkey = script.p2wsh(inp.witness_script)
-        # Drop the non_witness_utxo, which describes the original coin and contradicts
-        # the witness_utxo altered above.
-        inp.non_witness_utxo = None
+        set_input_locking_script(inp, script.p2wsh(inp.witness_script))
 
         # embit signs with both of our keys
         assert deepcopy(psbt).sign_with(self._root()) == 2
@@ -3441,10 +3413,7 @@ class TestPSBTParserInputOwnership(PSBTParserOwnershipTestBase):
 
         psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
         inp = psbt.inputs[0]
-        inp.witness_utxo.script_pubkey = p2tr_with_script_tree(internal_public_key, merkle_root)
-        # Drop the non_witness_utxo, which describes the original coin and contradicts
-        # the witness_utxo altered above.
-        inp.non_witness_utxo = None
+        set_input_locking_script(inp, p2tr_with_script_tree(internal_public_key, merkle_root))
         inp.taproot_merkle_root = merkle_root
 
         # embit signs this input through its key path
@@ -3492,10 +3461,7 @@ class TestPSBTParserInputOwnership(PSBTParserOwnershipTestBase):
         # A second input: a copy of ours, at an address built over the script tree, with
         # no merkle root supplied
         script_tree_input = deepcopy(psbt.inputs[0])
-        script_tree_input.witness_utxo.script_pubkey = p2tr_with_script_tree(internal_public_key, merkle_root)
-        # Drop the copied non_witness_utxo, which describes our own coin and contradicts
-        # the witness_utxo altered above.
-        script_tree_input.non_witness_utxo = None
+        set_input_locking_script(script_tree_input, p2tr_with_script_tree(internal_public_key, merkle_root))
         assert script_tree_input.taproot_merkle_root is None
         psbt.inputs.append(script_tree_input)
 
@@ -3539,10 +3505,7 @@ class TestPSBTParserInputOwnership(PSBTParserOwnershipTestBase):
 
         psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
         inp = psbt.inputs[0]
-        inp.witness_utxo.script_pubkey = p2tr_with_script_tree(NUMS_INTERNAL_KEY, merkle_root)
-        # Drop the non_witness_utxo, which describes the original coin and contradicts
-        # the witness_utxo altered above.
-        inp.non_witness_utxo = None
+        set_input_locking_script(inp, p2tr_with_script_tree(NUMS_INTERNAL_KEY, merkle_root))
         inp.taproot_merkle_root = merkle_root
 
         # Our key is now claimed only as the key in the leaf

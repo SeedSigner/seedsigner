@@ -6,7 +6,7 @@ from embit.psbt import PSBT, DerivationPath
 from base import FlowTest, FlowStep
 from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_key,
     create_op_return_output, create_output, foreign_public_key, p2tr_with_script_tree,
-    root_for_seed, tapleaf_hash)
+    root_for_seed, set_input_locking_script, tapleaf_hash)
 
 from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView
@@ -530,10 +530,7 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE, 10_000))
 
         inp = psbt.inputs[0]
-        inp.witness_utxo.script_pubkey = p2tr_with_script_tree(NUMS_INTERNAL_KEY, merkle_root)
-        # Drop the non_witness_utxo, which describes the original coin and contradicts
-        # the witness_utxo altered above.
-        inp.non_witness_utxo = None
+        set_input_locking_script(inp, p2tr_with_script_tree(NUMS_INTERNAL_KEY, merkle_root))
         inp.taproot_merkle_root = merkle_root
         inp.taproot_bip32_derivations.clear()
         claim_seed_owns_key(inp, leaf_derivation_path, leaf_public_key, is_taproot=True, leaf_hashes=[merkle_root])
