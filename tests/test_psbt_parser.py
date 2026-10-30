@@ -3699,9 +3699,13 @@ class TestPSBTParserChangeDerivationPathRules(PSBTParserOwnershipTestBase):
         """
         Change may only come back to a base path that one of our inputs spends from.
 
-        The psbt pays change to our key at the input's base path with its last level
-        changed to 7h. The parse should refuse the change with
-        PSBTChangeDerivationPathError, naming the change's path.
+        The psbt pays change to our key at a different base path. Two variants are
+        tested:
+          * the input's base path with its last level changed.
+          * the input's base path with an extra level added to the end.
+
+        The parse should refuse each with a PSBTChangeDerivationPathError. The problematic
+        derivation path should be included in the exception object.
         """
         for input_base64, change_hex in self.WALLETS:
             input_derivation_path = self._input_derivation_path(input_base64)
@@ -3717,6 +3721,16 @@ class TestPSBTParserChangeDerivationPathRules(PSBTParserOwnershipTestBase):
             with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
                 self._parse(psbt)
             assert exc_info.value.derivation_path == bip32.parse_path(change_at_other_base_path)
+
+            # The input's base path with an extra level added to the end
+            input_base_path_levels = input_derivation_path.split("/")[:-2]
+            change_at_extended_base_path = "/".join(input_base_path_levels + ["7", "1", "0"])
+
+            repoint_change(psbt, change_at_extended_base_path)
+
+            with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
+                self._parse(psbt)
+            assert exc_info.value.derivation_path == bip32.parse_path(change_at_extended_base_path)
 
 
     def test__parse__accepts_change_to_any_base_path_this_transaction_spends_from(self):
