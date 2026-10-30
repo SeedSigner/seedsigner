@@ -1,5 +1,5 @@
 from typing import List
-from seedsigner.models.seed import Seed, ElectrumSeed, InvalidSeedException
+from seedsigner.models.seed import Seed, BIP85ChildSeed, ElectrumSeed, InvalidSeedException
 from seedsigner.models.settings_definition import SettingsConstants
 
 
@@ -24,9 +24,30 @@ class SeedStorage:
         # Store the pending seed and return it
         seed = self.pending_seed
         if seed not in self.seeds:
-            self.seeds.append(seed)
+            if isinstance(seed, BIP85ChildSeed):
+                # Insert child seeds adjacent to parent, sorted by child index, then by number of words
+                # Required to list seeds in a presentable order
+                existing_siblings = self.get_bip85_child_seeds(seed.parent_seed)
+                index = self.seeds.index(seed.parent_seed) + 1
+                for sibling in existing_siblings:
+                    if (sibling.child_index, sibling.num_words) < (seed.child_index, seed.num_words):
+                        index += 1
+                    else:
+                        break
+                self.seeds.insert(index, seed)
+            else:
+                self.seeds.append(seed)
         self.pending_seed = None
         return seed
+
+
+    def discard_seed(self, seed: Seed):
+        bip85_child_seeds = self.get_bip85_child_seeds(seed)
+
+        self.seeds.remove(seed)
+
+        for child_seed in bip85_child_seeds:
+            self.seeds.remove(child_seed)
 
 
     def clear_pending_seed(self):
@@ -101,3 +122,8 @@ class SeedStorage:
     def discard_pending_mnemonic(self):
         self._pending_mnemonic = []
         self._pending_is_electrum = False
+
+
+    def get_bip85_child_seeds(self, parent_seed: Seed) -> list[BIP85ChildSeed]:
+        """Returns the list of BIP-85 child seeds derived from the specified seed."""
+        return [seed for seed in self.seeds if isinstance(seed, BIP85ChildSeed) and seed.parent_seed == parent_seed]
