@@ -4,8 +4,9 @@ from embit import bip32, script
 from embit.psbt import PSBT, DerivationPath
 
 from base import FlowTest, FlowStep
-from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_op_return_output,
-    create_output, foreign_public_key, root_for_seed)
+from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_key,
+    create_op_return_output, create_output, foreign_public_key, p2tr_with_script_tree,
+    root_for_seed, set_input_locking_script, tapleaf_hash)
 
 from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView
@@ -396,6 +397,27 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         ])
 
 
+    def test_master_key_claim_terminates_signing_flow(self):
+        """
+        The psbt claims this seed on an output at a derivation path with no levels, which
+        is the seed's master key. That key is a derivation root rather than one any wallet
+        receives at. No standard wallet writes an entry at that path.
+
+        It ends the flow at its own warning before any transaction detail is rendered.
+        """
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.outputs[0], "m", root_for_seed(PSBTTestData.seed).get_public_key())
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnsupportedDerivationPathView, button_data_selection=psbt_views.PSBTUnsupportedDerivationPathView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
     def test_missing_input_script_terminates_signing_flow(self):
         """
         The psbt leaves out the witness script that a p2wsh input commits to.
@@ -463,6 +485,62 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
             FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
             FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
             FlowStep(psbt_views.PSBTExtraneousInputScriptView, button_data_selection=psbt_views.PSBTExtraneousInputScriptView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_input_ownership_contradiction_terminates_signing_flow(self):
+        """
+        The psbt adds a second claim of ours to the user's own input, at a path whose key
+        the input's script does not use. That is framed as an attack.
+
+        The flow should stop at PSBTInputOwnershipContradictionView, before any
+        transaction detail is rendered.
+        """
+        decoy_derivation_path = "m/84h/1h/0h/0/9"
+        decoy_public_key = root_for_seed(PSBTTestData.seed).derive(decoy_derivation_path).get_public_key()
+
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.inputs[0], decoy_derivation_path, decoy_public_key)
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTInputOwnershipContradictionView, button_data_selection=psbt_views.PSBTInputOwnershipContradictionView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_unsupported_script_path_terminates_signing_flow(self):
+        """
+        The psbt's only input has our key in its taproot script tree's one leaf, behind
+        an unspendable internal key. This seed can sign it only through a script path
+        spend, which is not yet supported.
+
+        The flow should stop at PSBTUnsupportedScriptPathView, before any transaction
+        detail is rendered.
+        """
+        leaf_derivation_path = "m/86h/1h/0h/0/0"
+        leaf_public_key = root_for_seed(PSBTTestData.seed).derive(leaf_derivation_path).get_public_key()
+        merkle_root = tapleaf_hash(leaf_public_key)
+
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE, 10_000))
+
+        inp = psbt.inputs[0]
+        set_input_locking_script(inp, p2tr_with_script_tree(NUMS_INTERNAL_KEY, merkle_root))
+        inp.taproot_merkle_root = merkle_root
+        inp.taproot_bip32_derivations.clear()
+        claim_seed_owns_key(inp, leaf_derivation_path, leaf_public_key, is_taproot=True, leaf_hashes=[merkle_root])
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnsupportedScriptPathView, button_data_selection=psbt_views.PSBTUnsupportedScriptPathView.DISCARD),
             FlowStep(MainMenuView),
         ])
 
