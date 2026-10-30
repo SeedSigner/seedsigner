@@ -115,6 +115,12 @@ class PSBTOverviewView(View):
 
             # Note that in almost every exception case, we set clear_history to disable
             # returning via BACK button in the Destination.
+            #
+            # TODO: Most of these except clauses route to a View of their own whose only
+            # job is to show a WarningScreen or DireWarningScreen and discard the psbt.
+            # Replace them with a dict that maps each error type to its warning level and
+            # user-facing message, shown by one generic View (as PSBTWarningView does for
+            # the non-fatal warnings).
             except PSBTInputOwnershipClaimError:
                 self.set_redirect(Destination(PSBTInputOwnershipClaimFailedView, clear_history=True))
                 return
@@ -232,94 +238,63 @@ class PSBTOverviewView(View):
             self.controller.psbt_seed = None
             return Destination(BackStackView)
 
-        # expecting p2sh (legacy multisig) and p2pkh to have no policy set
-        # skip change warning and psbt math view
-        if psbt_parser.policy == None:
-            return Destination(PSBTUnsupportedScriptTypeWarningView)
-
-        elif psbt_parser.is_high_fee:
-            return Destination(PSBTHighFeeWarningView, view_args={"warning_threshold_percent": psbt_parser.HIGH_FEES_WARNING_THRESHOLD})
-        
-        elif psbt_parser.change_amount == 0:
-            return Destination(PSBTNoChangeWarningView)
+        if len(psbt_parser.warnings) > 0:
+            return Destination(PSBTWarningView)
 
         else:
             return Destination(PSBTMathView)
 
 
 
-class PSBTUnsupportedScriptTypeWarningView(View):
-    def run(self):
-        selected_menu_num = self.run_screen(
-            WarningScreen,
-            status_headline=_("Unsupported Script Type!"),
-            text=_("Transaction has unsupported input script type, please verify your change addresses."),
-            button_data=[ButtonOption("Continue")],
-        )
-        
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-        
-        # Only one exit point
-        # skip PSBTMathView
-        return Destination(
-            PSBTAddressDetailsView, view_args={"address_num": 0},
-            skip_current_view=True,  # Prevent going BACK to WarningViews
-        )
+class PSBTWarningView(View):
+    """
+    Shows the psbt's warning at warning_index and then moves on to the next one. Once
+    every warning has been shown, redirects to PSBTMathView instead.
+    """
+    CONTINUE = ButtonOption("Continue")
 
-
-
-class PSBTNoChangeWarningView(View):
-    def run(self):
-        selected_menu_num = self.run_screen(
-            WarningScreen,
-            # TRANSLATOR_NOTE: User will receive no change back; the inputs to this transaction are fully spent
-            status_headline=_("Full Spend!"),
-            text=_("This transaction spends its entire input value. No change is coming back to your wallet."),
-            button_data=[ButtonOption("Continue")],
-        )
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-        # Only one exit point
-        return Destination(
-            PSBTMathView,
-            skip_current_view=True,  # Prevent going BACK to WarningViews
-        )
-
-
-
-class PSBTHighFeeWarningView(View):
-    def __init__(self, warning_threshold_percent: int):
+    def __init__(self, warning_index: int = 0):
         super().__init__()
-        
-        self.warning_threshold_percent = warning_threshold_percent
-    
+        self.warning_index = warning_index
+
+        if warning_index >= len(self.controller.psbt_parser.warnings):
+            self.set_redirect(Destination(PSBTMathView))
+            return
+
+
     def run(self):
-        selected_menu_num = self.run_screen(
-            DireWarningScreen,
-            status_headline=_("High Fee!"),
+        warning = self.controller.psbt_parser.warnings[self.warning_index]
+        if warning == PSBTParser.WARNING__HIGH_FEE:
+            Screen_cls = DireWarningScreen
+            status_headline = _("High Fee!")
             # TRANSLATOR_NOTE: Variable is the percentage of the total output value (excluding change) that the fee exceeds. (e.g. "This transaction has a fee higher than 25% of the total output value (excluding change).")
-            text=_("This transaction has a fee higher than {}% of the total output value (excluding change).").format(self.warning_threshold_percent),
-            button_data=[ButtonOption("Continue")],
-        )
+            text = _("This transaction has a fee higher than {}% of the total output value (excluding change).").format(PSBTParser.HIGH_FEES_WARNING_THRESHOLD)
 
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-        # PSBT may have high fee + no change
-        if self.controller.psbt_parser.change_amount == 0:
-            return Destination(
-                PSBTNoChangeWarningView,
-                skip_current_view=True,  # Prevent going BACK to WarningViews
-            )
+        elif warning == PSBTParser.WARNING__NO_CHANGE:
+            Screen_cls = WarningScreen
+            # TRANSLATOR_NOTE: User will receive no change back; the inputs to this transaction are fully spent
+            status_headline = _("Full Spend!")
+            text = _("This transaction spends its entire input value. No change is coming back to your wallet.")
 
         else:
-            return Destination(
-                PSBTMathView,
-                skip_current_view=True,  # Prevent going BACK to WarningViews
-            )
+            raise Exception(f"Unhandled psbt warning: {warning}")
+
+        selected_menu_num = self.run_screen(
+            Screen_cls,
+            status_headline=status_headline,
+            text=text,
+            button_data=[self.CONTINUE],
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # Only one exit point
+        return Destination(
+            PSBTWarningView,
+            view_args=dict(warning_index=self.warning_index + 1),
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
 
 
 

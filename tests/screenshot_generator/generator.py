@@ -282,6 +282,14 @@ def generate_screenshots(locale):
 
 
         @contextmanager
+        def mock_single_sig_psbt_with_every_warning_loaded():
+            with mock_single_sig_psbt_loaded():
+                # List every warning so each one can be shown by its index
+                with patch.object(controller.psbt_parser, "warnings", [PSBTParser.WARNING__HIGH_FEE, PSBTParser.WARNING__NO_CHANGE]):
+                    yield
+
+
+        @contextmanager
         def mock_multisig_psbt_loaded():
             with mock_load_psbt(BASE64_MULTISIG_PSBT):
                 yield
@@ -438,9 +446,8 @@ def generate_screenshots(locale):
             "PSBT Views": [
                 ScreenshotConfig(psbt_views.PSBTSelectSeedView, mock_context_manager=mock_controller_psbt_seed_empty),
                 ScreenshotConfig(psbt_views.PSBTOverviewView,   mock_context_manager=mock_multisig_psbt_loaded),
-                ScreenshotConfig(psbt_views.PSBTUnsupportedScriptTypeWarningView),
-                ScreenshotConfig(psbt_views.PSBTNoChangeWarningView),
-                ScreenshotConfig(psbt_views.PSBTHighFeeWarningView, dict(warning_threshold_percent=25)),
+                ScreenshotConfig(psbt_views.PSBTWarningView, dict(warning_index=0), screenshot_name="PSBTWarningView_high_fee",         mock_context_manager=mock_single_sig_psbt_with_every_warning_loaded),
+                ScreenshotConfig(psbt_views.PSBTWarningView, dict(warning_index=1), screenshot_name="PSBTWarningView_no_change",        mock_context_manager=mock_single_sig_psbt_with_every_warning_loaded),
                 ScreenshotConfig(psbt_views.PSBTMathView, mock_context_manager=mock_multisig_psbt_loaded),
                 ScreenshotConfig(psbt_views.PSBTAddressDetailsView, dict(address_num=0), mock_context_manager=mock_multisig_psbt_loaded),
 

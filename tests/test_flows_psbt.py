@@ -11,7 +11,7 @@ from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_
 from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
-from seedsigner.models.psbt_parser import OPCODES
+from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
@@ -208,14 +208,10 @@ class TestPSBTFlows(FlowTest):
 
 
 
-class TestPSBTOwnershipClaimRouting(FlowTest):
+class PSBTSigningFlowTest(FlowTest):
     """
-    A psbt whose own description of itself does not hold up, or whose arithmetic is
-    impossible, is refused during parsing, before the user is shown anything about the
-    transaction. These cover what the user meets when that happens: a warning screen that
-    ends the flow, not a crash.
+    Shared helpers for flow tests that load a psbt and walk through the signing flow.
     """
-
     def _load_psbt_for_signing(self, psbt: PSBT, seed: Seed = None):
         """
         Stage the psbt in the Controller and load the signing seed into storage, as if
@@ -233,6 +229,15 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE, 10_000))
         return psbt
 
+
+
+class TestPSBTOwnershipClaimRouting(PSBTSigningFlowTest):
+    """
+    A psbt whose own description of itself does not hold up, or whose arithmetic is
+    impossible, is refused during parsing, before the user is shown anything about the
+    transaction. These cover what the user meets when that happens: a warning screen that
+    ends the flow, not a crash.
+    """
 
     def test_forged_output_claim_terminates_signing_flow(self):
         """
@@ -584,3 +589,86 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
             FlowStep(psbt_views.PSBTNegativeFeeView, button_data_selection=psbt_views.PSBTNegativeFeeView.DISCARD),
             FlowStep(MainMenuView),
         ])
+
+
+
+class TestPSBTWarningRouting(PSBTSigningFlowTest):
+    """
+    Some findings are worth a warning but leave the decision to the user. Each applicable
+    warning is shown in turn before the transaction details. The user can then continue
+    to sign. These cover each warning alone and in the sequences that can occur together.
+    """
+
+    def test_high_fee_warning_alone_continues_to_the_transaction_details(self):
+        """
+        The psbt pays a 50,000 sat recipient out of a 1 BTC input, with its change at an
+        ordinary address index, so nearly all of the input goes to the fee.
+
+        The user should see the high fee warning and then the transaction details.
+        """
+        psbt = self._psbt_with_change()
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 50_000))
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+        ])
+
+        assert self.controller.psbt_parser.warnings == [PSBTParser.WARNING__HIGH_FEE]
+
+
+    def test_no_change_warning_alone_continues_to_the_transaction_details(self):
+        """
+        The psbt spends its whole 1 BTC input on a single recipient, apart from a 10,000
+        sat fee, so no change comes back.
+
+        The user should see the no change warning and then the transaction details.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+        input_amount = psbt.inputs[0].utxo.value
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, input_amount - 10_000))
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+        ])
+
+        assert self.controller.psbt_parser.warnings == [PSBTParser.WARNING__NO_CHANGE]
+
+
+    def test_high_fee_warning_continues_to_the_no_change_warning(self):
+        """
+        The psbt pays a single 50,000 sat recipient out of a 1 BTC input and sends no
+        change back, so nearly all of the input goes to the fee.
+
+        The user should see the high fee warning, then the no change warning, and then the
+        transaction details.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 50_000))
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+        ])
+
+        assert self.controller.psbt_parser.warnings == [
+            PSBTParser.WARNING__HIGH_FEE,
+            PSBTParser.WARNING__NO_CHANGE,
+        ]

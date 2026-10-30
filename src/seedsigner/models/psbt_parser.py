@@ -287,6 +287,10 @@ class PSBTParser():
     # change). TODO: Possibly make this configurable via settings.
     HIGH_FEES_WARNING_THRESHOLD = 25
 
+    # The non-fatal findings that can be recorded in self.warnings
+    WARNING__HIGH_FEE = "high_fee"
+    WARNING__NO_CHANGE = "no_change"
+
 
     def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET):
         self.psbt: PSBT = p
@@ -308,6 +312,9 @@ class PSBTParser():
         # Computed once at the end of parse() so the views can read it without each
         # re-walking the outputs.
         self.is_high_fee: bool = False
+
+        # The psbt's non-fatal findings, as WARNING__* constants, most serious first
+        self.warnings: List[str] = []
 
         # Contains one entry per input in psbt.inputs and per output in psbt.outputs. Each
         # entry lists every derivation path the seed genuinely owns there, in the order
@@ -467,6 +474,14 @@ class PSBTParser():
 
         # Every total is known now, so settle this once rather than per view.
         self.is_high_fee = self.has_high_fee()
+
+        # Record the non-fatal findings, most serious first
+        self.warnings = []
+        if self.is_high_fee:
+            self.warnings.append(PSBTParser.WARNING__HIGH_FEE)
+
+        if self.change_amount == 0:
+            self.warnings.append(PSBTParser.WARNING__NO_CHANGE)
 
         return True
 
