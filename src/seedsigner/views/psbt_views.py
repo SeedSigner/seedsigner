@@ -2,14 +2,14 @@ import logging
 
 from gettext import gettext as _
 
-from seedsigner.models.psbt_parser import (PSBTExtraneousInputScriptError,
-    PSBTInputAmountVerificationError, PSBTInputOwnershipClaimError,
-    PSBTInputOwnershipContradictionError, PSBTInputScriptMismatchError,
-    PSBTMalformedOpReturnError, PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
-    PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
-    PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
-    PSBTSurplusDerivationPathsError, PSBTUnsupportedDerivationPathError,
-    PSBTUnsupportedScriptPathError)
+from seedsigner.models.psbt_parser import (PSBTChangeDerivationPathError,
+    PSBTExtraneousInputScriptError, PSBTInputAmountVerificationError,
+    PSBTInputOwnershipClaimError, PSBTInputOwnershipContradictionError,
+    PSBTInputScriptMismatchError, PSBTMalformedOpReturnError, PSBTMissingInputScriptError,
+    PSBTMissingInputUtxoError, PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError,
+    PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
+    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError,
+    PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError)
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
@@ -173,6 +173,14 @@ class PSBTOverviewView(View):
                 self.set_redirect(Destination(PSBTNegativeFeeView, clear_history=True))
                 return
 
+            except PSBTChangeDerivationPathError as e:
+                self.set_redirect(Destination(
+                    PSBTUnexpectedChangeDerivationPathView,
+                    view_args=dict(derivation_path=e.derivation_path),
+                    clear_history=True,
+                ))
+                return
+
             except PSBTSeedCannotSignError:
                 # Not a suspicious psbt, just the wrong seed for it. Send the user back to
                 # pick another rather than clearing the flow.
@@ -209,6 +217,7 @@ class PSBTOverviewView(View):
                     'amount': 397621401, 
                     'verified_derivation_path':
                         [2147483696, 2147483649, 2147483648, 2147483650, 1, 0],
+                    'address_index_beyond_window': False,
                 }, {},
             ]
         """
@@ -275,6 +284,20 @@ class PSBTWarningView(View):
             # TRANSLATOR_NOTE: User will receive no change back; the inputs to this transaction are fully spent
             status_headline = _("Full Spend!")
             text = _("This transaction spends its entire input value. No change is coming back to your wallet.")
+
+        elif warning == PSBTParser.WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW:
+            # Change or a self-transfer comes back to a derivation path this wallet does
+            # use, but at an address index further along than the coins being spent
+            # suggest it has reached.
+            #
+            # We warn and let the user continue rather than discarding the psbt. We are
+            # offline and cannot see how far the coordinator has handed out addresses, so
+            # the address index is the one change rule we can only guess at. An ordinary
+            # transaction from an active wallet can trip it.
+            Screen_cls = WarningScreen
+            # TRANSLATOR_NOTE: Warns that funds are coming back to the user's own wallet (as change or a self-transfer) at an address far beyond the ones this transaction spends from, which their wallet may not look far enough ahead to find.
+            status_headline = _("Distant Address")
+            text = _("Funds return to an address far beyond the ones being spent. Your wallet may not find them.")
 
         else:
             raise Exception(f"Unhandled psbt warning: {warning}")
@@ -421,13 +444,12 @@ class PSBTChangeDetailsView(View):
                 'amount': 397621401, 
                 'verified_derivation_path':
                     [2147483696, 2147483649, 2147483648, 2147483650, 1, 0],
+                'address_index_beyond_window': False,
             }
         """
         seed_fingerprint = self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
         verified_derivation_path = change_data.get("verified_derivation_path")
         is_change_derivation_path = PSBTParser.is_change_branch(verified_derivation_path)
-
-        # TODO: Refuse a path too short to carry a branch and an address index
         derivation_path_addr_index = verified_derivation_path[-1]
 
         if is_change_derivation_path:
@@ -481,6 +503,7 @@ class PSBTChangeDetailsView(View):
             is_change_derivation_path=is_change_derivation_path,
             derivation_path_addr_index=derivation_path_addr_index,
             is_change_addr_verified=is_change_addr_verified,
+            is_address_index_beyond_window=change_data["address_index_beyond_window"],
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -889,6 +912,44 @@ class PSBTUnsupportedScriptPathView(View):
             title=_("Not Yet Implemented"),
             status_headline=None,
             text=_("This transaction needs a taproot script path signature."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTUnexpectedChangeDerivationPathView(View):
+    """
+    Reached when an output comes back to this seed at a derivation path the wallet this
+    transaction spends from does not use (see PSBTChangeDerivationPathError). Single sig
+    and multisig alike.
+
+    The coins still belong to the user's seed, but their coordinator software will never
+    scan that path to find them. We view this as an attack. We do not allow the user to
+    continue and give this the "Dire Warning" level. The path is displayed and named as a
+    derivation path, which gives the user a term to search for.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def __init__(self, derivation_path: list[int]):
+        super().__init__()
+        self.derivation_path = derivation_path
+
+
+    def run(self):
+        from embit import bip32
+
+        self.run_screen(
+            DireWarningScreen,
+            title=_("Suspicious Transaction"),
+            status_headline=_("Unsafe Derivation Path"),
+            # TRANSLATOR_NOTE: Variable is a derivation path such as "m/84'/0'/0'/5/0", shown on its own line, where this transaction sends funds back to the user's seed. "Our" refers to SeedSigner.
+            text=_("{}\nfailed our safety checks.").format(bip32.path_to_str(self.derivation_path).replace("h", "'")),
             button_data=[self.DISCARD],
             show_back_button=False,
         )

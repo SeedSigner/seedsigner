@@ -8,7 +8,7 @@ from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope
 from embit.script import Script
 
-from seedsigner.models.psbt_parser import OPCODES
+from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 from seedsigner.models.seed import Seed
 
 
@@ -20,6 +20,9 @@ class PSBTTestData:
     seed = Seed("model ensure search plunge galaxy firm exclude brain satoshi meadow cable roast".split())
     multisig_key_2 = Seed("better gown govern speak spawn vendor exercise item uncle odor sound cat".split())
     multisig_key_3 = Seed("sign sword lift deer ocean insect web lazy sick pencil start select".split())
+
+    # The three cosigners of the multisig fixtures' 2-of-3
+    multisig_cosigner_seeds = [seed, multisig_key_2, multisig_key_3]
 
     # Base psbts with various inputs for various wallet script types; outputs have been stripped
     SINGLE_SIG_NATIVE_SEGWIT_1_INPUT = "cHNidP8BADMCAAAAAU4T/0aX9mmNZHyKh+0AHYY+EtdJxndMRra0gn4QPCZdAQAAAAD9////AHAAAABPAQQ1h88DV5lJlYAAAADURWu0eYGA/OFm4Wt3dUJ44H2DzgcPO6J+nF0t9lqMqgLDxbT8Qez0U3W7o1JwT1FQ4fWFAbcK5eJ3NDnETRryMhAPuIL/VAAAgAEAAIAAAACAAAEAiAIAAAAB1Tct22qlCW5iTOZDfXqVu6CKlwdTtrPhbPI7pcTQ/GUBAAAAFxYAFCPpAsYWUNJnTErOjkoChnQylGp6/f///wLNLhoeAQAAABYAFI4lU5EAZIlw/MpX6r3gh1zqazEOAOH1BQAAAAAWABRYjLo+w43NT+5rzgPCNuy79lZjDm4AAAABAR8A4fUFAAAAABYAFFiMuj7Djc1P7mvOA8I27Lv2VmMOAQMEAQAAACIGAvXbqnkmWDXPNEkHznP0l2VFFql2WpgX42yD3Z9fJY/3GA+4gv9UAACAAQAAgAAAAIAAAAAAAwAAAAA="
@@ -272,6 +275,77 @@ def set_input_locking_script(inp: InputScope, script_pubkey: Script):
     """
     inp.witness_utxo.script_pubkey = script_pubkey
     inp.non_witness_utxo = None
+
+
+def repoint_change(psbt: PSBT, derivation_path: str, seed: Seed = None):
+    """
+    Moves the psbt's change output to derivation_path, still paying seed. Lets a test
+    choose where the change comes back to, such as another base path or a distant address
+    index.
+
+    Rebuilds the script the output commits to and the entries describing it, keeping
+    whatever script type the output already had. Callers pass a psbt whose change output
+    comes first. A multisig output is rebuilt from the multisig fixtures' cosigners, so
+    seed applies to single sig only.
+    """
+    if seed is None:
+        seed = PSBTTestData.seed
+    out = psbt.outputs[0]
+
+    # Find the output's multisig script, if it has one. Nested single sig also carries
+    # a redeem_script, which is a p2wpkh.
+    multisig_script = out.witness_script or out.redeem_script
+    is_multisig = multisig_script is not None and multisig_script.script_type() != "p2wpkh"
+
+    # Drop the entries describing the old path
+    out.bip32_derivations.clear()
+    out.taproot_bip32_derivations.clear()
+
+    if is_multisig:
+        # Move every cosigner to the new path
+        cosigner_public_keys = []
+        for cosigner_seed in PSBTTestData.multisig_cosigner_seeds:
+            public_key = root_for_seed(cosigner_seed).derive(derivation_path).get_public_key()
+            cosigner_public_keys.append(public_key)
+            claim_seed_owns_key(out, derivation_path, public_key, seed=cosigner_seed)
+
+        # The fixtures are sortedmulti, so keep the keys in lexicographic order
+        cosigner_public_keys.sort(key=lambda public_key: public_key.sec())
+        multisig_script = script.multisig(2, cosigner_public_keys)
+
+        # Rebuild the scripts the output commits to, wrapped the same way as before
+        # (p2wsh, p2sh, or p2wsh nested in p2sh).
+        if out.witness_script is not None:
+            out.witness_script = multisig_script
+            inner_script = script.p2wsh(multisig_script)
+        else:
+            inner_script = multisig_script
+
+        if out.redeem_script is not None:
+            out.redeem_script = inner_script
+            out.script_pubkey = script.p2sh(inner_script)
+        else:
+            out.script_pubkey = inner_script
+
+    else:
+        # Rebuild the scriptPubKey (and a nested output's redeem_script) for our key
+        # at the new path, keeping the output's script type.
+        public_key = root_for_seed(seed).derive(derivation_path).get_public_key()
+        is_taproot = out.script_pubkey.script_type() == "p2tr"
+
+        if is_taproot:
+            policy_type = "p2tr"
+        elif out.redeem_script is not None:
+            policy_type = "p2sh-p2wpkh"
+            out.redeem_script = script.p2wpkh(public_key)
+        else:
+            policy_type = out.script_pubkey.script_type()
+
+        out.script_pubkey = PSBTParser._build_singlesig_script(policy_type, public_key)
+
+        # Describe the output's new path
+        claim_seed_owns_key(out, derivation_path, public_key, seed=seed, is_taproot=is_taproot)
+
 
 
 def op_return_script(payload: bytes) -> Script:

@@ -214,6 +214,29 @@ class PSBTUnsupportedScriptPathError(PSBTVerificationError):
     pass
 
 
+class PSBTChangeDerivationPathError(PSBTVerificationError):
+    """
+    An output pays one of this seed's keys at a derivation path that the user's
+    coordinator software is unlikely to check. The coins still belong to the user's seed,
+    but their coordinator might never find them.
+
+    Derivation paths are assessed as:
+      * [base path] / change / address_index
+        * (note: embit refers to the "change" level as the "branch")
+
+    A change output is refused if its derivation path:
+      * is too short to hold both a "branch" and an "address_index",
+      * pays to a different wallet (base path) than the user's inputs being spent,
+      * specifies a "branch" other than receive or change (0 or 1),
+      * or specifies a hardened "address_index".
+
+    We treat this as an attack.
+    """
+    def __init__(self, derivation_path: List[int]):
+        super().__init__(f"Output pays this seed at {bip32.path_to_str(derivation_path)}, a path coordinator software is unlikely to check")
+        self.derivation_path = derivation_path
+
+
 class PSBTSeedCannotSignError(PSBTVerificationError):
     """
     The selected seed holds no key that could sign any input.
@@ -287,9 +310,14 @@ class PSBTParser():
     # change). TODO: Possibly make this configurable via settings.
     HIGH_FEES_WARNING_THRESHOLD = 25
 
+    # The maximum difference allowed between a change output's address index and the
+    # largest address index of the relevant inputs being spent.
+    CHANGE_ADDRESS_INDEX_WINDOW = 10_000
+
     # The non-fatal findings that can be recorded in self.warnings
     WARNING__HIGH_FEE = "high_fee"
     WARNING__NO_CHANGE = "no_change"
+    WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW = "change_address_index_beyond_window"
 
 
     def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET):
@@ -324,10 +352,16 @@ class PSBTParser():
         self.verified_input_derivation_paths: List[List[DerivationPath]] = []
         self.verified_output_derivation_paths: List[List[DerivationPath]] = []
 
-        # The findings held until the outputs have been read, in the order they were
-        # found, and the index of each output that carries one.
-        self.held_findings: List[PSBTVerificationError] = []
+        # The findings held until later in the parse, in the order they were found, and
+        # the index of each output that carries one.
+        self.held_input_findings: List[PSBTVerificationError] = []
+        self.held_output_findings: List[PSBTVerificationError] = []
         self.held_output_indices: List[int] = []
+
+        # The verified derivation paths of multisig outputs that pay a multisig our seed
+        # is part of, but that we count as spends because their cosigners differ from the
+        # inputs' cosigners (or fail to resolve).
+        self.verified_cosigner_mismatch_output_derivation_paths: List[DerivationPath] = []
 
         self.root = None
 
@@ -408,6 +442,12 @@ class PSBTParser():
              our seed provably owns. Also rejects a psbt whose outputs spend more than its
              inputs bring in.
 
+          7. _evaluate_change_derivation_paths: rejects the psbt unless every output
+             coming back to this seed uses what we consider a valid change derivation
+             path. Also identifies any change address indices that are far past the
+             indices of the spending wallet's inputs; they're flagged for the user to
+             review.
+
         Held findings:
         The parse reports the most serious problem it finds. A finding we treat as an
         attack stops the parse at the step that finds it, since nothing found later can
@@ -467,10 +507,17 @@ class PSBTParser():
         if rt == False:
             return False
 
-        if self.held_findings:
+        if self.held_input_findings:
             # The checks to this point did not raise any attack-level exceptions, but a
-            # milder finding was held. The psbt is still rejected.
-            raise self.held_findings[0]
+            # milder input finding was held and is grounds for rejecting the psbt.
+            raise self.held_input_findings[0]
+
+        self._evaluate_change_derivation_paths()
+
+        if self.held_output_findings:
+            # A milder output finding that was held from earlier in the parse can now be
+            # raised, rejecting the psbt.
+            raise self.held_output_findings[0]
 
         # Every total is known now, so settle this once rather than per view.
         self.is_high_fee = self.has_high_fee()
@@ -482,6 +529,11 @@ class PSBTParser():
 
         if self.change_amount == 0:
             self.warnings.append(PSBTParser.WARNING__NO_CHANGE)
+
+        for change_output in self.change_data:
+            if change_output["address_index_beyond_window"]:
+                self.warnings.append(PSBTParser.WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW)
+                break
 
         return True
 
@@ -615,7 +667,7 @@ class PSBTParser():
             except (PSBTInputOwnershipClaimError, PSBTMixedDerivationPathTypesError, PSBTUnsupportedDerivationPathError) as e:
                 # Held rather than raised, and this input is left with no verified
                 # derivation paths.
-                self.held_findings.append(e)
+                self.held_input_findings.append(e)
                 verified_derivation_paths = []
 
             script_pubkey = inp.script_pubkey
@@ -684,7 +736,7 @@ class PSBTParser():
                 # None of our claims on this input passed. At least one of them is a key
                 # in a script tree leaf, so this seed could only sign the input through a
                 # script path spend. Held rather than raised.
-                self.held_findings.append(PSBTUnsupportedScriptPathError("Input can only be signed through a taproot script path spend"))
+                self.held_input_findings.append(PSBTUnsupportedScriptPathError("Input can only be signed through a taproot script path spend"))
 
             self.verified_input_derivation_paths.append(script_committed_derivation_paths)
 
@@ -818,7 +870,7 @@ class PSBTParser():
         """
         Holds a finding along with the index of the output that carries it.
         """
-        self.held_findings.append(finding)
+        self.held_output_findings.append(finding)
         self.held_output_indices.append(output_index)
 
 
@@ -886,6 +938,7 @@ class PSBTParser():
         self.spend_amount = 0
         self.change_amount = 0
         self.change_data = []
+        self.verified_cosigner_mismatch_output_derivation_paths = []
         self.fee_amount = 0
         self.destination_addresses = []
         self.destination_amounts = []
@@ -1086,6 +1139,11 @@ class PSBTParser():
                                 if input_cosigners is not None and input_cosigners != output_cosigners:
                                     is_presumed_change = False
 
+                                    # The output still pays our key, so we record where
+                                    # that key is for the change path rules to check later
+                                    # in the parse.
+                                    self.verified_cosigner_mismatch_output_derivation_paths.append(verified_derivation_paths[0])
+
                 elif verified_derivation_paths != [] and self.policy["type"] != "p2tr":
                     # The psbt claims one of this seed's keys on this output, yet the
                     # output does NOT pay what that claim describes. We treat this
@@ -1123,6 +1181,7 @@ class PSBTParser():
                     "address": addr,
                     "amount": vout[i].value,
                     "verified_derivation_path": self.verified_output_derivation_paths[i][0].derivation,
+                    "address_index_beyond_window": False,  # initial default; evaluated later
                 })
                 self.change_amount += vout[i].value
 
@@ -1746,13 +1805,162 @@ class PSBTParser():
             if len(verified_derivation_paths) > 0:
                 return
 
-        if self.held_findings:
+        if self.held_input_findings or self.held_output_findings:
             # The held finding is the one to report rather than "wrong seed". parse()
             # raises it once the outputs have been read.
             return
 
         # There's nothing for this seed to sign
         raise PSBTSeedCannotSignError()
+
+
+    def _get_verified_input_derivation_paths_matching_base_path(self, base_path: List[int]) -> List[DerivationPath]:
+        """
+        Returns every verified input derivation path whose base path matches base_path.
+        """
+        matching_derivation_paths = []
+        for verified_derivation_paths in self.verified_input_derivation_paths:
+            for verified_derivation_path in verified_derivation_paths:
+                if verified_derivation_path.derivation[:-2] == base_path:
+                    matching_derivation_paths.append(verified_derivation_path)
+        return matching_derivation_paths
+
+
+    def _is_wallet_change_derivation_path(self, change_derivation_path: List[int]) -> bool:
+        """
+        Determines whether a change derivation path is standard enough for the user's
+        coordinator software to find the change output.
+
+        A typical single-sig derivation path consists of:
+            m / purpose' / coin_type' / account' / change / address_index
+
+        The levels before "change" are what we call the "base path". Regardless of the
+        structure of the full derivation path, we simplify our evaluation to:
+            [base path] / change / address_index
+
+        Note: embit refers to the "change" level as the "branch".
+
+        The derivation path must:
+          * be long enough to hold both a "branch" and an "address_index".
+          * match the base path that this transaction spends from.
+            * Note: certain scenarios can spend inputs with different base paths. All of
+              those inputs' base paths are considered valid, provided that we own them.
+          * only use the non-hardened receive (0) or change (1) "branch".
+          * use a non-hardened "address_index".
+
+        Rationales:
+        * A coordinator should send change back to the same wallet that the coins are
+          being spent from. For our purposes, we define a wallet as its base path.
+          Therefore a change output going to a different base path is viewed as being sent
+          to a different wallet.
+
+        * We expect coordinator software to follow the derivation path standards that
+          define the valid "branch" and "address_index" values.
+        """
+        if len(change_derivation_path) < 2:
+            # Too short to hold both a branch and an address index
+            return False
+
+        base_path = change_derivation_path[:-2]
+        branch = change_derivation_path[-2]
+        address_index = change_derivation_path[-1]
+
+        # The change has to come back to a base path the coins are leaving from
+        if not self._get_verified_input_derivation_paths_matching_base_path(base_path):
+            return False
+
+        # Coordinators scan only the non-hardened receive (0) and change (1) branches
+        if branch not in (0, 1):
+            return False
+
+        # A hardened address index cannot appear on the receive or change branch
+        if address_index >= bip32.HARDENED_INDEX:
+            return False
+
+        return True
+
+
+    def _is_change_address_index_within_window(self, change_derivation_path: List[int]) -> bool:
+        """
+        Determines whether a change output's address index is within
+        CHANGE_ADDRESS_INDEX_WINDOW of the largest non-hardened address index among the
+        inputs that match the output's base path.
+
+        Expects a path that already passed the change path rules.
+        """
+        base_path = change_derivation_path[:-2]
+        address_index = change_derivation_path[-1]
+
+        largest_input_address_index = 0
+        for derivation_path in self._get_verified_input_derivation_paths_matching_base_path(base_path):
+            input_address_index = derivation_path.derivation[-1]
+            if input_address_index < bip32.HARDENED_INDEX and input_address_index > largest_input_address_index:
+                largest_input_address_index = input_address_index
+
+        return address_index <= largest_input_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+
+
+    def _evaluate_change_derivation_paths(self):
+        """
+        Runs two checks on each change output's derivation path:
+        * Valid change derivation path: a path the user's coordinator software is
+          unlikely to check is refused and the parse stops.
+        * Address index window: an address index beyond the window is flagged on the
+          change output (address_index_beyond_window = True) and the parse continues. The
+          window is a guess, so the user decides: a coordinator spending an old, low-index
+          coin may legitimately have handed out change addresses far beyond that coin's
+          address index.
+
+        When the psbt spends inputs from multiple wallets (different base paths) owned by
+        this seed, each valid change output will pay back to a specific source wallet. The
+        output's address index window is only evaluated against its source wallet's input
+        indices.
+
+        The rules only measure change against our own inputs. In a collaborative spend
+        (payjoin, coinjoin), the other parties' inputs are ignored by these checks. Those
+        external wallets (base paths) are irrelevant here. Similarly, their inputs'
+        address indices do not factor into the index window check.
+
+        Raises:
+          * PSBTChangeDerivationPathError: An output pays this seed at a derivation path
+            the user's coordinator software is unlikely to check.
+
+        Edge case note:
+        Coordinators typically only annotate outputs that are coming back to the wallet
+        being spent from (e.g. change outputs). So even when a user transfers funds into a
+        different wallet that they also own, that output has no annotations (i.e. it
+        doesn't claim that it's owned by our seed); it's presented to us as an external
+        spend. The notable exception is Bitcoin Core, which can annotate an output
+        regardless of which wallet is being spent from. So a transfer to a different
+        wallet that our seed also controls (e.g. different "account" index) would still
+        claim our seed but the output's base path won't match any of our inputs' base
+        path(s). So this otherwise valid output is rejected.
+
+        TODO: Possibly add a separate output category for outputs paying a key of ours
+        in another wallet or another quorum, shown to the user with a warning to confirm
+        the transfer is intended. An honest transfer into another of the user's own
+        wallets would then get that warning rather than this refusal.
+
+        TODO: Possibly add a verified_ attribute that this step fills in, such as
+        verified_change_data, so the attribute's name records that each change output's
+        derivation path passed these checks.
+        """
+        # Check all single sig / multisig change outputs
+        for change_data in self.change_data:
+            change_derivation_path = change_data["verified_derivation_path"]
+
+            if not self._is_wallet_change_derivation_path(change_derivation_path):
+                raise PSBTChangeDerivationPathError(derivation_path=change_derivation_path)
+
+            if not self._is_change_address_index_within_window(change_derivation_path):
+                change_data["address_index_beyond_window"] = True
+
+        # Check the multisig outputs that pay our key but were counted as SPENDS
+        # because their cosigners differ from the inputs'. They must pass the same rules.
+        # (the address index window check only applies to change, already checked above)
+        for verified_derivation_path in self.verified_cosigner_mismatch_output_derivation_paths:
+            if not self._is_wallet_change_derivation_path(verified_derivation_path.derivation):
+                raise PSBTChangeDerivationPathError(derivation_path=verified_derivation_path.derivation)
 
 
     @staticmethod

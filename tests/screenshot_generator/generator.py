@@ -282,10 +282,20 @@ def generate_screenshots(locale):
 
 
         @contextmanager
+        def mock_single_sig_psbt_with_distant_change_loaded():
+            with mock_single_sig_psbt_loaded():
+                # Show the change at a large address index, flagged as beyond the window
+                change_output = controller.psbt_parser.change_data[0]
+                change_output["verified_derivation_path"] = change_output["verified_derivation_path"][:-1] + [20000]
+                change_output["address_index_beyond_window"] = True
+                yield
+
+
+        @contextmanager
         def mock_single_sig_psbt_with_every_warning_loaded():
             with mock_single_sig_psbt_loaded():
                 # List every warning so each one can be shown by its index
-                with patch.object(controller.psbt_parser, "warnings", [PSBTParser.WARNING__HIGH_FEE, PSBTParser.WARNING__NO_CHANGE]):
+                with patch.object(controller.psbt_parser, "warnings", [PSBTParser.WARNING__HIGH_FEE, PSBTParser.WARNING__NO_CHANGE, PSBTParser.WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW]):
                     yield
 
 
@@ -448,11 +458,13 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTOverviewView,   mock_context_manager=mock_multisig_psbt_loaded),
                 ScreenshotConfig(psbt_views.PSBTWarningView, dict(warning_index=0), screenshot_name="PSBTWarningView_high_fee",         mock_context_manager=mock_single_sig_psbt_with_every_warning_loaded),
                 ScreenshotConfig(psbt_views.PSBTWarningView, dict(warning_index=1), screenshot_name="PSBTWarningView_no_change",        mock_context_manager=mock_single_sig_psbt_with_every_warning_loaded),
+                ScreenshotConfig(psbt_views.PSBTWarningView, dict(warning_index=2), screenshot_name="PSBTWarningView_distant_address", mock_context_manager=mock_single_sig_psbt_with_every_warning_loaded),
                 ScreenshotConfig(psbt_views.PSBTMathView, mock_context_manager=mock_multisig_psbt_loaded),
                 ScreenshotConfig(psbt_views.PSBTAddressDetailsView, dict(address_num=0), mock_context_manager=mock_multisig_psbt_loaded),
 
                 ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), screenshot_name="PSBTChangeDetailsView_single_sig_change_verified",        mock_context_manager=mock_single_sig_psbt_loaded),
                 ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=1), screenshot_name="PSBTChangeDetailsView_single_sig_self_transfer_verified", mock_context_manager=mock_single_sig_psbt_loaded),
+                ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), screenshot_name="PSBTChangeDetailsView_single_sig_change_distant_index", mock_context_manager=mock_single_sig_psbt_with_distant_change_loaded),
                 ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), screenshot_name="PSBTChangeDetailsView_multisig_unverified", mock_context_manager=mock_multisig_psbt_loaded),
                 ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), screenshot_name="PSBTChangeDetailsView_multisig_verified",   mock_context_manager=mock_multisig_psbt_and_descriptor_loaded),
                 ScreenshotConfig(psbt_views.PSBTOverviewView, screenshot_name="PSBTOverviewView_op_return",    mock_context_manager=mock_psbt_with_op_return_loaded),
@@ -468,6 +480,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTInputScriptMismatchView),
                 ScreenshotConfig(psbt_views.PSBTExtraneousInputScriptView),
                 ScreenshotConfig(psbt_views.PSBTUnsupportedScriptPathView),
+                ScreenshotConfig(psbt_views.PSBTUnexpectedChangeDerivationPathView, dict(derivation_path=embit.bip32.parse_path("m/84h/1h/5h/1/0"))),
                 ScreenshotConfig(psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True),  screenshot_name="PSBTAddressVerificationFailedView_multisig_change"),
                 ScreenshotConfig(psbt_views.PSBTAddressVerificationFailedView, dict(is_change=False), screenshot_name="PSBTAddressVerificationFailedView_multisig_selftransfer"),
                 ScreenshotConfig(psbt_views.PSBTOutputOwnershipClaimFailedView),

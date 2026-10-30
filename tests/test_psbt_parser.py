@@ -12,21 +12,21 @@ from embit.psbt import PSBT, DerivationPath, OutputScope
 from embit.descriptor import Descriptor
 from embit.script import Script
 
-from seedsigner.models.psbt_parser import (OPCODES, PSBTExtraneousInputScriptError,
-    PSBTInputAmountVerificationError, PSBTInputOwnershipClaimError,
-    PSBTInputOwnershipContradictionError, PSBTInputScriptMismatchError,
-    PSBTMalformedOpReturnError, PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
-    PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
-    PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
-    PSBTSurplusDerivationPathsError, PSBTUnsupportedDerivationPathError,
-    PSBTUnsupportedScriptPathError)
+from seedsigner.models.psbt_parser import (OPCODES, PSBTChangeDerivationPathError,
+    PSBTExtraneousInputScriptError, PSBTInputAmountVerificationError,
+    PSBTInputOwnershipClaimError, PSBTInputOwnershipContradictionError,
+    PSBTInputScriptMismatchError, PSBTMalformedOpReturnError, PSBTMissingInputScriptError,
+    PSBTMissingInputUtxoError, PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError,
+    PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
+    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError,
+    PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
 from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_key,
     create_op_return_output, create_op_return_psbt, create_output, foreign_public_key,
-    op_return_script, p2tr_with_script_tree, root_for_seed, set_input_locking_script,
-    tapleaf_hash)
+    op_return_script, p2tr_with_script_tree, repoint_change, root_for_seed,
+    set_input_locking_script, tapleaf_hash)
 
 
 
@@ -705,7 +705,8 @@ def test_p2tr_change_detection():
             'output_index': 0,
             'address': 'bcrt1prz4g6saush37epdwhvwpu78td3q7yfz3xxz37axlx7udck6wracq3rwq30',
             'amount': 2871443918,
-            'verified_derivation_path': bip32.parse_path('m/86h/1h/0h/1/1')}
+            'verified_derivation_path': bip32.parse_path('m/86h/1h/0h/1/1'),
+            'address_index_beyond_window': False}
         ]
     assert pp.spend_amount == 319049328
     assert pp.change_amount == 2871443918
@@ -864,7 +865,8 @@ def test_parse_op_return_content():
             'output_index': 0,
             'address': 'bcrt1qvwkhakqhz7m7kmz6332avatsmdy32m644g86vv',
             'amount': 99992296,
-            'verified_derivation_path': bip32.parse_path("m/84h/1h/0h/0/2")}
+            'verified_derivation_path': bip32.parse_path("m/84h/1h/0h/0/2"),
+            'address_index_beyond_window': False}
         ]
     assert psbt_parser.spend_amount == 0  # This is a self-spend; no value being spent, other than the tx fee
     assert psbt_parser.change_amount == 99992296
@@ -1202,6 +1204,43 @@ class PSBTParserOwnershipTestBase:
         return psbt
 
 
+    def _input_derivation_path(self, input_base64: str = None) -> str:
+        """
+        Returns the derivation path the fixture's single input spends from, as recorded in
+        that input's derivation path entry for this seed. Defaults to the
+        SINGLE_SIG_NATIVE_SEGWIT_1_INPUT fixture.
+        """
+        if input_base64 is None:
+            input_base64 = PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT
+
+        inp = PSBT.parse(a2b_base64(input_base64)).inputs[0]
+
+        # Gather the input's entries
+        derivation_path_objs = list(inp.bip32_derivations.values())
+
+        # Taproot entries live in their own map, each paired with the leaf hashes its key
+        # appears in.
+        for leaf_hashes, derivation_path_obj in inp.taproot_bip32_derivations.values():
+            derivation_path_objs.append(derivation_path_obj)
+
+        # A multisig input has an entry for each cosigner, so pick out this seed's
+        for derivation_path_obj in derivation_path_objs:
+            if derivation_path_obj.fingerprint == self._root().my_fingerprint:
+                return bip32.path_to_str(derivation_path_obj.derivation)
+
+
+    def _sibling_path(self, input_derivation_path: str, branch: int, address_index: int) -> str:
+        """
+        Returns input_derivation_path with its "branch" and "address_index" replaced.
+
+        Those are always the last two indices of the derivation path, regardless of the
+        base path structure:
+            [base path] / "branch" / "address_index"
+        """
+        base_path_levels = input_derivation_path.split("/")[:-2]
+        return "/".join(base_path_levels + [str(branch), str(address_index)])
+
+
     def _foreign_multisig_script(self) -> script.Script:
         """A 2-of-3 built entirely from someone else's keys."""
         return script.multisig(2, [foreign_public_key(f"m/48h/1h/0h/2h/0/{i}") for i in range(3)])
@@ -1212,6 +1251,19 @@ class PSBTParserOwnershipTestBase:
         # is being created and it creates confusion in tests that also call PSBT.parse()
         # (embit's deserializer).
         return PSBTParser(psbt, self.seed, network=SettingsConstants.REGTEST)
+
+
+    def _verified_input_derivation_paths(self, psbt_parser: PSBTParser) -> list[list[int]]:
+        """
+        Returns every derivation path the parse verified on the psbt's inputs, as one list
+        in input order. Each path is an index list, so it compares directly against
+        bip32.parse_path().
+        """
+        derivation_paths = []
+        for verified_derivation_paths in psbt_parser.verified_input_derivation_paths:
+            for verified_derivation_path in verified_derivation_paths:
+                derivation_paths.append(verified_derivation_path.derivation)
+        return derivation_paths
 
 
 
@@ -1525,12 +1577,13 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
             self._parse(psbt)
 
 
-    def test__parse__reports_the_first_held_finding(self):
+    def test__parse__reports_a_held_input_finding_before_a_held_output_finding(self):
         """
-        The psbt carries two findings milder than an attack: a false claim on its input,
-        found while the inputs are read, and a second derivation path entry on its change
-        output, found later while the outputs are read. The parse should report the one
-        it found first, PSBTInputOwnershipClaimError.
+        The parse reports a held input finding before a held output finding.
+
+        The psbt carries a false claim on its input and a second derivation path entry on
+        its change output. The parse holds both findings and should report the input's
+        finding, PSBTInputOwnershipClaimError.
         """
         decoy_derivation_path = "m/84h/1h/0h/1/9"
         decoy_public_key = self._root().derive(decoy_derivation_path).get_public_key()
@@ -1540,6 +1593,57 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         claim_seed_owns_key(psbt.outputs[0], decoy_derivation_path, decoy_public_key)
 
         with pytest.raises(PSBTInputOwnershipClaimError):
+            self._parse(psbt)
+
+
+    def test__parse__reports_a_held_input_finding_before_evaluating_change(self):
+        """
+        The parse reports a held input finding before it evaluates the change.
+
+        The psbt's only input carries a false claim in addition to its honest one. The
+        psbt also has an honest change output. The false claim makes the parse discard
+        every claim on the input, the honest one included.
+
+        The change rules measure each change output against our inputs. The only input
+        here has just been discarded. So the false claim is the one real problem with this
+        psbt. The parse should raise the held PSBTInputOwnershipClaimError first,
+        preventing any attempt to evaluate the change.
+        """
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.inputs[0], "m/84h/1h/0h/0/0", foreign_public_key())
+
+        with patch.object(PSBTParser, "_evaluate_change_derivation_paths") as evaluate_change_derivation_paths:
+            with pytest.raises(PSBTInputOwnershipClaimError):
+                self._parse(psbt)
+
+        evaluate_change_derivation_paths.assert_not_called()
+
+
+    def test__parse__evaluates_change_before_reporting_a_held_output_finding(self):
+        """
+        The parse evaluates the change before it reports a held output finding.
+
+        The psbt's change output pays our key on "branch" 2 of the input's base path,
+        which the change path rules refuse. A second output carries a surplus derivation
+        path entry of ours, a finding the parse holds. The parse should raise
+        PSBTChangeDerivationPathError rather than the held
+        PSBTSurplusDerivationPathsError.
+        """
+        input_derivation_path = self._input_derivation_path()
+        change_derivation_path = self._sibling_path(input_derivation_path, branch=2, address_index=0)
+
+        psbt = self._psbt_with_change()
+        repoint_change(psbt, change_derivation_path)
+
+        # A second output claiming two of our keys
+        surplus_output = create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 5_000)
+        first_derivation_path = self._sibling_path(input_derivation_path, branch=0, address_index=0)
+        second_derivation_path = self._sibling_path(input_derivation_path, branch=0, address_index=1)
+        claim_seed_owns_key(surplus_output, first_derivation_path, self._root().derive(first_derivation_path).get_public_key())
+        claim_seed_owns_key(surplus_output, second_derivation_path, self._root().derive(second_derivation_path).get_public_key())
+        psbt.outputs.append(surplus_output)
+
+        with pytest.raises(PSBTChangeDerivationPathError):
             self._parse(psbt)
 
 
@@ -3513,4 +3617,635 @@ class TestPSBTParserInputOwnership(PSBTParserOwnershipTestBase):
         claim_seed_owns_key(inp, leaf_derivation_path, leaf_public_key, is_taproot=True, leaf_hashes=[merkle_root])
 
         with pytest.raises(PSBTUnsupportedScriptPathError):
+            self._parse(psbt)
+
+
+
+class TestPSBTParserChangeDerivationPathRules(PSBTParserOwnershipTestBase):
+    """
+    Where change is allowed to come back to.
+
+    By the time these rules run, the parse has already proved that a change output pays
+    this seed at the path the psbt claims. What is left is whether that path is somewhere
+    the user's coordinator software would ever look. Violations of the change path rules
+    lead to rejecting the psbt outright. But failing the address index window check only
+    flags the output for the user to judge.
+
+    Most of these tests run on every supported single-sig and multisig script type.
+    """
+    # One fixture per supported script type: a psbt with a single input, and a change
+    # output that shares the input's base path.
+    MULTISIG_WALLETS = [
+        (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+        (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+        (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+    ]
+    WALLETS = [
+        (PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE),
+        (PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE),
+        (PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE),
+        (PSBTTestData.SINGLE_SIG_LEGACY_P2PKH_1_INPUT, PSBTTestData.SINGLE_SIG_LEGACY_P2PKH_CHANGE),
+    ] + MULTISIG_WALLETS
+
+
+    def _add_own_input(self, psbt: PSBT, derivation_path: str):
+        """
+        Adds a second input owned by this seed, at derivation_path.
+
+        Built by copying the first input and repointing it to a p2wpkh at that path.
+        """
+        public_key = self._root().derive(derivation_path).get_public_key()
+        own_input = deepcopy(psbt.inputs[0])
+        own_input.bip32_derivations.clear()
+        set_input_locking_script(own_input, script.p2wpkh(public_key))
+
+        claim_seed_owns_key(own_input, derivation_path, public_key)
+        psbt.inputs.append(own_input)
+
+
+    def _repoint_legacy_multisig_input(self, psbt: PSBT, derivation_path: str):
+        """
+        Moves the psbt's legacy p2sh multisig input to derivation_path, still owned by
+        this seed. Lets a test choose the base path the psbt spends from, such as one with
+        an extra "wallet" level.
+
+        Rebuilds its redeem script as the same 2-of-3 with every cosigner moved to the new
+        path, then edits the previous transaction to pay the new redeem script.
+        """
+        legacy_input = psbt.inputs[0]
+        legacy_input.bip32_derivations.clear()
+
+        # Each cosigner's key at the new path, claimed under that cosigner's fingerprint
+        cosigner_public_keys = []
+        for cosigner_seed in PSBTTestData.multisig_cosigner_seeds:
+            public_key = root_for_seed(cosigner_seed).derive(derivation_path).get_public_key()
+            cosigner_public_keys.append(public_key)
+            claim_seed_owns_key(legacy_input, derivation_path, public_key, seed=cosigner_seed)
+
+        # The fixtures are sortedmulti, so keep the keys in lexicographic order
+        cosigner_public_keys.sort(key=lambda public_key: public_key.sec())
+        legacy_input.redeem_script = script.multisig(2, cosigner_public_keys)
+
+        # Make the coin being spent pay the new redeem script
+        previous_output = legacy_input.non_witness_utxo.vout[legacy_input.vout]
+        previous_output.script_pubkey = script.p2sh(legacy_input.redeem_script)
+
+        # The input identifies its coin by the previous transaction's txid, which the edit
+        # above changed, so update the input to match.
+        legacy_input.txid = legacy_input.non_witness_utxo.txid()
+
+
+    def test__parse__refuses_change_to_a_base_path_this_transaction_does_not_spend_from(self):
+        """
+        Change may only come back to a base path that one of our inputs spends from.
+
+        The psbt pays change to our key at the input's base path with its last level
+        changed to 7h. The parse should refuse the change with
+        PSBTChangeDerivationPathError, naming the change's path.
+        """
+        for input_base64, change_hex in self.WALLETS:
+            input_derivation_path = self._input_derivation_path(input_base64)
+
+            # The input's base path with its last level changed
+            base_path_levels = input_derivation_path.split("/")[:-2]
+            base_path_levels[-1] = "7h"
+            change_at_other_base_path = "/".join(base_path_levels + ["1", "0"])
+
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            repoint_change(psbt, change_at_other_base_path)
+
+            with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
+                self._parse(psbt)
+            assert exc_info.value.derivation_path == bip32.parse_path(change_at_other_base_path)
+
+
+    def test__parse__accepts_change_to_any_base_path_this_transaction_spends_from(self):
+        """
+        Change may come back to the base path of any of our inputs.
+
+        The psbt spends from two of the seed's accounts, which have different base paths.
+        Change into either account should be accepted. Change into a third account should
+        be refused with PSBTChangeDerivationPathError.
+        """
+        # The fixture's input spends from the first account
+        fixture_input_derivation_path = self._input_derivation_path()
+        first_account = "/".join(fixture_input_derivation_path.split("/")[:-2])
+        second_account = "m/84h/1h/7h"
+        unrecognized_account = "m/84h/1h/3h"
+
+        psbt = self._psbt_with_change()
+        self._add_own_input(psbt, f"{second_account}/0/2")
+
+        # Both inputs are ours and both accounts are spent from
+        psbt_parser = self._parse(psbt)
+        assert self._verified_input_derivation_paths(psbt_parser) == [
+            bip32.parse_path(fixture_input_derivation_path),
+            bip32.parse_path(f"{second_account}/0/2"),
+        ]
+
+        repoint_change(psbt, f"{first_account}/1/0")
+        assert self._parse(psbt).change_amount == 10_000
+
+        repoint_change(psbt, f"{second_account}/1/0")
+        assert self._parse(psbt).change_amount == 10_000
+
+        # This unrecognized_account doesn't match the base path of any input, so it should
+        # be rejected.
+        repoint_change(psbt, f"{unrecognized_account}/1/0")
+        with pytest.raises(PSBTChangeDerivationPathError):
+            self._parse(psbt)
+
+
+    def test__parse__counts_a_non_hardened_wallet_level_as_part_of_the_base_path(self):
+        """
+        The base path is everything before the "branch" and the "address_index", which may
+        include a non-hardened "wallet" level such as:
+            m/45h/0h/0h/<wallet>/<branch>/<address_index>
+
+        Some multisig wallets add such a non-hardened level after each cosigner's account
+        xpub, one value per wallet, so new wallets can be created from account xpubs the
+        cosigners already exported (e.g. the Unchained collaborative custody vault
+        format). For the above example, the user would supply an xpub at m/45h/0h/0h with
+        new wallet keys being derived for them at "wallet" level indices.
+
+        The psbt spends from "wallet" 3. Change coming back to "wallet" 3 should be
+        accepted. Change sent to "wallet" 7 of the same account xpubs should be refused
+        with PSBTChangeDerivationPathError.
+        """
+        input_derivation_path = "m/45h/0h/0h/3/0/12"
+        change_derivation_path = "m/45h/0h/0h/3/1/4"
+        sibling_wallet_derivation_path = "m/45h/0h/0h/7/1/0"
+
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE)
+        self._repoint_legacy_multisig_input(psbt, input_derivation_path)
+
+        # The fixture's global xpubs are for its original m/45h base path, so drop them
+        # rather than leave stale ones in place.
+        psbt.xpubs.clear()
+
+        repoint_change(psbt, change_derivation_path)
+        psbt_parser = self._parse(psbt)
+        assert self._verified_input_derivation_paths(psbt_parser) == [bip32.parse_path(input_derivation_path)]
+        assert psbt_parser.change_amount == 10_000
+
+        # Different "wallet" index means the change is going to a different base path. So
+        # the psbt should now be rejected.
+        repoint_change(psbt, sibling_wallet_derivation_path)
+        with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
+            self._parse(psbt)
+        assert exc_info.value.derivation_path == bip32.parse_path(sibling_wallet_derivation_path)
+
+
+    def test__parse__refuses_change_on_a_branch_no_coordinator_scans(self):
+        """
+        Change may only come back on the receive "branch" (0) or the change "branch" (1).
+
+        The psbt pays change to our key on "branch" 2 of the input's base path. The parse
+        should refuse it with PSBTChangeDerivationPathError.
+        """
+        for input_base64, change_hex in self.WALLETS:
+            input_derivation_path = self._input_derivation_path(input_base64)
+            change_derivation_path = self._sibling_path(input_derivation_path, branch=2, address_index=0)
+
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            repoint_change(psbt, change_derivation_path)
+
+            with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
+                self._parse(psbt)
+            assert exc_info.value.derivation_path == bip32.parse_path(change_derivation_path)
+
+
+    def test__parse__refuses_change_at_a_hardened_address_index(self):
+        """
+        Change may only come back at a non-hardened "address_index", on the change
+        "branch" and the receive "branch" alike.
+
+        The psbt pays our key at a hardened "address_index", first on the change "branch"
+        and then on the receive "branch". The parse should refuse both with
+        PSBTChangeDerivationPathError.
+        """
+        for input_base64, change_hex in self.WALLETS:
+            input_derivation_path = self._input_derivation_path(input_base64)
+            psbt = self._psbt_with_change(input_base64, change_hex)
+
+            # On the change "branch"
+            change_derivation_path = self._sibling_path(input_derivation_path, branch=1, address_index=bip32.HARDENED_INDEX)
+            repoint_change(psbt, change_derivation_path)
+            with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
+                self._parse(psbt)
+            assert exc_info.value.derivation_path == bip32.parse_path(change_derivation_path)
+
+            # On the receive "branch", as a self-transfer
+            receive_derivation_path = self._sibling_path(input_derivation_path, branch=0, address_index=bip32.HARDENED_INDEX)
+            repoint_change(psbt, receive_derivation_path)
+            with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
+                self._parse(psbt)
+            assert exc_info.value.derivation_path == bip32.parse_path(receive_derivation_path)
+
+
+    def test__parse__refuses_change_at_a_derivation_path_too_short_for_a_wallet(self):
+        """
+        Change may only come back at a derivation path long enough to hold both a
+        "branch" and an "address_index".
+
+        The psbt pays change to our key at the one-level derivation path m/5. The parse
+        should refuse it with PSBTChangeDerivationPathError.
+        """
+        change_derivation_path = "m/5"
+
+        psbt = self._psbt_with_change()
+        repoint_change(psbt, change_derivation_path)
+
+        with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
+            self._parse(psbt)
+        assert exc_info.value.derivation_path == bip32.parse_path(change_derivation_path)
+
+
+    def test__parse__refuses_a_multisig_output_at_an_unscanned_path_with_or_without_global_xpubs(self):
+        """
+        A multisig output that pays our key must pass the change path rules, whether the
+        parse counts it as change or as a spend.
+
+        The psbt pays a multisig output of ours at a derivation path that fails the change
+        path rules. Two failing paths are tested:
+          * a different base path
+          * a hardened "address_index"
+
+        The presence or absence of global xpubs can determine if multisig outputs are
+        considered change or spend.
+          * With the global xpubs:
+            * In either test scenario the output is counted as a spend because the parser
+              cannot match the output's cosigners with the global xpubs:
+                * At a different base path, the output's key paths don't start with any
+                  global xpub's path.
+                * At a hardened "address_index", the key paths do start with the global
+                  xpubs' path, but an xpub can only derive non-hardened levels.
+            * The one flaw in each failing path has two effects: the output becomes a
+              spend and it fails the change path rules.
+          * With the global xpubs removed: the output is presumed change; the parser has
+            no cosigners to compare with the inputs' cosigners.
+
+        The parser should reject all four scenarios (both change path failures, with and
+        without global xpubs) with PSBTChangeDerivationPathError.
+        """
+        for input_base64, change_hex in self.MULTISIG_WALLETS:
+            input_derivation_path = self._input_derivation_path(input_base64)
+
+            # The input's base path with its last level changed
+            base_path_levels = input_derivation_path.split("/")[:-2]
+            base_path_levels[-1] = "7h"
+            change_at_other_base_path = "/".join(base_path_levels + ["1", "0"])
+
+            hardened_index_path = self._sibling_path(input_derivation_path, branch=1, address_index=bip32.HARDENED_INDEX)
+
+            for change_derivation_path in (change_at_other_base_path, hardened_index_path):
+                psbt = self._psbt_with_change(input_base64, change_hex)
+                repoint_change(psbt, change_derivation_path)
+
+                # Sanity check the setup: the psbt supplies global xpubs, but they cannot
+                # resolve the output's cosigners.
+                out = psbt.outputs[0]
+                assert len(psbt.xpubs) == 3
+                assert "cosigners" not in PSBTParser._get_policy(out, out.script_pubkey, psbt.xpubs, None)
+
+                # Classified as an external spend to a different multisig, but our seed is
+                # one of the cosigners so the output is still put through the same
+                # change path checks that a change output would get.
+                with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
+                    self._parse(psbt)
+                assert exc_info.value.derivation_path == bip32.parse_path(change_derivation_path)
+
+                # Remove the global xpubs. The output will be presumed to be change. Its
+                # derivation path fails the same change path checks.
+                psbt.xpubs.clear()
+                with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
+                    self._parse(psbt)
+                assert exc_info.value.derivation_path == bip32.parse_path(change_derivation_path)
+
+
+    def test__parse__flags_rather_than_refuses_change_far_past_the_inputs_address_indices(self):
+        """
+        Change may come back at an "address_index" up to CHANGE_ADDRESS_INDEX_WINDOW past
+        the input's "address_index". Change past that is flagged for the user to decide
+        on, but still counted as change. The window applies the same way to a
+        self-transfer, which sends funds back to one of our receive addresses rather than
+        to the change "branch".
+        """
+        for input_base64, change_hex in self.WALLETS:
+            input_derivation_path = self._input_derivation_path(input_base64)
+            input_address_index = int(input_derivation_path.split("/")[-1])
+            last_index_within_window = input_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+            psbt = self._psbt_with_change(input_base64, change_hex)
+
+            # On the change "branch". Exactly CHANGE_ADDRESS_INDEX_WINDOW past the input's
+            # "address_index" is still within the acceptable range, so it is left
+            # unflagged.
+            repoint_change(psbt, self._sibling_path(input_derivation_path, branch=1, address_index=last_index_within_window))
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 10_000
+            assert psbt_parser.change_data[0]["address_index_beyond_window"] is False
+
+            # One index further is past the window: flagged, but still counted as change
+            repoint_change(psbt, self._sibling_path(input_derivation_path, branch=1, address_index=last_index_within_window + 1))
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 10_000
+            assert psbt_parser.change_data[0]["address_index_beyond_window"] is True
+
+            # And now a self-transfer that is within the window. Reminder: the parser
+            # treats self-transfers as "change" in its internal accounting.
+            repoint_change(psbt, self._sibling_path(input_derivation_path, branch=0, address_index=last_index_within_window))
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 10_000
+            assert psbt_parser.change_data[0]["address_index_beyond_window"] is False
+
+            # And a self-transfer that is beyond the window
+            repoint_change(psbt, self._sibling_path(input_derivation_path, branch=0, address_index=last_index_within_window + 1))
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 10_000
+            assert psbt_parser.change_data[0]["address_index_beyond_window"] is True
+
+
+    def test__parse__flags_each_distant_change_output_and_warns_once(self):
+        """
+        Each change output past the change address index window is flagged. The window
+        warning is recorded once, however many change outputs are flagged.
+
+        The psbt has two change outputs, both past the window measured from the input's
+        "address_index". The parse should flag both change outputs and record
+        WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW once.
+        """
+        input_derivation_path = self._input_derivation_path()
+        input_address_index = int(input_derivation_path.split("/")[-1])
+        last_index_within_window = input_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+
+        # The first change output
+        psbt = self._psbt_with_change()
+        repoint_change(psbt, self._sibling_path(input_derivation_path, branch=1, address_index=last_index_within_window + 1))
+
+        # A second change output: a copy of the first, placed first so that
+        # repoint_change moves it.
+        psbt.outputs.insert(0, deepcopy(psbt.outputs[0]))
+        repoint_change(psbt, self._sibling_path(input_derivation_path, branch=1, address_index=last_index_within_window + 2))
+
+        psbt_parser = self._parse(psbt)
+        assert len(psbt_parser.change_data) == 2
+
+        # Both change outputs should be flagged
+        assert psbt_parser.change_data[0]["address_index_beyond_window"] is True
+        assert psbt_parser.change_data[1]["address_index_beyond_window"] is True
+
+        # But the warnings list should only record this warning type once
+        assert psbt_parser.warnings == [PSBTParser.WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW]
+
+
+    def test__parse__measures_the_window_from_the_largest_input_index_for_the_base_path(self):
+        """
+        The change address index window is measured from the largest "address_index"
+        among our inputs that share the change output's base path, regardless of the
+        order the psbt lists the inputs in.
+        """
+        # This fixture spends inputs at [base path]/1/6 and [base path]/1/0, in that
+        # order. Verify that input order doesn't matter when determining the window.
+        fixture_input_address_indices = [6, 0]
+        last_index_within_window = max(fixture_input_address_indices) + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+
+        for input_address_indices in (fixture_input_address_indices, list(reversed(fixture_input_address_indices))):
+            psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+            if input_address_indices != fixture_input_address_indices:
+                psbt.inputs.reverse()
+            assert [list(inp.bip32_derivations.values())[0].derivation[-1] for inp in psbt.inputs] == input_address_indices
+
+            # Within the window, when measured from the largest input index
+            repoint_change(psbt, f"m/84h/1h/0h/1/{last_index_within_window}", seed=PSBTTestData.two_input_seed)
+            psbt_parser = PSBTParser(psbt, PSBTTestData.two_input_seed, network=SettingsConstants.REGTEST)
+            assert psbt_parser.change_data[0]["address_index_beyond_window"] is False
+
+            # Beyond that window
+            repoint_change(psbt, f"m/84h/1h/0h/1/{last_index_within_window + 1}", seed=PSBTTestData.two_input_seed)
+            psbt_parser = PSBTParser(psbt, PSBTTestData.two_input_seed, network=SettingsConstants.REGTEST)
+            assert psbt_parser.change_data[0]["address_index_beyond_window"] is True
+
+
+    def test__parse__leaves_hardened_input_indices_out_of_the_window(self):
+        """
+        The change address index window is measured from our inputs' non-hardened
+        "address_index" values only, since change can only use a non-hardened
+        "address_index".
+
+        The psbt spends two coins of ours from one base path: the fixture's coin at
+        "address_index" 3 and a second at the hardened "address_index" 5h. So the window
+        should be measured from index 3 alone. The change at index 20,000 is past that
+        window, so the parse should flag it.
+        """
+        # The fixture's coin, and a second coin of ours at a hardened "address_index" with
+        # the same base path
+        fixture_input_derivation_path = self._input_derivation_path()
+        fixture_address_index = int(fixture_input_derivation_path.split("/")[-1])
+        fixture_base_path = "/".join(fixture_input_derivation_path.split("/")[:-2])
+        hardened_input_derivation_path = f"{fixture_base_path}/0/5h"
+
+        beyond_window = 20_000
+        assert beyond_window > fixture_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+
+        # Sanity check: as a raw number, the hardened index 5h lies far past our window;
+        # if it was allowed to count towards the window, it would yield an enormous cutoff
+        # index.
+        hardened_address_index = bip32.HARDENED_INDEX + 5
+        assert hardened_address_index > fixture_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+
+        psbt = self._psbt_with_change()
+        self._add_own_input(psbt, hardened_input_derivation_path)
+        repoint_change(psbt, self._sibling_path(fixture_input_derivation_path, branch=1, address_index=beyond_window))
+
+        psbt_parser = self._parse(psbt)
+
+        # Both inputs are ours
+        assert self._verified_input_derivation_paths(psbt_parser) == [
+            bip32.parse_path(fixture_input_derivation_path),
+            bip32.parse_path(hardened_input_derivation_path),
+        ]
+
+        # The window uses the non-hardened input's index as its starting point and so the
+        # change is determined to be beyond the window; the hardened input's enormous
+        # index was not a factor.
+        assert psbt_parser.change_data[0]["address_index_beyond_window"] is True
+
+
+    def test__parse__measures_each_base_path_window_from_its_own_inputs(self):
+        """
+        Each base path is viewed as a separate wallet, so a change output going back to
+        that wallet will have the same base path. The address index window for that change
+        output should only be evaluated against the inputs from that same wallet; if
+        there's another input that has a different base path, it should not affect the
+        change output's address index window.
+
+        The psbt spends two coins of ours from different base paths: the fixture's coin at
+        m/84h/1h/0h/0/3 and a second at m/84h/1h/7h/0/50000. Change at m/84h/1h/0h/1/20000
+        is past the window of the m/84h/1h/0h wallet, so the parse should flag it, even
+        though the m/84h/1h/7h wallet's input is at a larger index.
+
+        However, if the change is instead sent to the m/84h/1h/7h wallet at the same
+        "address_index" (m/84h/1h/7h/1/20000), it is within that wallet's window, so the
+        parse should leave it unflagged.
+        """
+        # The fixture's coin, and a second coin of ours at a larger "address_index" in
+        # another wallet
+        fixture_input_derivation_path = self._input_derivation_path()
+        fixture_address_index = int(fixture_input_derivation_path.split("/")[-1])
+        other_wallet_input_derivation_path = "m/84h/1h/7h/0/50000"
+        other_wallet_address_index = int(other_wallet_input_derivation_path.split("/")[-1])
+
+        change_address_index = 20_000
+        assert change_address_index > fixture_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+        assert change_address_index <= other_wallet_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+
+        psbt = self._psbt_with_change()
+        self._add_own_input(psbt, other_wallet_input_derivation_path)
+
+        # Both inputs are ours
+        assert self._verified_input_derivation_paths(self._parse(psbt)) == [
+            bip32.parse_path(fixture_input_derivation_path),
+            bip32.parse_path(other_wallet_input_derivation_path),
+        ]
+
+        # Scenario 1: Change for the m/84h/1h/0h wallet
+        repoint_change(psbt, self._sibling_path(fixture_input_derivation_path, branch=1, address_index=change_address_index))
+        assert self._parse(psbt).change_data[0]["address_index_beyond_window"] is True
+
+        # Scenario 2: Change for the m/84h/1h/7h wallet
+        repoint_change(psbt, self._sibling_path(other_wallet_input_derivation_path, branch=1, address_index=change_address_index))
+        assert self._parse(psbt).change_data[0]["address_index_beyond_window"] is False
+
+
+
+class TestPSBTParserCollaborativeSpends(PSBTParserOwnershipTestBase):
+    """
+    Payjoins and coinjoins put another party's inputs in the same transaction as ours.
+
+    The change path rules are measured against the inputs this seed spends with, so these
+    tests check two things:
+      * an honest collaborative spend still parses
+      * and the other parties' inputs cannot affect the base paths our own change may come
+        back to.
+    """
+    def _add_foreign_input(self, psbt: PSBT, derivation_path: str = "m/84h/1h/0h/0/0", annotated: bool = False):
+        """
+        Adds another party's input: their utxo, controlled by a key of their own seed.
+
+        Built by copying one of ours and repointing it, which is what keeps its script
+        type, and therefore the shared wallet policy, the same. A collaborative spend
+        mixing script types is refused before any of this by the mixed-inputs check.
+
+        By default the input carries no derivation path entries, as BIP-78 requires of a
+        payjoin. With annotated=True it also carries a derivation path entry for the other
+        party's key at derivation_path, under their seed's fingerprint.
+        """
+        foreign_input = deepcopy(psbt.inputs[0])
+        foreign_input.bip32_derivations.clear()
+        public_key = foreign_public_key(derivation_path)
+        set_input_locking_script(foreign_input, script.p2wpkh(public_key))
+
+        if annotated:
+            claim_seed_owns_key(foreign_input, derivation_path, public_key, seed=PSBTTestData.recipient_seed)
+
+        psbt.inputs.append(foreign_input)
+        return foreign_input
+
+
+    def test__parse__payjoin_parses_and_anchors_only_on_our_own_input(self):
+        """
+        A payjoin receiver's input only adds value to the transaction. The change path
+        rules measure only against our own input.
+
+        The psbt is a payjoin: the receiver adds one of their own coins as a second input,
+        with no derivation path entries, as BIP-78 requires. The parse should add that
+        coin's value to the total input value, count our change as usual, and verify only
+        our own input's derivation path.
+        """
+        our_input_amount = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT)).inputs[0].utxo.value
+
+        psbt = self._psbt_with_change()
+        foreign_input = self._add_foreign_input(psbt)
+
+        psbt_parser = self._parse(psbt)
+
+        assert psbt_parser.num_inputs == 2
+        assert psbt_parser.verified_input_amount == our_input_amount + foreign_input.utxo.value
+        assert psbt_parser.change_amount == 10_000
+
+        # Should only have our one input's derivation path
+        assert self._verified_input_derivation_paths(psbt_parser) == [bip32.parse_path(self._input_derivation_path())]
+
+
+    def test__parse__coinjoin_parses_with_many_foreign_inputs_and_outputs(self):
+        """
+        The other participants' outputs in a coinjoin are ordinary payments out as far as
+        this seed is concerned.
+
+        The psbt is a coinjoin: several other participants' inputs and outputs in addition
+        to ours. The psbt should parse with our change intact and their outputs as spends.
+        """
+        psbt = self._psbt_with_change()
+        for i in range(3):
+            self._add_foreign_input(psbt, derivation_path=f"m/84h/1h/0h/0/{i}")
+        for i in range(3):
+            psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 250_000))
+
+        psbt_parser = self._parse(psbt)
+
+        assert psbt_parser.num_inputs == 4
+        assert psbt_parser.num_change_outputs == 1
+        assert psbt_parser.num_destinations == 3
+        assert psbt_parser.spend_amount == 750_000
+
+        # Should only have our one input's derivation path
+        assert self._verified_input_derivation_paths(psbt_parser) == [bip32.parse_path(self._input_derivation_path())]
+
+
+    def test__parse__a_foreign_input_cannot_affect_the_change_index_window(self):
+        """
+        The change address index window is measured from the "address_index" values of
+        the inputs this seed spends with.
+
+        The psbt adds another party's input at a far larger "address_index" than ours,
+        with the same path shape; only the fingerprint tells their input from ours. Our
+        own input's key is at index 3, so the window ends at 10,003. Change placed past
+        our window should be flagged, even though it is within the other party's.
+        """
+        fixture_input_derivation_path = self._input_derivation_path()
+        fixture_address_index = int(fixture_input_derivation_path.split("/")[-1])
+
+        beyond_window = 20_000
+        assert beyond_window > fixture_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+
+        # The other party's input shares our input's path shape, at a far larger
+        # "address_index"
+        psbt = self._psbt_with_change()
+        foreign_input_derivation_path = self._sibling_path(fixture_input_derivation_path, branch=0, address_index=beyond_window * 2)
+        self._add_foreign_input(psbt, derivation_path=foreign_input_derivation_path, annotated=True)
+        repoint_change(psbt, self._sibling_path(fixture_input_derivation_path, branch=1, address_index=beyond_window))
+
+        psbt_parser = self._parse(psbt)
+
+        assert psbt_parser.change_data[0]["address_index_beyond_window"] is True
+
+
+    def test__parse__a_foreign_input_cannot_anchor_change_to_an_unspent_base_path(self):
+        """
+        Change may only come back to a base path that one of our own inputs spends from.
+        Another party's input is in THEIR wallet and carries their own fingerprint,
+        however its path is shaped.
+
+        A coinjoin participant's input lists a derivation path that starts with
+        m/84h/1h/7h, which is an unused account of ours. The psbt points our change into
+        that same account. The parse should refuse the change with
+        PSBTChangeDerivationPathError.
+        """
+        unrecognized_account = "m/84h/1h/7h"
+
+        psbt = self._psbt_with_change()
+        self._add_foreign_input(psbt, derivation_path=f"{unrecognized_account}/0/0", annotated=True)
+        repoint_change(psbt, f"{unrecognized_account}/1/0")
+
+        with pytest.raises(PSBTChangeDerivationPathError):
             self._parse(psbt)

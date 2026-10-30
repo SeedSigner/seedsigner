@@ -6,10 +6,10 @@ from embit.psbt import PSBT, DerivationPath
 from base import FlowTest, FlowStep
 from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_key,
     create_op_return_output, create_output, foreign_public_key, p2tr_with_script_tree,
-    root_for_seed, set_input_locking_script, tapleaf_hash)
+    repoint_change, root_for_seed, set_input_locking_script, tapleaf_hash)
 
 from seedsigner.controller import Controller
-from seedsigner.views.view import MainMenuView
+from seedsigner.views.view import MainMenuView, View
 from seedsigner.views import scan_views, seed_views, psbt_views
 from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 from seedsigner.models.seed import Seed
@@ -233,10 +233,11 @@ class PSBTSigningFlowTest(FlowTest):
 
 class TestPSBTOwnershipClaimRouting(PSBTSigningFlowTest):
     """
-    A psbt whose own description of itself does not hold up, or whose arithmetic is
-    impossible, is refused during parsing, before the user is shown anything about the
-    transaction. These cover what the user meets when that happens: a warning screen that
-    ends the flow, not a crash.
+    A psbt whose own description of itself does not hold up, whose arithmetic is
+    impossible, or whose change pays our key at a path the user's coordinator software is
+    unlikely to check is refused during parsing, before the user is shown anything about
+    the transaction. These cover what the user meets when that happens: a warning screen
+    that ends the flow, not a crash.
     """
 
     def test_forged_output_claim_terminates_signing_flow(self):
@@ -550,6 +551,28 @@ class TestPSBTOwnershipClaimRouting(PSBTSigningFlowTest):
         ])
 
 
+    def test_unexpected_change_derivation_path_terminates_signing_flow(self):
+        """
+        The psbt pays change to our key on a branch that no coordinator software scans.
+        The coins stay the user's, but their coordinator software will never look there to
+        find them, so this is framed as an attack.
+
+        The flow should stop at PSBTUnexpectedChangeDerivationPathView, before any
+        transaction detail is rendered.
+        """
+        psbt = self._psbt_with_change()
+        repoint_change(psbt, "m/84h/1h/0h/2/0")
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnexpectedChangeDerivationPathView, button_data_selection=psbt_views.PSBTUnexpectedChangeDerivationPathView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
     def test_wrong_seed_routes_back_to_seed_selection_flow(self):
         """
         The wrong seed for a psbt redirects before any transaction detail is rendered and
@@ -598,6 +621,86 @@ class TestPSBTWarningRouting(PSBTSigningFlowTest):
     warning is shown in turn before the transaction details. The user can then continue
     to sign. These cover each warning alone and in the sequences that can occur together.
     """
+
+    def test_distant_change_index_warns_but_allows_signing(self):
+        """
+        The psbt pays change at an address index far past the one this transaction spends
+        from.
+
+        Unlike a change path refusal, the flow should show the distant address warning and
+        then let the user carry on to sign, with the transaction detail screens shown as
+        usual. The change details screen should be told the address index is distant.
+        """
+        psbt = self._psbt_with_change()
+
+        # The lone input's key is at index 3, so this is well past the window
+        repoint_change(psbt, "m/84h/1h/0h/1/20000")
+
+        self._load_psbt_for_signing(psbt)
+
+        change_details_screen_kwargs = {}
+
+        def capture_change_details_screen(view: psbt_views.PSBTChangeDetailsView):
+            """
+            Record what the change details View hands its Screen. run_sequence has already
+            mocked View.run_screen, so this wrapper records the arguments and then calls
+            that mock, leaving the sequence's own bookkeeping intact.
+            """
+            def wrapper(ScreenClass, **kwargs):
+                change_details_screen_kwargs.update(kwargs)
+                return View.run_screen(view, ScreenClass, **kwargs)
+            view.run_screen = wrapper
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, before_run=capture_change_details_screen, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+        ])
+
+        # The output the warning was about is the one the parse flagged
+        assert self.controller.psbt_parser.warnings == [PSBTParser.WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW]
+        assert self.controller.psbt_parser.change_data[0]["address_index_beyond_window"] is True
+
+        # The View passes that flag on to the change details screen
+        assert change_details_screen_kwargs["is_address_index_beyond_window"] is True
+
+
+    def test_high_fee_warning_continues_to_the_distant_change_index_warning(self):
+        """
+        The psbt pays a 50,000 sat recipient out of a 1 BTC input, so nearly all of the
+        input goes to the fee. Its change output also pays a key at an address index far
+        past the input's.
+
+        The user should see the high fee warning, then the distant change index warning,
+        and then the transaction details.
+        """
+        psbt = self._psbt_with_change()
+
+        # The lone input's key is at index 3, so this is well past the window
+        repoint_change(psbt, "m/84h/1h/0h/1/20000")
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 50_000))
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+        ])
+
+        assert self.controller.psbt_parser.warnings == [
+            PSBTParser.WARNING__HIGH_FEE,
+            PSBTParser.WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW,
+        ]
+
 
     def test_high_fee_warning_alone_continues_to_the_transaction_details(self):
         """
