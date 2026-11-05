@@ -90,14 +90,15 @@ def test_renderer_turns_the_whole_picture():
     assert renderer.Renderer._turned(img) is img   # untouched, not even copied
 
 
-def test_joystick_directions_swap_and_side_keys_stay():
+def test_joystick_and_top_bottom_keys_swap_middle_stays():
     buttons = _load_buttons()
     c = buttons.HardwareButtonsConstants
 
     _set_rotation(SettingsConstants.DISPLAY_ROTATION__180)
     wiring = buttons.HardwareButtons._wiring()
-    assert wiring == {c.KEY_UP: c.KEY_DOWN, c.KEY_DOWN: c.KEY_UP, c.KEY_LEFT: c.KEY_RIGHT, c.KEY_RIGHT: c.KEY_LEFT}
-    for key in (c.KEY_PRESS, c.KEY1, c.KEY2, c.KEY3):
+    assert wiring == {c.KEY_UP: c.KEY_DOWN, c.KEY_DOWN: c.KEY_UP, c.KEY_LEFT: c.KEY_RIGHT, c.KEY_RIGHT: c.KEY_LEFT,
+                      c.KEY1: c.KEY3, c.KEY3: c.KEY1}
+    for key in (c.KEY_PRESS, c.KEY2):
         assert key not in wiring
 
     _set_rotation(SettingsConstants.DISPLAY_ROTATION__0)
@@ -122,11 +123,20 @@ def test_pushing_towards_the_users_top_reads_as_up_when_turned():
     assert hb.check_for_low(key=c.KEY_DOWN)
     assert not hb.check_for_low(key=c.KEY_UP)
 
-    # A side button is the same switch either way.
-    hb.GPIO = _fake_gpio(pressed_pin=c.KEY1)
+    # Turned, the side button at the top of what the user sees is the one the
+    # board calls KEY3, and it must act as KEY1 (found on the device, 5 Nov 2026).
+    hb.GPIO = _fake_gpio(pressed_pin=c.KEY3)
+    _set_rotation(SettingsConstants.DISPLAY_ROTATION__180)
+    assert hb.check_for_low(key=c.KEY1)
+    assert not hb.check_for_low(key=c.KEY3)
+    _set_rotation(SettingsConstants.DISPLAY_ROTATION__0)
+    assert hb.check_for_low(key=c.KEY3)
+
+    # The middle button is the same switch either way.
+    hb.GPIO = _fake_gpio(pressed_pin=c.KEY2)
     for value in (0, 180):
         _set_rotation(value)
-        assert hb.check_for_low(key=c.KEY1)
+        assert hb.check_for_low(key=c.KEY2)
 
 
 def test_camera_picture_turns_with_the_screen():

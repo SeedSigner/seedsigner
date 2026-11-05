@@ -68,15 +68,19 @@ class HardwareButtons(Singleton):
     def _wiring() -> dict:
         """
         Which pin to read for each key. With the screen turned 180°
-        (helpers/orientation.py), pushing the joystick towards the top of what
-        the user sees closes the switch the board calls DOWN, so the directions
-        are swapped. KEY1-3 and the press stay as they are.
+        (helpers/orientation.py) the user sees the picture upright, but every
+        control has moved round with the board: pushing the joystick towards
+        the top of the screen closes the switch the board calls DOWN, and the
+        side button now at the top is the one the board calls KEY3. So UP/DOWN,
+        LEFT/RIGHT and KEY1/KEY3 are swapped; KEY2 (the middle one) and the
+        joystick press stay as they are.
         """
         from seedsigner.helpers.orientation import is_turned
         if not is_turned():
             return {}
         c = HardwareButtonsConstants
-        return {c.KEY_UP: c.KEY_DOWN, c.KEY_DOWN: c.KEY_UP, c.KEY_LEFT: c.KEY_RIGHT, c.KEY_RIGHT: c.KEY_LEFT}
+        return {c.KEY_UP: c.KEY_DOWN, c.KEY_DOWN: c.KEY_UP, c.KEY_LEFT: c.KEY_RIGHT, c.KEY_RIGHT: c.KEY_LEFT,
+                c.KEY1: c.KEY3, c.KEY3: c.KEY1}
 
 
     def wait_for(self, keys=[]) -> int:
