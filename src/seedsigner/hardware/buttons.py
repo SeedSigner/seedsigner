@@ -64,12 +64,28 @@ class HardwareButtons(Singleton):
         return cls._instance
 
 
+    @staticmethod
+    def _wiring() -> dict:
+        """
+        Which pin to read for each key. With the screen turned 180°
+        (helpers/orientation.py), pushing the joystick towards the top of what
+        the user sees closes the switch the board calls DOWN, so the directions
+        are swapped. KEY1-3 and the press stay as they are.
+        """
+        from seedsigner.helpers.orientation import is_turned
+        if not is_turned():
+            return {}
+        c = HardwareButtonsConstants
+        return {c.KEY_UP: c.KEY_DOWN, c.KEY_DOWN: c.KEY_UP, c.KEY_LEFT: c.KEY_RIGHT, c.KEY_RIGHT: c.KEY_LEFT}
+
+
     def wait_for(self, keys=[]) -> int:
         """
         Block execution until one of the target keys is pressed.
 
         Optionally override the wait by calling `trigger_override()`.
         """
+        wiring = self._wiring()
         # TODO: Refactor to keep control in the Controller and not here
         from seedsigner.controller import Controller
         controller = Controller.get_instance()
@@ -98,7 +114,7 @@ class HardwareButtons(Singleton):
 
             # Check each candidate key to see if it was pressed
             for key in keys:
-                if self.GPIO.input(key) == GPIO.LOW:
+                if self.GPIO.input(wiring.get(key, key)) == GPIO.LOW:
                     if self.cur_input != key:
                         self.cur_input = key
                         self.cur_input_started = int(time.time() * 1000)  # in milliseconds
@@ -149,8 +165,9 @@ class HardwareButtons(Singleton):
         """ Returns True if one of the target keys/key is pressed """
         if key:
             keys = [key]
+        wiring = self._wiring()
         for key in keys:
-            if self.GPIO.input(key) == self.GPIO.LOW:
+            if self.GPIO.input(wiring.get(key, key)) == self.GPIO.LOW:
                 self.update_last_input_time()
                 return True
         else:
