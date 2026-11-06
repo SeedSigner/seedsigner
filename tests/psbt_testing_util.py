@@ -263,15 +263,14 @@ def claim_seed_owns_key(scope: InputScope | OutputScope, claimed_derivation_path
 
 def set_input_locking_script(inp: InputScope, script_pubkey: Script):
     """
-    Changes the locking script (the scriptPubKey) of the coin a segwit input spends.
+    Changes the locking script (the scriptPubKey) of the utxo a segwit input spends.
     Lets a test make the input commit to a different script or key.
 
     Edits the witness_utxo and drops the non_witness_utxo. The non_witness_utxo is the
     previous transaction, which still pays the old scriptPubKey, so it would contradict
-    the edit. Editing it to match is not an option either: that changes the txid it
-    hashes to, so it would no longer be the transaction this input claims to spend. The
-    witness_utxo alone describes a segwit input's coin, which is what a coordinator
-    would normally send anyway.
+    the edit. Editing it to match would change its txid, and the input would then have
+    to point at the new txid. The witness_utxo alone describes a segwit input's utxo,
+    which is what a coordinator would normally send anyway.
     """
     inp.witness_utxo.script_pubkey = script_pubkey
     inp.non_witness_utxo = None

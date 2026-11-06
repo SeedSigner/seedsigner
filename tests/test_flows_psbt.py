@@ -498,8 +498,9 @@ class TestPSBTOwnershipClaimRouting(PSBTSigningFlowTest):
 
     def test_input_ownership_contradiction_terminates_signing_flow(self):
         """
-        The psbt adds a second claim of ours to the user's own input, at a path whose key
-        the input's script does not use. That is framed as an attack.
+        The psbt claims that our input is also controlled by our key at a second
+        derivation path. The input's script uses a different key, so the claim is false.
+        That is framed as an attack.
 
         The flow should stop at PSBTInputOwnershipContradictionView, before any
         transaction detail is rendered.

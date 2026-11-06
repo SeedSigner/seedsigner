@@ -3477,7 +3477,7 @@ class TestPSBTParserInputOwnership(PSBTParserOwnershipTestBase):
     really derive a claimed key, but it's the script the input commits to that decides
     which keys can spend it.
 
-    These tests cover claims of ours that the committed script does not use. They also
+    These tests cover claims on our keys that the committed script does not use. They also
     cover the taproot claims whose check needs the input's merkle root.
     """
     def test__parse__refuses_a_true_claim_planted_on_another_partys_input(self):
@@ -3635,7 +3635,7 @@ class TestPSBTParserInputOwnership(PSBTParserOwnershipTestBase):
         cannot rebuild the address, so the claim is neither confirmed nor contradicted.
 
         The parse should drop the claim, leaving that input with no verified derivation
-        paths. With another input of ours, the psbt should still parse.
+        paths. With another of our inputs, the psbt should still parse.
         """
         internal_derivation_path = "m/86h/1h/0h/0/0"
         internal_public_key = self._root().derive(internal_derivation_path).get_public_key()

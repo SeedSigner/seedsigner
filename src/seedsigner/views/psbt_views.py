@@ -903,7 +903,7 @@ class PSBTExtraneousInputScriptView(View):
 
 class PSBTUnsupportedScriptPathView(View):
     """
-    Reached when this seed can sign an input only through a taproot script path spend
+    Reached when an input only lets this seed sign through a taproot script path spend
     (see PSBTUnsupportedScriptPathError).
 
     Script path spends are not yet supported, so this seed cannot sign the input. We do

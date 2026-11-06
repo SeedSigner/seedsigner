@@ -206,10 +206,8 @@ class PSBTUnsupportedDerivationPathError(PSBTVerificationError):
 
 class PSBTUnsupportedScriptPathError(PSBTVerificationError):
     """
-    This seed can sign an input only through a taproot script path spend, because the
-    keys of ours that the input claims are keys in its script tree leaves.
-
-    Script path spends are not yet supported.
+    An input only lets this seed sign through a taproot script path spend. Script path
+    spends are not yet supported.
     """
     pass
 
@@ -676,7 +674,7 @@ class PSBTParser():
             path maps.
           * PSBTUnsupportedDerivationPathError: An input claims one of our keys at a
             derivation path too short for any wallet to use.
-          * PSBTUnsupportedScriptPathError: This seed can sign an input only through a
+          * PSBTUnsupportedScriptPathError: An input only lets this seed sign through a
             taproot script path spend.
         """
         self.num_inputs = len(self.psbt.inputs)
