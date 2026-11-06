@@ -1,4 +1,5 @@
 from binascii import a2b_base64
+from copy import deepcopy
 
 from embit import bip32, script
 from embit.psbt import PSBT, DerivationPath
@@ -569,6 +570,35 @@ class TestPSBTOwnershipClaimRouting(PSBTSigningFlowTest):
             FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
             FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
             FlowStep(psbt_views.PSBTUnexpectedChangeDerivationPathView, button_data_selection=psbt_views.PSBTUnexpectedChangeDerivationPathView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_mixed_base_paths_terminate_signing_flow(self):
+        """
+        A single sig segwit v0 psbt spends utxos from two of the seed's accounts. The
+        added input only has a witness_utxo, so it can't be verified as genuine.
+
+        The flow should stop at PSBTUnverifiableMixedInputBasePathsView, before any
+        transaction detail is rendered.
+        """
+        psbt = self._psbt_with_change()
+
+        # One more of our utxos, from another account
+        second_account_derivation_path = "m/84h/1h/7h/0/2"
+        public_key = root_for_seed(PSBTTestData.seed).derive(second_account_derivation_path).get_public_key()
+        second_input = deepcopy(psbt.inputs[0])
+        second_input.bip32_derivations.clear()
+        set_input_locking_script(second_input, script.p2wpkh(public_key))
+        claim_seed_owns_key(second_input, second_account_derivation_path, public_key)
+        psbt.inputs.append(second_input)
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnverifiableMixedInputBasePathsView, button_data_selection=psbt_views.PSBTUnverifiableMixedInputBasePathsView.DISCARD),
             FlowStep(MainMenuView),
         ])
 

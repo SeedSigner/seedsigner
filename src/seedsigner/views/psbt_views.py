@@ -9,7 +9,8 @@ from seedsigner.models.psbt_parser import (PSBTChangeDerivationPathError,
     PSBTMissingInputUtxoError, PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError,
     PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
     PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError,
-    PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError)
+    PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError,
+    PSBTUnverifiableMixedInputBasePathsError)
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
@@ -179,6 +180,10 @@ class PSBTOverviewView(View):
                     view_args=dict(derivation_path=e.derivation_path),
                     clear_history=True,
                 ))
+                return
+
+            except PSBTUnverifiableMixedInputBasePathsError:
+                self.set_redirect(Destination(PSBTUnverifiableMixedInputBasePathsView, clear_history=True))
                 return
 
             except PSBTSeedCannotSignError:
@@ -950,6 +955,34 @@ class PSBTUnexpectedChangeDerivationPathView(View):
             status_headline=_("Unsafe Derivation Path"),
             # TRANSLATOR_NOTE: Variable is a derivation path such as "m/84'/0'/0'/5/0", shown on its own line, where this transaction sends funds back to the user's seed. "Our" refers to SeedSigner.
             text=_("{}\nfailed our safety checks.").format(bip32.path_to_str(self.derivation_path).replace("h", "'")),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTUnverifiableMixedInputBasePathsView(View):
+    """
+    Reached by single sig segwit v0 transactions when the inputs this seed signs are at
+    more than one base path and at least one input has no non_witness_utxo (the full
+    transaction that created its utxo). See PSBTUnverifiableMixedInputBasePathsError.
+
+    We do not allow the user to continue, but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: This transaction includes inputs from multiple wallets (accounts) controlled by this seed. This can be allowed for some script types, but not this one.
+            text=_("Inputs from multiple wallets: cannot complete verification for this script type."),
             button_data=[self.DISCARD],
             show_back_button=False,
         )

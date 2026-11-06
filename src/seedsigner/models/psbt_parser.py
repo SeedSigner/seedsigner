@@ -237,6 +237,21 @@ class PSBTChangeDerivationPathError(PSBTVerificationError):
         self.derivation_path = derivation_path
 
 
+class PSBTUnverifiableMixedInputBasePathsError(PSBTVerificationError):
+    """
+    The inputs of a single sig segwit v0 psbt that this seed signs are at different
+    base paths and non_witness_utxo data was not provided.
+
+    The change path rules require change to go back to the same wallet (base path) that
+    the inputs spend from. But if non_witness_utxo data is not provided, segwit v0 inputs
+    can't be verified as genuine when they come from different base paths.
+
+    Some advanced coordinators can create a legitimate psbt with mixed base paths and no
+    non_witness_utxo data, but we disallow it regardless.
+    """
+    pass
+
+
 class PSBTSeedCannotSignError(PSBTVerificationError):
     """
     The selected seed holds no key that could sign any input.
@@ -442,18 +457,22 @@ class PSBTParser():
              our seed provably owns. Also rejects a psbt whose outputs spend more than its
              inputs bring in.
 
-          7. _evaluate_change_derivation_paths: rejects the psbt unless every output
-             coming back to this seed uses what we consider a valid change derivation
-             path. Also identifies any change address indices that are far past the
-             indices of the spending wallet's inputs; they're flagged for the user to
-             review.
+          7. _evaluate_change_derivation_paths: verifies that every output coming back to
+             this seed uses what we consider a valid change derivation path. Also
+             identifies any change address indices that are far past the indices of the
+             spending wallet's inputs; they're flagged for the user to review.
+
+          8. _evaluate_input_base_paths: verifies that a single sig segwit v0 psbt spends
+             from a single wallet, unless each of those inputs supplies a
+             non_witness_utxo. No-op for other script types.
 
         Held findings:
         The parse reports the most serious problem it finds. A finding we treat as an
         attack stops the parse at the step that finds it, since nothing found later can
         outrank it. Parsing may uncover other milder findings along the way. Those are
-        held aside while the remaining checks run. A held finding is raised only if those
-        remaining checks find nothing more serious.
+        held aside so that later checks can still find something more serious. Held
+        findings can only wait up to the point where they must be raised to prevent
+        subsequent checks from relying on the problematic data.
 
         Optimization via child_key_derivation_cache:
         Parsing traverses a derivation path down to an individual address one level at a
@@ -513,6 +532,8 @@ class PSBTParser():
             raise self.held_input_findings[0]
 
         self._evaluate_change_derivation_paths()
+
+        self._evaluate_input_base_paths()
 
         if self.held_output_findings:
             # A milder output finding that was held from earlier in the parse can now be
@@ -1814,6 +1835,19 @@ class PSBTParser():
         raise PSBTSeedCannotSignError()
 
 
+    @staticmethod
+    def _get_base_path(derivation_path: List[int]) -> List[int]:
+        """
+        Returns derivation_path's base path (its wallet): every level before the "branch"
+        and "address_index".
+
+        Several security checks on change outputs and inputs depend on the base path.
+        Extracting it is trivial, but each check needs a guarantee that it is extracted
+        correctly. So every check shares this one definition.
+        """
+        return derivation_path[:-2]
+
+
     def _get_verified_input_derivation_paths_matching_base_path(self, base_path: List[int]) -> List[DerivationPath]:
         """
         Returns every verified input derivation path whose base path matches base_path.
@@ -1821,7 +1855,7 @@ class PSBTParser():
         matching_derivation_paths = []
         for verified_derivation_paths in self.verified_input_derivation_paths:
             for verified_derivation_path in verified_derivation_paths:
-                if verified_derivation_path.derivation[:-2] == base_path:
+                if PSBTParser._get_base_path(verified_derivation_path.derivation) == base_path:
                     matching_derivation_paths.append(verified_derivation_path)
         return matching_derivation_paths
 
@@ -1842,9 +1876,9 @@ class PSBTParser():
 
         The derivation path must:
           * be long enough to hold both a "branch" and an "address_index".
-          * match the base path that this transaction spends from.
-            * Note: certain scenarios can spend inputs with different base paths. All of
-              those inputs' base paths are considered valid, provided that we own them.
+          * match a base path that this transaction spends from.
+            * Note: a transaction can spend inputs from more than one base path. The
+              change output may match any of them.
           * only use the non-hardened receive (0) or change (1) "branch".
           * use a non-hardened "address_index".
 
@@ -1861,7 +1895,7 @@ class PSBTParser():
             # Too short to hold both a branch and an address index
             return False
 
-        base_path = change_derivation_path[:-2]
+        base_path = PSBTParser._get_base_path(change_derivation_path)
         branch = change_derivation_path[-2]
         address_index = change_derivation_path[-1]
 
@@ -1894,7 +1928,7 @@ class PSBTParser():
 
         Expects a path that already passed the change path rules.
         """
-        base_path = change_derivation_path[:-2]
+        base_path = PSBTParser._get_base_path(change_derivation_path)
         address_index = change_derivation_path[-1]
 
         smallest_input_address_index = None
@@ -1947,7 +1981,7 @@ class PSBTParser():
         claim our seed but the output's base path won't match any of our inputs' base
         path(s). So this otherwise valid output is rejected.
 
-        TODO: Possibly add a separate output category for outputs paying a key of ours
+        TODO: Possibly add a separate output category for outputs paying one of our keys
         in another wallet or another quorum, shown to the user with a warning to confirm
         the transfer is intended. An honest transfer into another of the user's own
         wallets would then get that warning rather than this refusal.
@@ -1972,6 +2006,101 @@ class PSBTParser():
         for verified_derivation_path in self.verified_cosigner_mismatch_output_derivation_paths:
             if not self._is_wallet_change_derivation_path(verified_derivation_path.derivation):
                 raise PSBTChangeDerivationPathError(derivation_path=verified_derivation_path.derivation)
+
+
+    def _evaluate_input_base_paths(self):
+        """
+        A check for single sig segwit v0 inputs that this seed signs. The inputs must
+        either:
+          * Only spend from a single wallet (every input this seed signs must be at the
+            same base path).
+          * Or each input must supply a non_witness_utxo.
+
+        Segwit v0 (any segwit type before taproot) has a combination of weaker guarantees
+        about its inputs that differentiate it from legacy inputs and taproot inputs:
+          * Versus legacy inputs:
+              * Legacy inputs must provide the full previous transaction (the
+                non_witness_utxo) that created the utxo being spent.
+              * A segwit v0 input may provide just a witness_utxo, which only describes a
+                utxo without the transaction context; without the non_witness_utxo, we
+                cannot verify that the coordinator has honestly described the input we're
+                being asked to spend.
+          * Versus taproot inputs:
+              * Each taproot signature commits to ALL inputs' details (scriptPubKeys and
+                amounts); any faked detail in one input would invalidate the other inputs'
+                signatures.
+              * But segwit v0 signatures commit to just their own input's details.
+
+        A consequence of segwit v0's weaker guarantees is that the coordinator can add one
+        of its own utxos but provide a faked witness_utxo that makes it look like the
+        input is owned by one of our keys. Our validation rules for change outputs rely on
+        the base paths of our inputs. So if we were to accept that faked input's base
+        path as being valid for our change, we could end up sending our change to a
+        derivation path that our wallet would never check.
+
+        But for a valid transaction, we do have at least one crucial guarantee we can
+        depend on that emerges from the following facts:
+          * The coordinator needs valid signatures on all of our genuine inputs in order
+            to spend them.
+          * Our signature on an input is valid only if that input is described correctly
+            (its real scriptPubKey and amount).
+
+        So in this scenario, while a malicious coordinator can try to add its own faked
+        inputs, it still has to describe our genuine inputs truthfully. Which means
+        that at least one of the supplied base paths is correct.
+
+        But if we're presented with segwit v0 inputs that have different base paths, how
+        are we to know which one is correct? Where should we allow our change to go? We
+        have no way to determine that, so the check here simply requires that all of our
+        inputs in a segwit v0 transaction have the same base path (outsiders' inputs in a
+        collaborative spend are irrelevant here).
+
+        However, an input that supplies a non_witness_utxo has already been verified
+        against the txid it spends. Faking it would mean making up its previous
+        transaction, which would leave the transaction we sign unable to confirm. So when
+        all of our inputs supply a non_witness_utxo, we allow our inputs to be at
+        different base paths.
+
+        Multisig is exempt because its change has its own checks, based on the full set of
+        cosigners.
+
+        Edge case note: some software allows users to build a psbt with inputs from
+        different wallets for the same seed by merging psbts by hand (Bitcoin Core's
+        joinpsbts, Electrum's "Join inputs/outputs"). Such psbts could present segwit v0
+        inputs with multiple base paths and no non_witness_utxo. They will be rejected
+        even though they were legitimately constructed.
+
+        Note: a Bitcoin Core wallet built from more than one of this seed's base paths
+        (e.g. different "account" derivation paths) can also spend from all of them in one
+        psbt. Core includes the non_witness_utxo on each segwit v0 input from its own
+        wallet, so its psbts pass this check.
+        """
+        # We're only concerned with single sig segwit v0 inputs; early exit for all
+        # others.
+        if self.policy["type"] not in ("p2wpkh", "p2sh-p2wpkh"):
+            return
+
+        input_base_paths = set()
+        has_witness_only_input = False
+        for i, verified_derivation_paths in enumerate(self.verified_input_derivation_paths):
+            if not verified_derivation_paths:
+                # Another party's input, in a collaborative spend for example
+                continue
+
+            # We know it's single sig; directly access its one derivation path
+            input_base_path = PSBTParser._get_base_path(verified_derivation_paths[0].derivation)
+
+            # The set needs a hashable type; convert the list to string
+            input_base_paths.add(bip32.path_to_str(input_base_path))
+
+            if self.psbt.inputs[i].non_witness_utxo is None:
+                # Only a witness_utxo, so this input's details could be faked
+                has_witness_only_input = True
+
+        if len(input_base_paths) > 1 and has_witness_only_input:
+            # Our inputs are at more than one base path and at least one input could be
+            # faked. By rule we reject the psbt.
+            raise PSBTUnverifiableMixedInputBasePathsError(f"Inputs are at {len(input_base_paths)} base paths and at least one has no non_witness_utxo")
 
 
     @staticmethod
