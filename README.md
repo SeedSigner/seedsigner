@@ -72,6 +72,7 @@ If you have specific questions about the project, our [Telegram Group](https://t
   * Keeper
   * BlueWallet
   * Specter Desktop
+  * Unbeholden Wallet
   * Any bitcoin wallet software that supports QR codes
 
 * Supported languages:
