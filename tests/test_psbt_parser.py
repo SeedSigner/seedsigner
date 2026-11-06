@@ -4012,16 +4012,16 @@ class TestPSBTParserChangeDerivationPathRules(PSBTParserOwnershipTestBase):
         assert psbt_parser.warnings == [PSBTParser.WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW]
 
 
-    def test__parse__measures_the_window_from_the_largest_input_index_for_the_base_path(self):
+    def test__parse__measures_the_window_from_the_smallest_input_index_for_the_base_path(self):
         """
-        The change address index window is measured from the largest "address_index"
+        The change address index window is measured from the smallest "address_index"
         among our inputs that share the change output's base path, regardless of the
         order the psbt lists the inputs in.
         """
         # This fixture spends inputs at [base path]/1/6 and [base path]/1/0, in that
         # order. Verify that input order doesn't matter when determining the window.
         fixture_input_address_indices = [6, 0]
-        last_index_within_window = max(fixture_input_address_indices) + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+        last_index_within_window = min(fixture_input_address_indices) + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
 
         for input_address_indices in (fixture_input_address_indices, list(reversed(fixture_input_address_indices))):
             psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
@@ -4029,7 +4029,7 @@ class TestPSBTParserChangeDerivationPathRules(PSBTParserOwnershipTestBase):
                 psbt.inputs.reverse()
             assert [list(inp.bip32_derivations.values())[0].derivation[-1] for inp in psbt.inputs] == input_address_indices
 
-            # Within the window, when measured from the largest input index
+            # Within the window, when measured from the smallest input index
             repoint_change(psbt, f"m/84h/1h/0h/1/{last_index_within_window}", seed=PSBTTestData.two_input_seed)
             psbt_parser = PSBTParser(psbt, PSBTTestData.two_input_seed, network=SettingsConstants.REGTEST)
             assert psbt_parser.change_data[0]["address_index_beyond_window"] is False
@@ -4083,6 +4083,42 @@ class TestPSBTParserChangeDerivationPathRules(PSBTParserOwnershipTestBase):
         # change is determined to be beyond the window; the hardened input's enormous
         # index was not a factor.
         assert psbt_parser.change_data[0]["address_index_beyond_window"] is True
+
+
+    def test__parse__measures_the_window_from_index_0_when_every_input_address_index_is_hardened(self):
+        """
+        The change address index window is measured from index 0 when all of our inputs
+        at the change's base path have a hardened "address_index".
+
+        The psbt spends one of our utxos, at the hardened "address_index" 5h. Two outcomes
+        are tested:
+          * Change at the last index in the window should be within the window.
+          * Change one index past the window should be flagged.
+        """
+        # Add one of our utxos at a hardened "address_index", then remove the fixture's
+        # input so that the hardened one is our only input
+        fixture_input_derivation_path = self._input_derivation_path()
+        fixture_base_path = "/".join(fixture_input_derivation_path.split("/")[:-2])
+        hardened_input_derivation_path = f"{fixture_base_path}/0/5h"
+
+        psbt = self._psbt_with_change()
+        self._add_own_input(psbt, hardened_input_derivation_path)
+        del psbt.inputs[0]
+
+        # Scenario 1: change at the last index in the window
+        last_index_in_window = PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+        repoint_change(psbt, self._sibling_path(fixture_input_derivation_path, branch=1, address_index=last_index_in_window))
+        psbt_parser = self._parse(psbt)
+
+        # The hardened input is our only input
+        assert self._verified_input_derivation_paths(psbt_parser) == [
+            bip32.parse_path(hardened_input_derivation_path),
+        ]
+        assert psbt_parser.change_data[0]["address_index_beyond_window"] is False
+
+        # Scenario 2: change one index past the window
+        repoint_change(psbt, self._sibling_path(fixture_input_derivation_path, branch=1, address_index=last_index_in_window + 1))
+        assert self._parse(psbt).change_data[0]["address_index_beyond_window"] is True
 
 
     def test__parse__measures_each_base_path_window_from_its_own_inputs(self):

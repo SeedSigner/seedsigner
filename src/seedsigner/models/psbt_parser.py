@@ -311,7 +311,7 @@ class PSBTParser():
     HIGH_FEES_WARNING_THRESHOLD = 25
 
     # The maximum difference allowed between a change output's address index and the
-    # largest address index of the relevant inputs being spent.
+    # smallest address index of the relevant inputs being spent.
     CHANGE_ADDRESS_INDEX_WINDOW = 10_000
 
     # The non-fatal findings that can be recorded in self.warnings
@@ -1883,21 +1883,32 @@ class PSBTParser():
     def _is_change_address_index_within_window(self, change_derivation_path: List[int]) -> bool:
         """
         Determines whether a change output's address index is within
-        CHANGE_ADDRESS_INDEX_WINDOW of the largest non-hardened address index among the
+        CHANGE_ADDRESS_INDEX_WINDOW of the smallest non-hardened address index among the
         inputs that match the output's base path.
+
+        A malicious coordinator might attempt to add an input that would skew our
+        accounting of the address indices being spent. This would alter our range for the
+        change indices we would flag. But by constraining our rule to calculate the index
+        window from the smallest input index, we protect against deceptive large indices
+        skewing our safety check.
 
         Expects a path that already passed the change path rules.
         """
         base_path = change_derivation_path[:-2]
         address_index = change_derivation_path[-1]
 
-        largest_input_address_index = 0
+        smallest_input_address_index = None
         for derivation_path in self._get_verified_input_derivation_paths_matching_base_path(base_path):
             input_address_index = derivation_path.derivation[-1]
-            if input_address_index < bip32.HARDENED_INDEX and input_address_index > largest_input_address_index:
-                largest_input_address_index = input_address_index
+            if input_address_index < bip32.HARDENED_INDEX and (smallest_input_address_index is None or input_address_index < smallest_input_address_index):
+                smallest_input_address_index = input_address_index
 
-        return address_index <= largest_input_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+        if smallest_input_address_index is None:
+            # Edge case: every matching input is at a hardened address index. So
+            # measure from 0, which gives the narrowest window.
+            smallest_input_address_index = 0
+
+        return address_index <= smallest_input_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
 
 
     def _evaluate_change_derivation_paths(self):
