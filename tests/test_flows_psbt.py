@@ -584,3 +584,40 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
             FlowStep(psbt_views.PSBTNegativeFeeView, button_data_selection=psbt_views.PSBTNegativeFeeView.DISCARD),
             FlowStep(MainMenuView),
         ])
+
+    def test_change_details_with_invalid_derivation_path_redirects_to_unsupported_derivation(self):
+        """
+        If change_data contains a derivation path too short or None, PSBTChangeDetailsView
+        should refuse the transaction gracefully and route to PSBTUnsupportedDerivationPathView.
+        """
+        from unittest.mock import MagicMock
+        self._load_psbt_for_signing(self._psbt_with_change())
+        self.controller.psbt_seed = self.controller.storage.seeds[0]
+        self.controller.psbt_parser = MagicMock()
+
+        # Test with None derivation path
+        self.controller.psbt_parser.get_change_data.return_value = {
+            "output_index": 0,
+            "address": "bc1qtest",
+            "amount": 1000,
+            "verified_derivation_path": None,
+        }
+
+        view = psbt_views.PSBTChangeDetailsView(change_address_num=0)
+        destination = view.run()
+        assert destination.View_cls == psbt_views.PSBTUnsupportedDerivationPathView
+        assert destination.clear_history is True
+
+        # Test with too-short derivation path
+        self.controller.psbt_parser.get_change_data.return_value = {
+            "output_index": 0,
+            "address": "bc1qtest",
+            "amount": 1000,
+            "verified_derivation_path": [0],
+        }
+
+        view2 = psbt_views.PSBTChangeDetailsView(change_address_num=0)
+        destination2 = view2.run()
+        assert destination2.View_cls == psbt_views.PSBTUnsupportedDerivationPathView
+        assert destination2.clear_history is True
+

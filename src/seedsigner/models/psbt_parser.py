@@ -1746,7 +1746,9 @@ class PSBTParser():
         Returns True if the next-to-last element of the derivation path is the change
         branch (1).
         """
-        return len(derivation_path) >= 2 and derivation_path[-2] == 1
+        if not derivation_path or not isinstance(derivation_path, (list, tuple)) or len(derivation_path) < 2:
+            return False
+        return derivation_path[-2] == 1
 
 
     def verify_multisig_output(self, descriptor: Descriptor, change_num: int) -> bool:

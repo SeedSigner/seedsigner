@@ -449,10 +449,13 @@ class PSBTChangeDetailsView(View):
             }
         """
         seed_fingerprint = self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-        verified_derivation_path = change_data.get("verified_derivation_path")
-        is_change_derivation_path = PSBTParser.is_change_branch(verified_derivation_path)
+        verified_derivation_path = change_data.get("verified_derivation_path") if change_data else None
 
-        # TODO: Refuse a path too short to carry a branch and an address index
+        if not verified_derivation_path or not isinstance(verified_derivation_path, (list, tuple)) or len(verified_derivation_path) < 2:
+            # Refuse a path too short or invalid to carry a branch and an address index
+            return Destination(PSBTUnsupportedDerivationPathView, clear_history=True)
+
+        is_change_derivation_path = PSBTParser.is_change_branch(verified_derivation_path)
         derivation_path_addr_index = verified_derivation_path[-1]
 
         if is_change_derivation_path:

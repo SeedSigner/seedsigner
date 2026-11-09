@@ -373,6 +373,20 @@ class TestPSBTParser:
         """
         assert PSBTParser.is_change_branch(bip32.parse_path("m/84h/1h/0h/1/0")) is True
         assert PSBTParser.is_change_branch(bip32.parse_path("m/84h/1h/0h/0/0")) is False
+
+
+    def test__is_change_branch__handles_invalid_and_edge_case_paths(self):
+        """
+        PSBTParser.is_change_branch should safely return False for None, empty, or short
+        derivation paths without raising TypeError or IndexError.
+        """
+        assert PSBTParser.is_change_branch(None) is False
+        assert PSBTParser.is_change_branch([]) is False
+        assert PSBTParser.is_change_branch([0]) is False
+        assert PSBTParser.is_change_branch("invalid") is False
+        assert PSBTParser.is_change_branch(12345) is False
+        assert PSBTParser.is_change_branch([2147483696, 2147483649, 2147483648, 2147483650, 1, 0]) is True
+        assert PSBTParser.is_change_branch([2147483696, 2147483649, 2147483648, 2147483650, 0, 0]) is False
     @pytest.mark.parametrize("vout_values, change_data, expected", [
         # single destination + single change
         ([100, 200], [{"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/1/0"), "amount": 200}], 100),
