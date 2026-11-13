@@ -228,6 +228,16 @@ class SettingsConstants:
         (BTC_DENOMINATION__BTCSATSHYBRID, _mft("BTC | sats hybrid")),
     ]
 
+    # The whole interface turned, for holding the device with the joystick on
+    # the right. Only 0 and 180: the 240x240 screen is square, and 90/270 would
+    # put the joystick at the top or bottom.
+    DISPLAY_ROTATION__0 = 0
+    DISPLAY_ROTATION__180 = 180
+    ALL_DISPLAY_ROTATIONS = [
+        (DISPLAY_ROTATION__0, _mft("0°")),
+        (DISPLAY_ROTATION__180, _mft("180°")),
+    ]
+
     CAMERA_ROTATION__0 = 0
     CAMERA_ROTATION__90 = 90
     CAMERA_ROTATION__180 = 180
@@ -338,6 +348,7 @@ class SettingsConstants:
 
     SETTING__DISPLAY_CONFIGURATION = "display_config"
     SETTING__DISPLAY_COLOR_INVERTED = "color_inverted"
+    SETTING__DISPLAY_ROTATION = "display_rotation"
 
     SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
@@ -738,6 +749,16 @@ class SettingsDefinition:
                       type=SettingsConstants.TYPE__ENABLED_DISABLED,
                       visibility=SettingsConstants.VISIBILITY__HARDWARE,
                       default_value=SettingsConstants.OPTION__DISABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__DISPLAY_ROTATION,
+                      abbreviated_name="disp_rot",
+                      # TRANSLATOR_NOTE: Hardware settings option to turn the whole screen upside down, so the joystick is on the right.
+                      display_name=_mft("Display rotation"),
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__HARDWARE,
+                      selection_options=SettingsConstants.ALL_DISPLAY_ROTATIONS,
+                      default_value=SettingsConstants.DISPLAY_ROTATION__0),
 
 
         # Developer options
