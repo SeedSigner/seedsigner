@@ -242,7 +242,11 @@ class ToolsDiceEntropyMnemonicLengthView(View):
         twenty_four = _("24 words ({} rolls)").format(mnemonic_generation.DICE__NUM_ROLLS__24WORD)
         TWENTY_FOUR = ButtonOption(twenty_four, return_data=mnemonic_generation.DICE__NUM_ROLLS__24WORD)
 
-        button_data = [TWELVE, TWENTY_FOUR]
+        # TRANSLATOR_NOTE: Photograph a 10x10 block of dice on the printed dice grid sheet instead of entering each roll
+        scan_grid = _("24 words (scan grid)")
+        SCAN_GRID = ButtonOption(scan_grid, return_data="scan_grid")
+
+        button_data = [TWELVE, TWENTY_FOUR, SCAN_GRID]
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title=_("Mnemonic Length"),
@@ -259,6 +263,22 @@ class ToolsDiceEntropyMnemonicLengthView(View):
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
             return Destination(ToolsDiceEntropyEntryView, view_args=dict(total_rolls=mnemonic_generation.DICE__NUM_ROLLS__24WORD))
+
+        elif button_data[selected_menu_num] == SCAN_GRID:
+            return Destination(ToolsDiceGridScanView)
+
+
+
+def finalize_dice_seed(view: View, roll_data: str) -> Destination:
+    """ Turn a complete string of dice rolls into the pending seed and show its words. """
+    dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(roll_data)
+
+    # Add the mnemonic as an in-memory Seed
+    seed = Seed(dice_seed_phrase, wordlist_language_code=view.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+    view.controller.storage.set_pending_seed(seed)
+
+    # Cannot return BACK to this View
+    return Destination(SeedWordsWarningView, view_args={"seed": None}, clear_history=True)
 
 
 
@@ -277,15 +297,182 @@ class ToolsDiceEntropyEntryView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
-        dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
 
-        # Add the mnemonic as an in-memory Seed
-        seed = Seed(dice_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
-        self.controller.storage.set_pending_seed(seed)
+        return finalize_dice_seed(self, ret)
 
-        # Cannot return BACK to this View
-        return Destination(SeedWordsWarningView, view_args={"seed": None}, clear_history=True)
+
+
+"""****************************************************************************
+    Dice grid scan Views
+****************************************************************************"""
+class ToolsDiceGridScanView(View):
+    """
+    Photograph 100 dice packed into a 10x10 block on the printed dice grid sheet and
+    read them. The first 99 make a 24-word seed, exactly as if they had been entered
+    one by one; the user reviews every roll first.
+
+    The photo is seed entropy: it is only held long enough to be read and is never
+    stored.
+    """
+    # The camera's 2x2-binned full-field mode: fast, low noise, and ~5 px per mm with
+    # the sheet filling the frame, which leaves pips 15+ px across.
+    CAPTURE_RESOLUTION = (1296, 972)
+
+    def run(self):
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+        from seedsigner.gui.screens.tools_screens import ToolsDiceGridScanScreen
+        from seedsigner.hardware.camera import Camera
+        from seedsigner.helpers import dice_grid_reader
+
+        self.controller.clear_dice_grid()
+        ret = self.run_screen(ToolsDiceGridScanScreen)
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        camera = Camera.get_instance()
+        camera.start_single_frame_mode(resolution=self.CAPTURE_RESOLUTION)
+        time.sleep(0.25)
+        image = camera.capture_frame()
+        camera.stop_single_frame_mode()
+
+        # TRANSLATOR_NOTE: Shown while the photo of the dice is analyzed
+        self.loading_screen = LoadingScreenThread(text=_("Reading dice..."))
+        self.loading_screen.start()
+        try:
+            reading = dice_grid_reader.read_dice_grid(image)
+        except dice_grid_reader.MarkersNotFound:
+            reading = None
+        finally:
+            image = None
+            self.loading_screen.stop()
+
+        if reading is None:
+            return Destination(ToolsDiceGridMarkersNotFoundView)
+
+        self.controller.dice_grid_rolls = reading.rolls
+        self.controller.dice_grid_uncertain = reading.uncertain
+        # Start the review on the first roll that needs a look, if any
+        needs_look = [
+            i for i in range(mnemonic_generation.DICE__NUM_ROLLS__24WORD)
+            if reading.uncertain[i] or reading.rolls[i] == 0
+        ]
+        self.controller.dice_grid_selected_index = needs_look[0] if needs_look else 0
+        return Destination(ToolsDiceGridReviewView)
+
+
+
+class ToolsDiceGridMarkersNotFoundView(View):
+    # TRANSLATOR_NOTE: Button to retake the photo of the dice grid sheet
+    TRY_AGAIN = ButtonOption("Try again")
+
+    def run(self):
+        from seedsigner.gui.screens.screen import WarningScreen
+        self.run_screen(
+            WarningScreen,
+            # TRANSLATOR_NOTE: The photo didn't show the dice grid sheet's corner markers
+            title=_("Sheet Not Found"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: Explains how to retake the photo of the dice grid sheet
+            text=_("Keep all 4 corner markers in view, flat and uncovered."),
+            button_data=[self.TRY_AGAIN],
+            show_back_button=False,
+        )
+        # Back to the camera preview
+        return Destination(BackStackView)
+
+
+
+class ToolsDiceGridReviewView(View):
+    """
+    Every roll read from the photo is shown for the user to check against the real
+    dice before it can become a seed. Rolls can be corrected one at a time.
+    """
+    def run(self):
+        from seedsigner.gui.screens.tools_screens import ToolsDiceGridReviewScreen
+        num_rolls = mnemonic_generation.DICE__NUM_ROLLS__24WORD
+        rolls = self.controller.dice_grid_rolls
+        uncertain = self.controller.dice_grid_uncertain
+
+        ret = self.run_screen(
+            ToolsDiceGridReviewScreen,
+            rolls=rolls,
+            uncertain=uncertain,
+            num_rolls=num_rolls,
+            selected_index=self.controller.dice_grid_selected_index,
+        )
+
+        if ret == RET_CODE__BACK_BUTTON:
+            # Discard these rolls and retake the photo
+            self.controller.clear_dice_grid()
+            return Destination(BackStackView)
+
+        if ret == ToolsDiceGridReviewScreen.DONE:
+            unread = [i for i in range(num_rolls) if rolls[i] == 0]
+            if unread:
+                self.controller.dice_grid_selected_index = unread[0]
+                return Destination(ToolsDiceGridUnreadRollView, view_args=dict(roll_index=unread[0]))
+
+            roll_data = "".join(str(roll) for roll in rolls[:num_rolls])
+            self.controller.clear_dice_grid()
+            return finalize_dice_seed(self, roll_data)
+
+        # The user clicked a roll to correct it
+        self.controller.dice_grid_selected_index = ret
+        return Destination(ToolsDiceGridEditRollView, view_args=dict(roll_index=ret))
+
+
+
+class ToolsDiceGridUnreadRollView(View):
+    # TRANSLATOR_NOTE: Button to enter a dice roll that couldn't be read from the photo
+    ENTER_ROLL = ButtonOption("Enter roll")
+
+    def __init__(self, roll_index: int):
+        super().__init__()
+        self.roll_index = roll_index
+
+
+    def run(self):
+        from seedsigner.gui.screens.screen import WarningScreen
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            # TRANSLATOR_NOTE: A dice roll in the photo couldn't be read
+            title=_("Missing Roll"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: Inserts the roll's position in the grid (1-99)
+            text=_("Roll {} couldn't be read. Enter it to continue.").format(self.roll_index + 1),
+            button_data=[self.ENTER_ROLL],
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # Don't come back to this warning after entering the roll
+        return Destination(ToolsDiceGridEditRollView, view_args=dict(roll_index=self.roll_index), skip_current_view=True)
+
+
+
+class ToolsDiceGridEditRollView(View):
+    """ Correct one roll with the regular dice entry keyboard, then return to the review. """
+    def __init__(self, roll_index: int):
+        super().__init__()
+        self.roll_index = roll_index
+
+
+    def run(self):
+        from seedsigner.gui.screens.tools_screens import ToolsDiceGridEditRollScreen
+        rolls = self.controller.dice_grid_rolls
+        ret = self.run_screen(
+            ToolsDiceGridEditRollScreen,
+            roll_number=self.roll_index + 1,
+            current_value=rolls[self.roll_index],
+        )
+
+        if ret != RET_CODE__BACK_BUTTON:
+            rolls[self.roll_index] = int(ret)
+            # The user has now looked at this die
+            self.controller.dice_grid_uncertain[self.roll_index] = False
+
+        return Destination(BackStackView)
 
 
 

@@ -45,6 +45,7 @@ If you have specific questions about the project, our [Telegram Group](https://t
 * Creating and handling seeds:
   * Create a seed phrase by picking BIP39 words, calculates the final word (aka checksum).
   * Create a seed phrase [via dice rolls](docs/dice_verification.md).
+  * Create a seed phrase by [scanning a grid of dice](docs/dice_grid_scanner.md).
   * Create a seed phrase via image entropy from the onboard camera.
   * Guided interface to manually transcribe a seed to the SeedQR format for instant seed loading [(video)](https://youtu.be/c1-PqTNx1vc).
   * BIP39 passphrase (aka 13th or 25th word) support.
