@@ -915,3 +915,86 @@ class TestPSBTOpReturnPaging(BaseTest):
         assert kwargs["is_truncated"] is True
         num_chars_shown = PSBTOpReturnView.MAX_UNITS_PER_PAGE * PSBTOpReturnView.MAX_PAGES
         assert kwargs["bytes_shown"] == num_chars_shown * 4
+
+
+
+class TestPSBTOpReturnFlows(PSBTSigningFlowTest):
+    """
+    Routing through every OP_RETURN output and every page of each.
+    """
+
+    def test_paging_walks_every_page_of_every_output(self):
+        """
+        Should walk every page of the first output, then every page of the second.
+        """
+        per_page = psbt_views.PSBTOpReturnView.MAX_UNITS_PER_PAGE
+
+        self._load_psbt_for_signing(create_op_return_psbt([
+            create_op_return_output(b"a" * (per_page + 1)),   # two pages
+            create_op_return_output(b"b" * (per_page + 1)),   # two pages
+        ]))
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+
+            # Both pages of the first output, then both pages of the second
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_a_bare_op_return_still_gets_a_screen(self):
+        """
+        Should give a bare OP_RETURN its own screen.
+        """
+        self._load_psbt_for_signing(create_op_return_psbt([
+            create_op_return_output(b"", script_pubkey=script.Script(bytes([OPCODES.OP_RETURN])))
+        ]))
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_a_transaction_with_only_op_return_outputs_reaches_them(self):
+        """
+        The psbt spends its whole input, less the fee, into a single OP_RETURN output, so
+        there is no recipient and no change.
+
+        The flow should go from the transaction math straight to the OP_RETURN screen,
+        rather than to a change screen with no change to show.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+        input_amount = psbt.inputs[0].utxo.value
+        psbt.outputs.clear()
+        psbt.outputs.append(create_op_return_output(b"proof of burn", value=input_amount - 10_000))
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+            FlowStep(MainMenuView),
+        ])

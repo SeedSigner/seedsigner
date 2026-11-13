@@ -83,7 +83,12 @@ mnemonic_12b = ["abandon"] * 11 + ["about"]
 seed_12b = Seed(mnemonic=mnemonic_12b, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
 
 def add_op_return_to_psbt(psbt: PSBT, raw_payload_data: bytes):
-    script = op_return_script(raw_payload_data)
+    if raw_payload_data:
+        script = op_return_script(raw_payload_data)
+    else:
+        # A bare OP_RETURN, with no push at all. op_return_script(b"") would add an
+        # empty push.
+        script = Script(bytes([OPCODES.OP_RETURN]))
     output = OutputScope()
     output.script_pubkey = script
     output.value = 0
@@ -128,6 +133,9 @@ BASE64_PSBT_WITH_OP_RETURN_LONG = add_op_return_to_psbt(PSBT.from_base64(BASE64_
 # Too large even for paging. Bitcoin Core v30 allows up to 100,000 bytes by default, so
 # sizes like this are now ordinary.
 BASE64_PSBT_WITH_OP_RETURN_TRUNCATED = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), op_return_filler(4096))
+
+# A bare OP_RETURN: an output that exists and pushes nothing
+BASE64_PSBT_WITH_OP_RETURN_EMPTY = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), b"")
 
 mnemonic_12 = "forum undo fragile fade shy sign arrest garment culture tube off merit".split()
 mnemonic_24 = "attack pizza motion avocado network gather crop fresh patrol unusual wild holiday candy pony ranch winter theme error hybrid van cereal salon goddess expire".split()
@@ -491,6 +499,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_raw_hex_data", mock_context_manager=mock_psbt_with_op_return_raw_bytes_loaded),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, dict(page_num=1), screenshot_name="PSBTOpReturnView_paged",     mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_LONG)),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_truncated",                   mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_TRUNCATED)),
+                ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_empty",                       mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_EMPTY)),
                 ScreenshotConfig(psbt_views.PSBTSurplusDerivationPathsView),
                 ScreenshotConfig(psbt_views.PSBTMixedDerivationPathTypesView),
                 ScreenshotConfig(psbt_views.PSBTMalformedOpReturnView),

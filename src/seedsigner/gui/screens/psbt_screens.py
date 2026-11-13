@@ -834,6 +834,17 @@ class PSBTOpReturnScreen(ButtonListScreen):
         if not lines:
             screen_y += GUIConstants.COMPONENT_PADDING
 
+        if self.total_bytes == 0:
+            # Say so rather than leave a blank screen that looks like a rendering bug
+            self.components.append(TextArea(
+                # TRANSLATOR_NOTE: Shown in place of an OP_RETURN payload when the output carries no data
+                text=_("(no data)"),
+                font_color=GUIConstants.LABEL_FONT_COLOR,
+                screen_y=screen_y,
+                height=self.buttons[0].screen_y - screen_y - GUIConstants.COMPONENT_PADDING,
+            ))
+            return
+
         if not self.is_hex:
             # Simple case: display human-readable text
             self.components.append(TextArea(

@@ -244,7 +244,7 @@ class PSBTOverviewView(View):
             num_self_transfer_outputs=num_self_transfer_outputs,
             num_change_outputs=num_change_outputs,
             destination_addresses=psbt_parser.destination_addresses,
-            has_op_return=psbt_parser.op_return_data is not None,
+            has_op_return=psbt_parser.num_op_returns > 0,
             is_high_fee_tx=psbt_parser.is_high_fee,
         )
 
@@ -358,9 +358,17 @@ class PSBTMathView(View):
 
         if len(psbt_parser.destination_addresses) > 0:
             return Destination(PSBTAddressDetailsView, view_args={"address_num": 0})
-        else:
+
+        elif psbt_parser.num_change_outputs > 0:
             # This is a self-transfer
             return Destination(PSBTChangeDetailsView, view_args={"change_address_num": 0})
+
+        elif psbt_parser.num_op_returns > 0:
+            # No recipient and no change, so every output is an OP_RETURN
+            return Destination(PSBTOpReturnView)
+
+        else:
+            return Destination(PSBTFinalizeView)
 
 
 
@@ -412,7 +420,7 @@ class PSBTAddressDetailsView(View):
             # Move on to display change
             return Destination(PSBTChangeDetailsView, view_args={"change_address_num": 0})
 
-        elif psbt_parser.op_return_data:
+        elif psbt_parser.num_op_returns > 0:
             return Destination(PSBTOpReturnView)
 
         else:
@@ -518,7 +526,7 @@ class PSBTChangeDetailsView(View):
             if self.change_address_num < psbt_parser.num_change_outputs - 1:
                 return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
 
-            elif psbt_parser.op_return_data:
+            elif psbt_parser.num_op_returns > 0:
                 return Destination(PSBTOpReturnView)
 
             else:
@@ -1082,7 +1090,8 @@ class PSBTMissingInputUtxoView(View):
 
 class PSBTOpReturnView(View):
     """
-        Shows one page of the OP_RETURN data. `page_num` picks the page.
+        Shows one page of one OP_RETURN output's data. `op_return_num` picks the output
+        and `page_num` the page within it.
     """
 
     # TODO: Measure pages against the real screen instead of these fixed sizes, like
@@ -1103,8 +1112,9 @@ class PSBTOpReturnView(View):
     MAX_PAGES = 10
 
 
-    def __init__(self, page_num: int = 0):
+    def __init__(self, op_return_num: int = 0, page_num: int = 0):
         super().__init__()
+        self.op_return_num = op_return_num
         self.page_num = page_num
 
 
@@ -1150,6 +1160,10 @@ class PSBTOpReturnView(View):
 
         is_truncated = start < len(units)
 
+        if not pages:
+            # A bare OP_RETURN, one that pushes nothing, still gets a page
+            pages = [units]
+
         if is_hex:
             pages = [page.hex() for page in pages]
 
@@ -1164,10 +1178,13 @@ class PSBTOpReturnView(View):
             # Should not be able to get here
             raise Exception("Routing error")
 
-        payload = psbt_parser.op_return_data
+        payload = psbt_parser.op_return_data[self.op_return_num]
         pages, is_hex, is_truncated = PSBTOpReturnView.paginate(payload)
 
+        # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
         title = _("OP_RETURN")
+        if psbt_parser.num_op_returns > 1:
+            title += f" (#{self.op_return_num + 1})"
         button_data = [ButtonOption("Next")]
 
         # Count bytes, not characters: a page of text may hold multi-byte characters
@@ -1191,7 +1208,11 @@ class PSBTOpReturnView(View):
             return Destination(BackStackView)
 
         if self.page_num < len(pages) - 1:
-            return Destination(PSBTOpReturnView, view_args={"page_num": self.page_num + 1})
+            return Destination(PSBTOpReturnView, view_args={
+                "op_return_num": self.op_return_num, "page_num": self.page_num + 1})
+
+        elif self.op_return_num < psbt_parser.num_op_returns - 1:
+            return Destination(PSBTOpReturnView, view_args={"op_return_num": self.op_return_num + 1})
 
         return Destination(PSBTFinalizeView)
 
