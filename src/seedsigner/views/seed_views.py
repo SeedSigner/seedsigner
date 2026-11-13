@@ -75,6 +75,8 @@ class SeedSelectSeedView(View):
     SCAN_SEED = ButtonOption("Scan a seed", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_12NUMBER = ButtonOption("Enter 12-number seed", FontAwesomeIconConstants.CALCULATOR)
+    TYPE_24NUMBER = ButtonOption("Enter 24-number seed", FontAwesomeIconConstants.CALCULATOR)
     TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
 
 
@@ -112,6 +114,10 @@ class SeedSelectSeedView(View):
         button_data.append(self.SCAN_SEED)
         button_data.append(self.TYPE_12WORD)
         button_data.append(self.TYPE_24WORD)
+
+        if self.settings.get_value(SettingsConstants.SETTING__SEED_NUMBERS) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.TYPE_12NUMBER)
+            button_data.append(self.TYPE_24NUMBER)
 
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
@@ -151,6 +157,14 @@ class SeedSelectSeedView(View):
                 self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
+        elif button_data[selected_menu_num] in [self.TYPE_12NUMBER, self.TYPE_24NUMBER]:
+            from seedsigner.views.seed_numbers_views import SeedNumbersFormatView
+            if button_data[selected_menu_num] == self.TYPE_12NUMBER:
+                self.controller.storage.init_pending_mnemonic(num_words=12)
+            else:
+                self.controller.storage.init_pending_mnemonic(num_words=24)
+            return Destination(SeedNumbersFormatView)
+
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
             return Destination(SeedElectrumMnemonicStartView)
 
@@ -163,6 +177,8 @@ class LoadSeedView(View):
     SEED_QR = ButtonOption("Scan a SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_12NUMBER = ButtonOption("Enter 12-number seed", FontAwesomeIconConstants.CALCULATOR)
+    TYPE_24NUMBER = ButtonOption("Enter 24-number seed", FontAwesomeIconConstants.CALCULATOR)
     TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
     CREATE = ButtonOption("Create a seed", SeedSignerIconConstants.PLUS)
 
@@ -173,6 +189,10 @@ class LoadSeedView(View):
             self.TYPE_24WORD,
         ]
 
+        if self.settings.get_value(SettingsConstants.SETTING__SEED_NUMBERS) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.TYPE_12NUMBER)
+            button_data.append(self.TYPE_24NUMBER)
+        
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
         
@@ -199,6 +219,16 @@ class LoadSeedView(View):
         elif button_data[selected_menu_num] == self.TYPE_24WORD:
             self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
+        
+        elif button_data[selected_menu_num] == self.TYPE_12NUMBER:
+            self.controller.storage.init_pending_mnemonic(num_words=12)
+            from seedsigner.views.seed_numbers_views import SeedNumbersFormatView
+            return Destination(SeedNumbersFormatView)
+
+        elif button_data[selected_menu_num] == self.TYPE_24NUMBER:
+            self.controller.storage.init_pending_mnemonic(num_words=24)
+            from seedsigner.views.seed_numbers_views import SeedNumbersFormatView
+            return Destination(SeedNumbersFormatView)
 
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
             return Destination(SeedElectrumMnemonicStartView)
@@ -628,6 +658,7 @@ class SeedOptionsView(View):
 class SeedBackupView(View):
     VIEW_WORDS = ButtonOption("View seed words")
     EXPORT_SEEDQR = ButtonOption("Export as SeedQR")
+    VIEW_NUMBERS = ButtonOption("View seed numbers")
 
     def __init__(self, seed: Seed):
         super().__init__()
@@ -639,6 +670,9 @@ class SeedBackupView(View):
 
         if self.seed.seedqr_supported:
             button_data.append(self.EXPORT_SEEDQR)
+
+        if self.settings.get_value(SettingsConstants.SETTING__SEED_NUMBERS) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.VIEW_NUMBERS)
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -655,6 +689,10 @@ class SeedBackupView(View):
 
         elif button_data[selected_menu_num] == self.EXPORT_SEEDQR:
             return Destination(SeedTranscribeSeedQRFormatView, view_args={"seed": self.seed})
+
+        elif button_data[selected_menu_num] == self.VIEW_NUMBERS:
+            from seedsigner.views.seed_numbers_views import SeedNumbersWarningView
+            return Destination(SeedNumbersWarningView, view_args={"seed": self.seed})
 
 
 
@@ -1214,10 +1252,11 @@ class SeedWordsBackupTestPromptView(View):
     VERIFY = ButtonOption("Verify")
     SKIP = ButtonOption("Skip")
 
-    def __init__(self, seed: Seed, bip85_data: dict = None):
+    def __init__(self, seed: Seed, bip85_data: dict = None, numbers: bool = False):
         super().__init__()
         self.seed = seed
         self.bip85_data = bip85_data
+        self.numbers = numbers
 
 
     def run(self):
@@ -1228,6 +1267,12 @@ class SeedWordsBackupTestPromptView(View):
         )
 
         if button_data[selected_menu_num] == self.VERIFY:
+            if self.numbers:
+                from seedsigner.views.seed_numbers_views import SeedNumbersBackupTestView
+                return Destination(
+                    SeedNumbersBackupTestView,
+                    view_args=dict(seed=self.seed, bip85_data=self.bip85_data),
+                )
             return Destination(
                 SeedWordsBackupTestView,
                 view_args=dict(seed=self.seed, bip85_data=self.bip85_data),
