@@ -676,6 +676,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
     is_change_derivation_path: bool = True
     derivation_path_addr_index: int = 0
     is_change_addr_verified: bool = False
+    is_address_index_beyond_window: bool = False
 
     def __post_init__(self):
         # Customize defaults
@@ -716,19 +717,59 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
             max_lines=1,
         ))
 
+        # Each status line below the address is an icon and a short message
+        status_lines = []
         if self.is_change_addr_verified:
-            # How much empty space is left between the bottom of the addr and the first button?
-            available_y = self.buttons[0].screen_y - (self.components[-1].screen_y + self.components[-1].height)
-
-            self.components.append(IconTextLine(
+            status_lines.append(dict(
                 icon_name=SeedSignerIconConstants.SUCCESS,
                 icon_color=GUIConstants.SUCCESS_COLOR,
                 value_text=_("Address verified!"),
+            ))
+
+        if self.is_address_index_beyond_window:
+            status_lines.append(dict(
+                icon_name=SeedSignerIconConstants.WARNING,
+                icon_color=GUIConstants.WARNING_COLOR,
+                # TRANSLATOR_NOTE: Variable is an address index such as "#20000". Calls out that this address is far beyond the addresses being spent.
+                value_text=_("Distant index {}").format(f"{index_num_symbol}{self.derivation_path_addr_index}"),
+            ))
+
+        if len(status_lines) == 1:
+            # How much empty space is left between the bottom of the addr and the first button?
+            status_line_top = self.components[-1].screen_y + self.components[-1].height
+            available_y = self.buttons[0].screen_y - status_line_top
+
+            self.components.append(IconTextLine(
+                **status_lines[0],
                 is_text_centered=True,
                 screen_x=GUIConstants.EDGE_PADDING,
-                screen_y=self.components[-1].screen_y + self.components[-1].height,
+                screen_y=status_line_top,
                 height=available_y,  # Let the component auto-center vertically
             ))
+
+        elif len(status_lines) > 1:
+            # Space the lines by what is actually drawn, so the visible gaps above,
+            # between, and below them are equal. The address's characters run past the
+            # bottom of its box, and each line's icon rises above the top of its own box.
+            address = self.components[-1]
+            address_bottom = address.screen_y
+            for ((text_x, text_y), text, font_color, font) in address.text_params:
+                address_bottom = max(address_bottom, address.screen_y + text_y + font.getbbox(text)[3])
+
+            sample_line = IconTextLine(**status_lines[0])
+            icon_offset = sample_line.icon.screen_y - sample_line.screen_y
+            icon_height = sample_line.icon.height
+            gap = int((self.buttons[0].screen_y - address_bottom - len(status_lines) * icon_height) / (len(status_lines) + 1))
+
+            icon_y = address_bottom + gap
+            for status_line in status_lines:
+                self.components.append(IconTextLine(
+                    **status_line,
+                    is_text_centered=True,
+                    screen_x=GUIConstants.EDGE_PADDING,
+                    screen_y=icon_y - icon_offset,
+                ))
+                icon_y += icon_height + gap
 
 
 

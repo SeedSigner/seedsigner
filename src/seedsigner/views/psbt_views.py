@@ -2,14 +2,15 @@ import logging
 
 from gettext import gettext as _
 
-from seedsigner.models.psbt_parser import (PSBTExtraneousInputScriptError,
-    PSBTInputAmountVerificationError, PSBTInputOwnershipClaimError,
-    PSBTInputOwnershipContradictionError, PSBTInputScriptMismatchError,
-    PSBTMalformedOpReturnError, PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
-    PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
-    PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
-    PSBTSurplusDerivationPathsError, PSBTUnsupportedDerivationPathError,
-    PSBTUnsupportedScriptPathError)
+from seedsigner.models.psbt_parser import (PSBTChangeDerivationPathError,
+    PSBTExtraneousInputScriptError, PSBTInputAmountVerificationError,
+    PSBTInputOwnershipClaimError, PSBTInputOwnershipContradictionError,
+    PSBTInputScriptMismatchError, PSBTMalformedOpReturnError, PSBTMissingInputScriptError,
+    PSBTMissingInputUtxoError, PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError,
+    PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
+    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError,
+    PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError,
+    PSBTUnverifiableMixedInputBasePathsError)
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
@@ -115,6 +116,12 @@ class PSBTOverviewView(View):
 
             # Note that in almost every exception case, we set clear_history to disable
             # returning via BACK button in the Destination.
+            #
+            # TODO: Most of these except clauses route to a View of their own whose only
+            # job is to show a WarningScreen or DireWarningScreen and discard the psbt.
+            # Replace them with a dict that maps each error type to its warning level and
+            # user-facing message, shown by one generic View (as PSBTWarningView does for
+            # the non-fatal warnings).
             except PSBTInputOwnershipClaimError:
                 self.set_redirect(Destination(PSBTInputOwnershipClaimFailedView, clear_history=True))
                 return
@@ -167,6 +174,18 @@ class PSBTOverviewView(View):
                 self.set_redirect(Destination(PSBTNegativeFeeView, clear_history=True))
                 return
 
+            except PSBTChangeDerivationPathError as e:
+                self.set_redirect(Destination(
+                    PSBTUnexpectedChangeDerivationPathView,
+                    view_args=dict(derivation_path=e.derivation_path),
+                    clear_history=True,
+                ))
+                return
+
+            except PSBTUnverifiableMixedInputBasePathsError:
+                self.set_redirect(Destination(PSBTUnverifiableMixedInputBasePathsView, clear_history=True))
+                return
+
             except PSBTSeedCannotSignError:
                 # Not a suspicious psbt, just the wrong seed for it. Send the user back to
                 # pick another rather than clearing the flow.
@@ -203,6 +222,7 @@ class PSBTOverviewView(View):
                     'amount': 397621401, 
                     'verified_derivation_path':
                         [2147483696, 2147483649, 2147483648, 2147483650, 1, 0],
+                    'address_index_beyond_window': False,
                 }, {},
             ]
         """
@@ -232,94 +252,77 @@ class PSBTOverviewView(View):
             self.controller.psbt_seed = None
             return Destination(BackStackView)
 
-        # expecting p2sh (legacy multisig) and p2pkh to have no policy set
-        # skip change warning and psbt math view
-        if psbt_parser.policy == None:
-            return Destination(PSBTUnsupportedScriptTypeWarningView)
-
-        elif psbt_parser.is_high_fee:
-            return Destination(PSBTHighFeeWarningView, view_args={"warning_threshold_percent": psbt_parser.HIGH_FEES_WARNING_THRESHOLD})
-        
-        elif psbt_parser.change_amount == 0:
-            return Destination(PSBTNoChangeWarningView)
+        if len(psbt_parser.warnings) > 0:
+            return Destination(PSBTWarningView)
 
         else:
             return Destination(PSBTMathView)
 
 
 
-class PSBTUnsupportedScriptTypeWarningView(View):
-    def run(self):
-        selected_menu_num = self.run_screen(
-            WarningScreen,
-            status_headline=_("Unsupported Script Type!"),
-            text=_("Transaction has unsupported input script type, please verify your change addresses."),
-            button_data=[ButtonOption("Continue")],
-        )
-        
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-        
-        # Only one exit point
-        # skip PSBTMathView
-        return Destination(
-            PSBTAddressDetailsView, view_args={"address_num": 0},
-            skip_current_view=True,  # Prevent going BACK to WarningViews
-        )
+class PSBTWarningView(View):
+    """
+    Shows the psbt's warning at warning_index and then moves on to the next one. Once
+    every warning has been shown, redirects to PSBTMathView instead.
+    """
+    CONTINUE = ButtonOption("Continue")
 
-
-
-class PSBTNoChangeWarningView(View):
-    def run(self):
-        selected_menu_num = self.run_screen(
-            WarningScreen,
-            # TRANSLATOR_NOTE: User will receive no change back; the inputs to this transaction are fully spent
-            status_headline=_("Full Spend!"),
-            text=_("This transaction spends its entire input value. No change is coming back to your wallet."),
-            button_data=[ButtonOption("Continue")],
-        )
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-        # Only one exit point
-        return Destination(
-            PSBTMathView,
-            skip_current_view=True,  # Prevent going BACK to WarningViews
-        )
-
-
-
-class PSBTHighFeeWarningView(View):
-    def __init__(self, warning_threshold_percent: int):
+    def __init__(self, warning_index: int = 0):
         super().__init__()
-        
-        self.warning_threshold_percent = warning_threshold_percent
-    
+        self.warning_index = warning_index
+
+        if warning_index >= len(self.controller.psbt_parser.warnings):
+            self.set_redirect(Destination(PSBTMathView))
+            return
+
+
     def run(self):
-        selected_menu_num = self.run_screen(
-            DireWarningScreen,
-            status_headline=_("High Fee!"),
+        warning = self.controller.psbt_parser.warnings[self.warning_index]
+        if warning == PSBTParser.WARNING__HIGH_FEE:
+            Screen_cls = DireWarningScreen
+            status_headline = _("High Fee!")
             # TRANSLATOR_NOTE: Variable is the percentage of the total output value (excluding change) that the fee exceeds. (e.g. "This transaction has a fee higher than 25% of the total output value (excluding change).")
-            text=_("This transaction has a fee higher than {}% of the total output value (excluding change).").format(self.warning_threshold_percent),
-            button_data=[ButtonOption("Continue")],
-        )
+            text = _("This transaction has a fee higher than {}% of the total output value (excluding change).").format(PSBTParser.HIGH_FEES_WARNING_THRESHOLD)
 
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+        elif warning == PSBTParser.WARNING__NO_CHANGE:
+            Screen_cls = WarningScreen
+            # TRANSLATOR_NOTE: User will receive no change back; the inputs to this transaction are fully spent
+            status_headline = _("Full Spend!")
+            text = _("This transaction spends its entire input value. No change is coming back to your wallet.")
 
-        # PSBT may have high fee + no change
-        if self.controller.psbt_parser.change_amount == 0:
-            return Destination(
-                PSBTNoChangeWarningView,
-                skip_current_view=True,  # Prevent going BACK to WarningViews
-            )
+        elif warning == PSBTParser.WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW:
+            # Change or a self-transfer comes back to a derivation path this wallet does
+            # use, but at an address index further along than the coins being spent
+            # suggest it has reached.
+            #
+            # We warn and let the user continue rather than discarding the psbt. We are
+            # offline and cannot see how far the coordinator has handed out addresses, so
+            # the address index is the one change rule we can only guess at. An ordinary
+            # transaction from an active wallet can trip it.
+            Screen_cls = WarningScreen
+            # TRANSLATOR_NOTE: Warns that funds are coming back to the user's own wallet (as change or a self-transfer) at an address far beyond the ones this transaction spends from, which their wallet may not look far enough ahead to find.
+            status_headline = _("Distant Address")
+            text = _("Funds return to an address far beyond the ones being spent. Your wallet may not find them.")
 
         else:
-            return Destination(
-                PSBTMathView,
-                skip_current_view=True,  # Prevent going BACK to WarningViews
-            )
+            raise Exception(f"Unhandled psbt warning: {warning}")
+
+        selected_menu_num = self.run_screen(
+            Screen_cls,
+            status_headline=status_headline,
+            text=text,
+            button_data=[self.CONTINUE],
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # Only one exit point
+        return Destination(
+            PSBTWarningView,
+            view_args=dict(warning_index=self.warning_index + 1),
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
 
 
 
@@ -446,13 +449,12 @@ class PSBTChangeDetailsView(View):
                 'amount': 397621401, 
                 'verified_derivation_path':
                     [2147483696, 2147483649, 2147483648, 2147483650, 1, 0],
+                'address_index_beyond_window': False,
             }
         """
         seed_fingerprint = self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
         verified_derivation_path = change_data.get("verified_derivation_path")
         is_change_derivation_path = PSBTParser.is_change_branch(verified_derivation_path)
-
-        # TODO: Refuse a path too short to carry a branch and an address index
         derivation_path_addr_index = verified_derivation_path[-1]
 
         if is_change_derivation_path:
@@ -506,6 +508,7 @@ class PSBTChangeDetailsView(View):
             is_change_derivation_path=is_change_derivation_path,
             derivation_path_addr_index=derivation_path_addr_index,
             is_change_addr_verified=is_change_addr_verified,
+            is_address_index_beyond_window=change_data["address_index_beyond_window"],
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -900,7 +903,7 @@ class PSBTExtraneousInputScriptView(View):
 
 class PSBTUnsupportedScriptPathView(View):
     """
-    Reached when this seed can sign an input only through a taproot script path spend
+    Reached when an input only lets this seed sign through a taproot script path spend
     (see PSBTUnsupportedScriptPathError).
 
     Script path spends are not yet supported, so this seed cannot sign the input. We do
@@ -914,6 +917,72 @@ class PSBTUnsupportedScriptPathView(View):
             title=_("Not Yet Implemented"),
             status_headline=None,
             text=_("This transaction needs a taproot script path signature."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTUnexpectedChangeDerivationPathView(View):
+    """
+    Reached when an output comes back to this seed at a derivation path the wallet this
+    transaction spends from does not use (see PSBTChangeDerivationPathError). Single sig
+    and multisig alike.
+
+    The coins still belong to the user's seed, but their coordinator software will never
+    scan that path to find them. We view this as an attack. We do not allow the user to
+    continue and give this the "Dire Warning" level. The path is displayed and named as a
+    derivation path, which gives the user a term to search for.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def __init__(self, derivation_path: list[int]):
+        super().__init__()
+        self.derivation_path = derivation_path
+
+
+    def run(self):
+        from embit import bip32
+
+        self.run_screen(
+            DireWarningScreen,
+            title=_("Suspicious Transaction"),
+            status_headline=_("Unsafe Derivation Path"),
+            # TRANSLATOR_NOTE: Variable is a derivation path such as "m/84'/0'/0'/5/0", shown on its own line, where this transaction sends funds back to the user's seed. "Our" refers to SeedSigner.
+            text=_("{}\nfailed our safety checks.").format(bip32.path_to_str(self.derivation_path).replace("h", "'")),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTUnverifiableMixedInputBasePathsView(View):
+    """
+    Reached by single sig segwit v0 transactions when the inputs this seed signs are at
+    more than one base path and at least one input has no non_witness_utxo (the full
+    transaction that created its utxo). See PSBTUnverifiableMixedInputBasePathsError.
+
+    We do not allow the user to continue, but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: This transaction includes inputs from multiple wallets (accounts) controlled by this seed. This can be allowed for some script types, but not this one.
+            text=_("Inputs from multiple wallets: cannot complete verification for this script type."),
             button_data=[self.DISCARD],
             show_back_button=False,
         )
