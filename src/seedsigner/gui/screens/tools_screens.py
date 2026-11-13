@@ -583,6 +583,7 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
     wallet_descriptor_display_name: Any = None
     script_type: str = None
     custom_derivation_path: str = None
+    account_derivation_path: str = None  # set when a non-default account index is selected
 
     def __post_init__(self):
         # TRANSLATOR_NOTE: a label for the tool to explore public addresses for this seed.
@@ -601,7 +602,16 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
             ))
 
-            if self.script_type != SettingsConstants.CUSTOM_DERIVATION:
+            if self.script_type != SettingsConstants.CUSTOM_DERIVATION and self.account_derivation_path:
+                self.components.append(IconTextLine(
+                    icon_name=SeedSignerIconConstants.DERIVATION,
+                    # l10n_note already exists.
+                    label_text=_("Derivation"),
+                    value_text=self.account_derivation_path,
+                    screen_x=GUIConstants.EDGE_PADDING,
+                    screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+                ))
+            elif self.script_type != SettingsConstants.CUSTOM_DERIVATION:
                 self.components.append(IconTextLine(
                     icon_name=SeedSignerIconConstants.DERIVATION,
                     # TRANSLATOR_NOTE: a label for the derivation-path into a BIP-32 HD wallet

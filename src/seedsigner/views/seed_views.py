@@ -697,6 +697,20 @@ class SeedExportXpubScriptTypeView(View):
         self.sig_type = sig_type
 
 
+    def _should_select_account_index(self, script_type: str) -> bool:
+        """
+            The account index selection step is only shown when enabled in Settings,
+            the script type has a standard path with an account level, and the seed
+            doesn't force its own derivation path (e.g. Electrum seeds).
+        """
+        from seedsigner.helpers import embit_utils
+        if self.settings.get_value(SettingsConstants.SETTING__ACCOUNT_INDEX) != SettingsConstants.OPTION__ENABLED:
+            return False
+        if self.seed.derivation_override(self.sig_type):
+            return False
+        return embit_utils.supports_account_index(wallet_type=self.sig_type, script_type=script_type)
+
+
     def run(self):
         from seedsigner.controller import Controller
         from .tools_views import ToolsAddressExplorerAddressTypeView
@@ -713,6 +727,9 @@ class SeedExportXpubScriptTypeView(View):
         if len(script_types) == 1:
             # Nothing to select; skip this screen
             args["script_type"] = script_types[0]
+
+            if self._should_select_account_index(args["script_type"]):
+                return Destination(SeedExportXpubAccountIndexView, view_args=args, skip_current_view=True)
 
             if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
                 del args["sig_type"]
@@ -749,11 +766,100 @@ class SeedExportXpubScriptTypeView(View):
             if args["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
                 return Destination(SeedExportXpubCustomDerivationView, view_args=args)
 
+            if self._should_select_account_index(args["script_type"]):
+                return Destination(SeedExportXpubAccountIndexView, view_args=args)
+
             if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
                 del args["sig_type"]
                 return Destination(ToolsAddressExplorerAddressTypeView, view_args=args)
             else:
                 return Destination(SeedExportXpubQRFormatView, view_args=args)
+
+
+
+class SeedExportXpubAccountIndexView(View):
+    """
+        Optional step (see `SettingsConstants.SETTING__ACCOUNT_INDEX`) to select the
+        BIP-44-style account level of a standard derivation path, e.g.
+        `m/84'/0'/{account}'` or `m/48'/0'/{account}'/2'`. Defaults to account 0.
+    """
+    def __init__(self, seed: Seed, sig_type: str, script_type: str):
+        super().__init__()
+        self.seed = seed
+        self.sig_type = sig_type
+        self.script_type = script_type
+
+
+    def run(self):
+        from seedsigner.controller import Controller
+        from seedsigner.helpers import embit_utils
+
+        ret = self.run_screen(
+            seed_screens.SeedExportXpubAccountIndexScreen,
+            initial_value="0",
+        )
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # An empty entry is treated as the default account 0
+        ret = ret.strip() if ret else ""
+        if ret == "":
+            ret = "0"
+
+        if not ret.isdigit() or not 0 <= int(ret) <= embit_utils.MAX_ACCOUNT_INDEX:
+            return Destination(
+                SeedExportXpubInvalidAccountIndexView,
+                view_args=dict(seed=self.seed, sig_type=self.sig_type, script_type=self.script_type),
+                skip_current_view=True,
+            )
+
+        account = int(ret)
+
+        if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+            from .tools_views import ToolsAddressExplorerAddressTypeView
+            return Destination(
+                ToolsAddressExplorerAddressTypeView,
+                view_args=dict(seed=self.seed, script_type=self.script_type, account=account)
+            )
+
+        return Destination(
+            SeedExportXpubQRFormatView,
+            view_args=dict(
+                seed=self.seed,
+                sig_type=self.sig_type,
+                script_type=self.script_type,
+                account=account,
+            )
+        )
+
+
+
+class SeedExportXpubInvalidAccountIndexView(View):
+    def __init__(self, seed: Seed, sig_type: str, script_type: str):
+        super().__init__()
+        self.seed = seed
+        self.sig_type = sig_type
+        self.script_type = script_type
+
+
+    def run(self):
+        self.run_screen(
+            DireWarningScreen,
+            # TRANSLATOR_NOTE: Title of the error screen shown when an invalid account number is entered
+            title=_("Account Error"),
+            show_back_button=False,
+            status_icon_name=SeedSignerIconConstants.ERROR,
+            status_headline=_("Invalid Account Index"),
+            text=_("Account index must be between 0 and 2^31-1."),
+            button_data=[ButtonOption("Try again")]
+        )
+
+        return Destination(
+            SeedExportXpubAccountIndexView,
+            view_args=dict(seed=self.seed, sig_type=self.sig_type, script_type=self.script_type),
+            skip_current_view=True
+        )
 
 
 
@@ -796,12 +902,13 @@ class SeedExportXpubCustomDerivationView(View):
 
 
 class SeedExportXpubQRFormatView(View):
-    def __init__(self, seed: Seed, sig_type: str, script_type: str, custom_derivation: str = None):
+    def __init__(self, seed: Seed, sig_type: str, script_type: str, custom_derivation: str = None, account: int = 0):
         super().__init__()
         self.seed = seed
         self.sig_type = sig_type
         self.script_type = script_type
         self.custom_derivation = custom_derivation
+        self.account = account
 
 
     def run(self):
@@ -810,6 +917,7 @@ class SeedExportXpubQRFormatView(View):
             "sig_type": self.sig_type,
             "script_type": self.script_type,
             "custom_derivation": self.custom_derivation,
+            "account": self.account,
         }
         if len(self.settings.get_value(SettingsConstants.SETTING__XPUB_QR_FORMAT)) == 1:
             # Nothing to select; skip this screen
@@ -838,13 +946,14 @@ class SeedExportXpubQRFormatView(View):
 
 
 class SeedExportXpubWarningView(View):
-    def __init__(self, seed: Seed, sig_type: str, script_type: str, xpub_qr_format: str, custom_derivation: str):
+    def __init__(self, seed: Seed, sig_type: str, script_type: str, xpub_qr_format: str, custom_derivation: str, account: int = 0):
         super().__init__()
         self.seed = seed
         self.sig_type = sig_type
         self.script_type = script_type
         self.xpub_qr_format = xpub_qr_format
         self.custom_derivation = custom_derivation
+        self.account = account
 
 
     def run(self):
@@ -856,6 +965,7 @@ class SeedExportXpubWarningView(View):
                 "script_type": self.script_type,
                 "xpub_qr_format": self.xpub_qr_format,
                 "custom_derivation": self.custom_derivation,
+                "account": self.account,
             },
             skip_current_view=True,  # Prevent going BACK to WarningViews
         )
@@ -884,12 +994,13 @@ class SeedExportXpubDetailsView(View):
         Collects the user input from all the previous screens leading up to this and
         finally calculates the xpub and displays the summary view to the user.
     """
-    def __init__(self, seed: Seed, sig_type: str, script_type: str, xpub_qr_format: str, custom_derivation: str):
+    def __init__(self, seed: Seed, sig_type: str, script_type: str, xpub_qr_format: str, custom_derivation: str, account: int = 0):
         super().__init__()
         self.sig_type = sig_type
         self.script_type = script_type
         self.xpub_qr_format = xpub_qr_format
         self.custom_derivation = custom_derivation
+        self.account = account
         
         self.seed = seed
 
@@ -905,7 +1016,8 @@ class SeedExportXpubDetailsView(View):
             derivation_path = embit_utils.get_standard_derivation_path(
                 network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
                 wallet_type=self.sig_type,
-                script_type=self.script_type
+                script_type=self.script_type,
+                account=self.account,
             )
 
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__DISABLED:

@@ -573,10 +573,11 @@ class ToolsAddressExplorerAddressTypeView(View):
     CHANGE = ButtonOption("Change addresses")
 
 
-    def __init__(self, seed: Seed = None, script_type: str = None, custom_derivation: str = None):
+    def __init__(self, seed: Seed = None, script_type: str = None, custom_derivation: str = None, account: int = 0):
         """
             If the explorer source is a seed, `seed` and `script_type` must be
-            specified. `custom_derivation` can be specified as needed.
+            specified. `custom_derivation` can be specified as needed. `account`
+            selects the account level of a standard derivation path (default 0).
 
             If the source is a multisig or single sig wallet descriptor, `seed`,
             `script_type`, and `custom_derivation` should be `None`.
@@ -585,6 +586,8 @@ class ToolsAddressExplorerAddressTypeView(View):
         self.seed = seed
         self.script_type = script_type
         self.custom_derivation = custom_derivation
+        self.account = account
+        self.derivation_path = None
     
         self.network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
 
@@ -609,8 +612,10 @@ class ToolsAddressExplorerAddressTypeView(View):
                     network=self.network,
                     wallet_type=SettingsConstants.SINGLE_SIG,
                     script_type=self.script_type,
+                    account=self.account,
                 )
 
+            self.derivation_path = derivation_path
             data["derivation_path"] = derivation_path
             data["xpub"] = self.seed.get_xpub(derivation_path, network=self.network)
         
@@ -644,6 +649,8 @@ class ToolsAddressExplorerAddressTypeView(View):
             wallet_descriptor_display_name=wallet_descriptor_display_name,
             script_type=script_type,
             custom_derivation_path=self.custom_derivation,
+            # Show the full path when a non-default account was selected
+            account_derivation_path=self.derivation_path if self.account else None,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:

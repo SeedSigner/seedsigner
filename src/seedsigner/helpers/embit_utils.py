@@ -19,8 +19,23 @@ from seedsigner.models.settings_definition import SettingsConstants
 # TODO: PR these directly into `embit`? Or replace with new/existing methods already in `embit`?
 
 
+# BIP-32 hardened child indices must be < 2^31
+MAX_ACCOUNT_INDEX = 2**31 - 1
+
+
+
 # TODO: Refactor `wallet_type` to conform to our `sig_type` naming convention
-def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, script_type: str = SettingsConstants.NATIVE_SEGWIT) -> str:
+def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, script_type: str = SettingsConstants.NATIVE_SEGWIT, account: int = 0) -> str:
+    """
+        Returns the standard derivation path for the specified network, wallet type,
+        and script type.
+
+        `account` sets the (hardened) BIP-44-style account level of the path; e.g.
+        `m/84'/0'/{account}'` or `m/48'/0'/{account}'/2'`. Defaults to 0.
+
+        Note: BIP-45 legacy multisig (`m/45'`) has no account level; a non-zero
+        `account` is rejected for that script type.
+    """
     if network == SettingsConstants.MAINNET:
         network_path = "0'"
     elif network == SettingsConstants.TESTNET:
@@ -30,31 +45,51 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
     else:
         raise Exception("Unexpected network")
 
+    if type(account) is not int or not 0 <= account <= MAX_ACCOUNT_INDEX:
+        raise ValueError(f"Invalid account index: {account}")
+
+    account_path = f"{account}'"
+
     if wallet_type == SettingsConstants.SINGLE_SIG:
         if script_type == SettingsConstants.LEGACY_P2PKH:
-            return f"m/44'/{network_path}/0'"
+            return f"m/44'/{network_path}/{account_path}"
         elif script_type == SettingsConstants.NESTED_SEGWIT:
-            return f"m/49'/{network_path}/0'"
+            return f"m/49'/{network_path}/{account_path}"
         elif script_type == SettingsConstants.NATIVE_SEGWIT:
-            return f"m/84'/{network_path}/0'"
+            return f"m/84'/{network_path}/{account_path}"
         elif script_type == SettingsConstants.TAPROOT:
-            return f"m/86'/{network_path}/0'"
+            return f"m/86'/{network_path}/{account_path}"
         else:
             raise Exception("Unexpected script type")
 
     elif wallet_type == SettingsConstants.MULTISIG:
         if script_type == SettingsConstants.LEGACY_P2PKH:
+            if account != 0:
+                raise ValueError("BIP-45 legacy multisig does not support an account index")
             return f"m/45'" #BIP-45
         elif script_type == SettingsConstants.NESTED_SEGWIT:
-            return f"m/48'/{network_path}/0'/1'"
+            return f"m/48'/{network_path}/{account_path}/1'"
         elif script_type == SettingsConstants.NATIVE_SEGWIT:
-            return f"m/48'/{network_path}/0'/2'"
+            return f"m/48'/{network_path}/{account_path}/2'"
         elif script_type == SettingsConstants.TAPROOT:
             raise Exception("Taproot multisig not yet supported")
         else:
             raise Exception("Unexpected script type")
     else:
         raise Exception("Unexpected wallet type")    # checks that all inputs are from the same wallet
+
+
+
+def supports_account_index(wallet_type: str, script_type: str) -> bool:
+    """
+        Returns True if the standard derivation path for this wallet type / script
+        type combination has a user-selectable account level.
+    """
+    if script_type == SettingsConstants.CUSTOM_DERIVATION:
+        return False
+    if wallet_type == SettingsConstants.MULTISIG and script_type in [SettingsConstants.LEGACY_P2PKH, SettingsConstants.TAPROOT]:
+        return False
+    return True
 
 
 
