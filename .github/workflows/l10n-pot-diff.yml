@@ -1,0 +1,113 @@
+# Computes the source-string diff for a feature PR.
+#
+# This runs in the PR context, which is untrusted for fork PRs, so it has no
+# secrets and a read-only token. It can safely run PR code (extract_messages)
+# because it has no write access and nothing to leak. It regenerates the catalog
+# from both the base branch source and the PR head source and diffs them, so the
+# result reflects exactly the source strings this PR changes -- it never reads
+# the committed messages.pot, which is maintained automatically after merge. The
+# schema-constrained manifest it uploads is turned into a PR comment by the
+# l10n-pot-comment workflow.
+name: l10n source-string diff
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "setup.cfg"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: l10n-pot-diff-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          submodules: false
+
+      - name: Fetch base branch
+        id: base
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          git fetch --quiet --depth 1 origin "$BASE_REF"
+          echo "base_sha=$(git rev-parse "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python -m pip install --quiet -r l10n/requirements-l10n.txt
+
+      - name: Regenerate catalog from base and head source
+        id: regen
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -uo pipefail
+          ok=true
+
+          # Head catalog: extracted from the checked-out PR source.
+          python setup.py extract_messages -o head.pot || ok=false
+          [ -s head.pot ] || { : > head.pot; ok=false; }
+
+          # Base catalog: extracted from the base branch in a detached worktree,
+          # so the checked-out head tree is untouched. Falls back to the
+          # committed catalog if base extraction is unavailable.
+          base_ok=true
+          git worktree add --quiet --detach .l10n-base "origin/$BASE_REF" \
+            && ( cd .l10n-base && python setup.py extract_messages -o "$GITHUB_WORKSPACE/base.pot" ) \
+            || base_ok=false
+          git worktree remove --force .l10n-base 2>/dev/null || true
+          if [ "$base_ok" != true ] || [ ! -s base.pot ]; then
+            git show "origin/$BASE_REF:l10n/messages.pot" > base.pot 2>/dev/null || : > base.pot
+            ok=false
+          fi
+
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
+      - name: Build review manifest
+        env:
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ steps.base.outputs.base_sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          REGEN_OK: ${{ steps.regen.outputs.ok }}
+        run: |
+          set -euo pipefail
+          python l10n/automation/pot_diff.py \
+            --base base.pot \
+            --head head.pot \
+            --repository "$REPO" \
+            --pr-number "$PR_NUMBER" \
+            --head-sha "$HEAD_SHA" \
+            --base-sha "$BASE_SHA" \
+            --base-ref "$BASE_REF" \
+            --regen-ok "$REGEN_OK" \
+            --out manifest.json
+          echo "::group::manifest.json"
+          cat manifest.json
+          echo "::endgroup::"
+
+      - name: Upload manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: l10n-review-manifest
+          path: manifest.json
+          if-no-files-found: error
+          retention-days: 7
