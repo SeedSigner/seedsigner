@@ -2055,7 +2055,10 @@ class MultisigWalletDescriptorView(View):
 
         fingerprints = []
         for key in descriptor.keys:
-            fingerprint = hexlify(key.fingerprint).decode()
+            if key.fingerprint:
+                fingerprint = hexlify(key.fingerprint).decode()
+            else:
+                fingerprint = "????????"
             fingerprints.append(fingerprint)
         
         from seedsigner.helpers.embit_utils import get_multisig_policy
@@ -2092,6 +2095,16 @@ class MultisigWalletDescriptorView(View):
             return Destination(PSBTChangeDetailsView, view_args=dict(change_address_num=0))
 
         elif button_data[selected_menu_num].button_label.startswith(_(self.VERIFY_ADDR.button_label)):
+            network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+            loaded_fingerprints = [
+                seed.get_fingerprint(network=network)
+                for seed in self.controller.storage.seeds
+            ]
+            has_matching_seed = any(fp in loaded_fingerprints for fp in fingerprints if fp != "????????")
+
+            if not has_matching_seed:
+                return Destination(MultisigNoMatchingSeedWarningView)
+
             self.controller.resume_main_flow = None
             return Destination(SeedAddressVerificationView)
 
@@ -2101,6 +2114,32 @@ class MultisigWalletDescriptorView(View):
             return Destination(ToolsAddressExplorerAddressTypeView)
 
         return Destination(MainMenuView)
+
+
+class MultisigNoMatchingSeedWarningView(View):
+    """
+    Warns the user when verifying a multisig address if none of the descriptor keys
+    match any seed currently loaded on the device (Issue #1019).
+    """
+    CONTINUE = ButtonOption("Continue anyway")
+    CANCEL = ButtonOption("Cancel")
+
+    def run(self):
+        button_data = [self.CONTINUE, self.CANCEL]
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("Caution"),
+            status_headline=_("No Matching Seed!"),
+            text=_("None of the keys in this multisig descriptor match any seed currently loaded on your device."),
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON or button_data[selected_menu_num] == self.CANCEL:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.CONTINUE:
+            self.controller.resume_main_flow = None
+            return Destination(SeedAddressVerificationView, skip_current_view=True)
 
 
 
