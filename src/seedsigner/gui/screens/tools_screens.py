@@ -322,6 +322,11 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
             FontAwesomeIconConstants.DICE_SIX: "6",
         }
 
+        # Any click can confirm the highlighted die: joystick center press and
+        # all three side buttons (KEY1, KEY2, KEY3). Matches how the
+        # ButtonListScreens already accept `KEYS__ANYCLICK` to select an entry.
+        self.key_confirm_inputs = HardwareButtonsConstants.KEYS__ANYCLICK
+
         # Now initialize the parent class
         super().__post_init__()
     
