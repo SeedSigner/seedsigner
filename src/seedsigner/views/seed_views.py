@@ -349,10 +349,14 @@ class SeedAddPassphraseView(View):
     """
     initial_keyboard: used by the screenshot generator to render each different keyboard layout.
     """
-    def __init__(self, initial_keyboard: str = seed_screens.SeedAddPassphraseScreen.KEYBOARD__LOWERCASE_BUTTON_TEXT):
+    def __init__(self, seed: Seed = None, original_passphrase: str = None, initial_keyboard: str = seed_screens.SeedAddPassphraseScreen.KEYBOARD__LOWERCASE_BUTTON_TEXT):
         super().__init__()
         self.initial_keyboard = initial_keyboard
-        self.seed = self.controller.storage.get_pending_seed()
+        self.seed = seed if seed is not None else self.controller.storage.get_pending_seed()
+        if original_passphrase is not None:
+            self.original_passphrase = original_passphrase
+        else:
+            self.original_passphrase = self.seed.passphrase
 
 
     def run(self):
@@ -368,10 +372,10 @@ class SeedAddPassphraseView(View):
         self.seed.set_passphrase(ret_dict["passphrase"])
 
         if "is_back_button" in ret_dict or len(self.seed.passphrase) == 0:
-            return Destination(SeedAddPassphraseExitDialogView)
+            return Destination(SeedAddPassphraseExitDialogView, view_args={"seed": self.seed, "original_passphrase": self.original_passphrase})
                     
         else:
-            return Destination(SeedReviewPassphraseView)
+            return Destination(SeedReviewPassphraseView, view_args={"seed": self.seed, "original_passphrase": self.original_passphrase})
 
 
 
@@ -380,9 +384,10 @@ class SeedAddPassphraseExitDialogView(View):
     DISCARD = ButtonOption("Discard passphrase", button_label_color="red")
     SKIP = ButtonOption("Skip passphrase")  # NOT red since we're not throwing anything away
 
-    def __init__(self):
+    def __init__(self, seed: Seed = None, original_passphrase: str = None):
         super().__init__()
-        self.seed = self.controller.storage.get_pending_seed()
+        self.seed = seed if seed is not None else self.controller.storage.get_pending_seed()
+        self.original_passphrase = original_passphrase
 
 
     def run(self):
@@ -405,11 +410,18 @@ class SeedAddPassphraseExitDialogView(View):
         )
 
         if button_data[selected_menu_num] == self.EDIT:
-            return Destination(SeedAddPassphraseView)
+            return Destination(SeedAddPassphraseView, view_args={"seed": self.seed, "original_passphrase": self.original_passphrase})
 
         elif button_data[selected_menu_num] in [self.DISCARD, self.SKIP]:
-            self.seed.set_passphrase("")
-            return Destination(SeedFinalizeView)
+            if self.controller.storage.get_pending_seed() is not None:
+                self.seed.set_passphrase("")
+                return Destination(SeedFinalizeView)
+            else:
+                if button_data[selected_menu_num] == self.DISCARD and self.original_passphrase is not None:
+                    self.seed.set_passphrase(self.original_passphrase)
+                else:
+                    self.seed.set_passphrase("")
+                return Destination(SeedOptionsView, view_args={"seed": self.seed})
         
 
 
@@ -420,9 +432,10 @@ class SeedReviewPassphraseView(View):
     EDIT = ButtonOption("Edit passphrase")
     DONE = ButtonOption("Done")
 
-    def __init__(self):
+    def __init__(self, seed: Seed = None, original_passphrase: str = None):
         super().__init__()
-        self.seed = self.controller.storage.get_pending_seed()
+        self.seed = seed if seed is not None else self.controller.storage.get_pending_seed()
+        self.original_passphrase = original_passphrase
 
 
     def run(self):
@@ -448,10 +461,13 @@ class SeedReviewPassphraseView(View):
         )
 
         if button_data[selected_menu_num] == self.EDIT:
-            return Destination(SeedAddPassphraseView)
+            return Destination(SeedAddPassphraseView, view_args={"seed": self.seed, "original_passphrase": self.original_passphrase})
         
         elif button_data[selected_menu_num] == self.DONE:
-            seed = self.controller.storage.finalize_pending_seed()
+            if self.controller.storage.get_pending_seed() is not None:
+                seed = self.controller.storage.finalize_pending_seed()
+            else:
+                seed = self.seed
             return Destination(SeedOptionsView, view_args={"seed": seed}, clear_history=True)
             
 
@@ -531,6 +547,7 @@ class SeedOptionsView(View):
     EXPLORER = ButtonOption("Address explorer")
     SIGN_MESSAGE = ButtonOption("Sign message")
     BACKUP = ButtonOption("Backup seed", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
+    PASSPHRASE = ButtonOption("Passphrase")
     BIP85_CHILD_SEED = ButtonOption("BIP-85 child seed")
     DISCARD = ButtonOption("Discard seed", button_label_color="red")
 
@@ -580,6 +597,10 @@ class SeedOptionsView(View):
 
         if self.settings.get_value(SettingsConstants.SETTING__MESSAGE_SIGNING) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.SIGN_MESSAGE)
+
+        if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) != SettingsConstants.OPTION__DISABLED:
+            self.PASSPHRASE.button_label = self.seed.passphrase_label
+            button_data.append(self.PASSPHRASE)
         
         if self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__ENABLED and self.seed.bip85_supported:
             button_data.append(self.BIP85_CHILD_SEED)
@@ -616,6 +637,9 @@ class SeedOptionsView(View):
 
         elif button_data[selected_menu_num] == self.BACKUP:
             return Destination(SeedBackupView, view_args=dict(seed=self.seed))
+
+        elif button_data[selected_menu_num] == self.PASSPHRASE:
+            return Destination(SeedAddPassphraseView, view_args={"seed": self.seed})
 
         elif button_data[selected_menu_num] == self.BIP85_CHILD_SEED:
             return Destination(SeedBIP85SelectNumWordsView, view_args={"seed": self.seed})
