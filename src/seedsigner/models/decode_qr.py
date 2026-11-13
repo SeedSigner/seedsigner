@@ -971,14 +971,28 @@ class SignMessageQrDecoder(BaseSingleFrameQrDecoder):
             signmessage {derivation_path} ascii:{message}
         """
         parts = segment.split()
-        self.derivation_path = parts[1].replace("h", "'")
-        fmt = parts[2].split(":")[0]
-        self.message = segment.split(f"{fmt}:")[1]
+        if len(parts) < 3:
+            logger.warning("Sign message: Malformed QR data, insufficient parts")
+            return DecodeQRStatus.INVALID
 
+        if ":" not in parts[2]:
+            logger.warning("Sign message: Malformed QR data, missing format prefix")
+            return DecodeQRStatus.INVALID
+
+        fmt = parts[2].split(":", 1)[0]
         # TODO: support formats other than ascii?
         if fmt != "ascii":
             logger.info(f"Sign message: Unsupported format: {fmt}")
             return DecodeQRStatus.INVALID
+
+        format_prefix = f"{fmt}:"
+        try:
+            self.message = segment.split(format_prefix, 1)[1]
+        except IndexError:
+            logger.warning("Sign message: Failed to extract message content")
+            return DecodeQRStatus.INVALID
+
+        self.derivation_path = parts[1].replace("h", "'")
 
         self.complete = True
         self.collected_segments = 1
