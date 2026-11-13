@@ -1013,7 +1013,7 @@ class BitcoinAddressQrDecoder(BaseSingleFrameQrDecoder):
                 * group 1: complete address
                 * group 2: address prefix
         """
-        address_match = re.search(r'^((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})', segment.split(":")[-1], re.IGNORECASE)
+        address_match = re.search(r'^(?:bitcoin:)?((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})', segment, re.IGNORECASE)
         if address_match != None:
             self.address = address_match.group(1)
             self.complete = True

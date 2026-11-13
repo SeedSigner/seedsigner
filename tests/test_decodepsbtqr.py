@@ -399,6 +399,25 @@ def test_bitcoin_address_ignores_case_where_allowed():
 
 
 
+def test_bitcoin_address_ignores_colons_in_query_params():
+    """
+    Decoder should only strip the "bitcoin:" prefix; a ":" inside a BIP21 query param
+    must not change which address is parsed.
+    """
+    queries = [
+        # A different valid address after the ":" must not be returned instead
+        "?message=ref:" + nested_segwit_address_mainnet,
+        # BIP78 payjoin endpoint
+        "?amount=1&pj=https://example.com/pj",
+    ]
+    for query in queries:
+        d = DecodeQR()
+        assert d.add_data("bitcoin:" + native_segwit_address_mainnet + query) == DecodeQRStatus.COMPLETE
+        assert d.get_address() == native_segwit_address_mainnet
+        assert d.get_address_type() == (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.MAINNET)
+
+
+
 def test_seed_qr():
     seed = "121802020768124106400009195602431595117715840445"
     
