@@ -110,3 +110,45 @@ def get_partial_final_word(coin_flips: str, wordlist_language_code: str = Settin
     wordlist_index = int(binary_string, 2)
 
     return Seed.get_wordlist(wordlist_language_code)[wordlist_index]
+
+
+
+def combine_mnemonics_with_xor(mnemonics: list, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
+    """
+    Combine multiple BIP39 mnemonic seed phrases using XOR (SeedXOR).
+
+    XORs the entropy bytes of each mnemonic together. XOR-ing the parts back
+    together reproduces the original seed phrase.
+
+    Args:
+        mnemonics: List of mnemonic seed phrases (strings or lists of words).
+        wordlist_language_code: Language code for the BIP39 wordlist (default: English).
+
+    Returns:
+        The combined mnemonic as a list of words.
+
+    Raises:
+        ValueError: If the list is empty, contains an invalid mnemonic, or the
+            mnemonics have different entropy lengths.
+    """
+    if not mnemonics:
+        raise ValueError("Mnemonic list cannot be empty")
+
+    wordlist = Seed.get_wordlist(wordlist_language_code)
+
+    try:
+        entropy_list = [
+            bip39.mnemonic_to_bytes(" ".join(mnemonic) if isinstance(mnemonic, list) else mnemonic, wordlist=wordlist)
+            for mnemonic in mnemonics
+        ]
+    except Exception as e:
+        raise ValueError(f"Invalid mnemonic: {str(e)}")
+
+    if len(set(len(entropy) for entropy in entropy_list)) != 1:
+        raise ValueError("All mnemonics must generate entropy of the same length")
+
+    combined_entropy = bytes(len(entropy_list[0]))
+    for entropy in entropy_list:
+        combined_entropy = bytes(a ^ b for a, b in zip(combined_entropy, entropy))
+
+    return bip39.mnemonic_from_bytes(combined_entropy, wordlist=wordlist).split()
