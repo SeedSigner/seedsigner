@@ -1,4 +1,6 @@
 #!/bin/bash
 
-pip3 install -e .
-tail -f /dev/null
+set -euo pipefail
+
+uv sync --frozen
+exec tail -f /dev/null
