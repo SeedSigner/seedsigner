@@ -15,9 +15,37 @@ from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
-from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, ButtonOption, KeyboardScreen, LargeIconStatusScreen, WarningEdgesMixin
+from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, ButtonOption, ButtonOptionWithoutTranslation, KeyboardScreen, LargeIconStatusScreen, WarningEdgesMixin
 
 logger = logging.getLogger(__name__)
+
+
+
+@dataclass
+class SeedButtonOption(ButtonOptionWithoutTranslation):
+    """
+    ButtonOption for an in-memory seed in the various seed list Screens.
+
+    Renders the seed's fingerprint alongside the fingerprint icon. BIP-85 child seeds
+    (`child_index` is not None) are instead prefixed with their child index and indented
+    to convey the parent/child hierarchy.
+
+    Note: the labels are dynamic (a fingerprint), so they must NOT be run through `_()`
+    again when the buttons are rendered; hence `ButtonOptionWithoutTranslation`.
+    """
+    child_index: int = None
+
+    def __post_init__(self):
+        # Note: `ButtonOption` is a plain dataclass with no `__post_init__` to chain to.
+        if self.child_index is None:
+            self.icon_name = SeedSignerIconConstants.FINGERPRINT
+
+        else:
+            # TRANSLATOR_NOTE: Inserts BIP-85 child index and its fingerprint, e.g. "#3: abcd1234"
+            self.button_label = _("#{}: {}").format(self.child_index, self.button_label)
+
+            # Indent the child seed for a better hierarchical view
+            self.icon_name = " " * (GUIConstants.EDGE_PADDING // 4) + FontAwesomeIconConstants.ARROW_RIGHT
 
 
 
@@ -417,18 +445,24 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
 @dataclass
 class SeedFinalizeScreen(ButtonListScreen):
     fingerprint: str = None
+    is_bip85_child_seed: bool = False
     is_bottom_list: bool = True
     button_data: list = None
 
     def __post_init__(self):
         self.show_back_button = False
-        self.title = _("Finalize Seed")
+        if self.is_bip85_child_seed:
+            self.title = _("Finalize Child Seed")
+            icon_color=GUIConstants.DIRE_WARNING_COLOR
+        else:
+            self.title = _("Finalize Seed")
+            icon_color=GUIConstants.INFO_COLOR
         super().__post_init__()
 
         self.fingerprint_icontl = IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
-            icon_color=GUIConstants.INFO_COLOR,
-            icon_size=GUIConstants.ICON_FONT_SIZE + 12,
+            icon_color=icon_color,
+            icon_size=int(GUIConstants.ICON_FONT_SIZE * 1.5),
             label_text=_("fingerprint"),
             value_text=self.fingerprint,
             font_size=GUIConstants.get_body_font_size() + 2,
@@ -440,13 +474,56 @@ class SeedFinalizeScreen(ButtonListScreen):
 
 
 @dataclass
-class SeedOptionsScreen(ButtonListScreen):
-    fingerprint: str = None
+class SeedBIP85FinalizeScreen(ButtonListScreen):
+    child_fingerprint: str = None
+    bip85_index: int = None
+    is_bottom_list: bool = True
+    button_data: list = None
 
     def __post_init__(self):
-        self.top_nav_icon_name = SeedSignerIconConstants.FINGERPRINT
+        self.title = _("BIP-85 Child Seed")
+        super().__post_init__()
+
+        self.child_fingerprint_icontl = IconTextLine(
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
+            icon_color=GUIConstants.INFO_COLOR,
+            icon_size=int(GUIConstants.ICON_FONT_SIZE * 1.5),
+            label_text=_("child fingerprint"),
+            value_text=self.child_fingerprint,
+            font_size=GUIConstants.get_body_font_size(),
+            screen_x=GUIConstants.EDGE_PADDING // 2,
+            screen_y=self.top_nav.height + int((self.buttons[0].screen_y - self.top_nav.height) / 2) - 40
+        )
+        self.components.append(self.child_fingerprint_icontl)
+
+        self.bip85_index_icontl = IconTextLine(
+            icon_name=FontAwesomeIconConstants.HASHTAG,
+            icon_color=GUIConstants.INFO_COLOR,
+            icon_size=int(GUIConstants.ICON_FONT_SIZE * 1.5),
+            label_text=_("BIP-85 Index"),
+            value_text=str(self.bip85_index),
+            font_size=GUIConstants.get_body_font_size(),
+            screen_x=GUIConstants.EDGE_PADDING,
+            screen_y=self.top_nav.height + int((self.buttons[0].screen_y - self.top_nav.height) / 2)
+        )
+        self.components.append(self.bip85_index_icontl)
+
+
+
+@dataclass
+class SeedOptionsScreen(ButtonListScreen):
+    fingerprint: str = None
+    is_bip85_child_seed: bool = False
+    bip85_index: int = None
+
+    def __post_init__(self):
         self.top_nav_icon_color = GUIConstants.INFO_COLOR
-        self.title = self.fingerprint
+        if self.is_bip85_child_seed:
+            self.top_nav_icon_name = FontAwesomeIconConstants.HASHTAG
+            self.title = f"{self.bip85_index}: {self.fingerprint}"
+        else:
+            self.top_nav_icon_name = SeedSignerIconConstants.FINGERPRINT
+            self.title = self.fingerprint
         self.is_button_text_centered = False
         self.is_bottom_list = True
 
@@ -459,13 +536,18 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
     words: List[str] = None
     page_index: int = 0
     num_pages: int = 3
+    bip85_child_index: int = None
     is_bottom_list: bool = True
     status_color: str = GUIConstants.DIRE_WARNING_COLOR
 
 
     def __post_init__(self):
-        # TRANSLATOR_NOTE: Displays the page number and total: (e.g. page 1 of 6)
-        self.title = _("Seed Words: {}/{}").format(self.page_index + 1, self.num_pages)
+        if self.bip85_child_index is not None:
+            # TRANSLATOR_NOTE: Inserts the BIP-85 child index, the page number and the total (e.g. "Child #3: 1/6")
+            self.title = _("Child #{}: {}/{}").format(self.bip85_child_index, self.page_index + 1, self.num_pages)
+        else:
+            # TRANSLATOR_NOTE: Displays the page number and total: (e.g. page 1 of 6)
+            self.title = _("Seed Words: {}/{}").format(self.page_index + 1, self.num_pages)
         super().__post_init__()
 
         words_per_page = len(self.words)
