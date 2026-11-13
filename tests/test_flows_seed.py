@@ -289,6 +289,80 @@ class TestSeedFlows(FlowTest):
             )
 
 
+    def test_export_xpub_multisig_excludes_taproot(self):
+        """
+        Multisig does not support Taproot standard derivation paths.
+        Even when Taproot is enabled in Settings, it must not be an option
+        in SeedExportXpubScriptTypeView for multisig.
+        """
+        seed = Seed(mnemonic="blush twice taste dawn feed second opinion lazy thumb play neglect impact".split())
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+
+        self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [
+            SettingsConstants.SINGLE_SIG,
+            SettingsConstants.MULTISIG,
+        ])
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [
+            SettingsConstants.NATIVE_SEGWIT,
+            SettingsConstants.NESTED_SEGWIT,
+            SettingsConstants.TAPROOT,
+        ])
+
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException):
+            self.run_sequence(
+                initial_destination_view_args=dict(seed=seed),
+                sequence=[
+                    FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                    FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.MULTISIG),
+                    FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=SettingsConstants.TAPROOT),
+                ]
+            )
+
+    def test_export_xpub_multisig_when_only_taproot_enabled(self):
+        """
+        When only Taproot is enabled in Settings, selecting Multisig
+        should redirect to NotYetImplementedView rather than crashing.
+        """
+        seed = Seed(mnemonic="blush twice taste dawn feed second opinion lazy thumb play neglect impact".split())
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+
+        self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [
+            SettingsConstants.SINGLE_SIG,
+            SettingsConstants.MULTISIG,
+        ])
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [
+            SettingsConstants.TAPROOT,
+        ])
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.MULTISIG),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
+                FlowStep(seed_views.NotYetImplementedView),
+            ]
+        )
+
+    def test_export_xpub_details_unsupported_path_handling(self):
+        """
+        If SeedExportXpubDetailsView is invoked with an unsupported derivation path (such as
+        multisig Taproot), it should gracefully return Destination(NotYetImplementedView)
+        rather than raising an unhandled exception.
+        """
+        seed = Seed(mnemonic="blush twice taste dawn feed second opinion lazy thumb play neglect impact".split())
+        view = seed_views.SeedExportXpubDetailsView(
+            seed=seed,
+            sig_type=SettingsConstants.MULTISIG,
+            script_type=SettingsConstants.TAPROOT,
+            xpub_qr_format=SettingsConstants.XPUB_QR_FORMAT__STATIC,
+            custom_derivation=None,
+        )
+        dest = view.run()
+        assert dest.View_cls == seed_views.NotYetImplementedView
+
     def test_export_xpub_custom_derivation_flow(self):
         """
             Export XPUB flow for custom derivation finishes at MainMenuView

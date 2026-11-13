@@ -710,9 +710,24 @@ class SeedExportXpubScriptTypeView(View):
             # enabled?
             script_types = [self.seed.script_override]
 
+        if self.sig_type == SettingsConstants.MULTISIG:
+            # Taproot multisig standard derivation is not yet supported
+            script_types = [s for s in script_types if s != SettingsConstants.TAPROOT]
+
+        if len(script_types) == 0:
+            # All available multisig script types are disabled in settings
+            return Destination(
+                NotYetImplementedView,
+                view_args=dict(text=_("No supported multisig script types enabled in Settings.")),
+                skip_current_view=True
+            )
+
         if len(script_types) == 1:
             # Nothing to select; skip this screen
             args["script_type"] = script_types[0]
+
+            if args["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
+                return Destination(SeedExportXpubCustomDerivationView, view_args=args, skip_current_view=True)
 
             if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
                 del args["sig_type"]
@@ -726,6 +741,9 @@ class SeedExportXpubScriptTypeView(View):
 
         button_data = []
         for script_type, display_name in SettingsConstants.ALL_SCRIPT_TYPES:
+            if self.sig_type == SettingsConstants.MULTISIG and script_type == SettingsConstants.TAPROOT:
+                # Taproot multisig standard derivation is not yet supported
+                continue
             if script_type in self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES):
                 button_data.append(ButtonOption(display_name, return_data=script_type))
 
@@ -902,11 +920,14 @@ class SeedExportXpubDetailsView(View):
             derivation_path = seed_derivation_override
         else:
             from seedsigner.helpers import embit_utils
-            derivation_path = embit_utils.get_standard_derivation_path(
-                network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-                wallet_type=self.sig_type,
-                script_type=self.script_type
-            )
+            try:
+                derivation_path = embit_utils.get_standard_derivation_path(
+                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
+                    wallet_type=self.sig_type,
+                    script_type=self.script_type
+                )
+            except Exception as e:
+                return Destination(NotYetImplementedView, view_args=dict(text=str(e)), skip_current_view=True)
 
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__DISABLED:
             # We're just skipping right past this screen
