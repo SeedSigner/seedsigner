@@ -908,6 +908,8 @@ class TestPSBTParserOptimizations:
         assert parser_a.destination_amounts == parser_b.destination_amounts
         assert parser_a.change_data == parser_b.change_data
         assert parser_a.op_return_data == parser_b.op_return_data
+        assert parser_a.op_return_amounts == parser_b.op_return_amounts
+        assert parser_a.op_return_amount == parser_b.op_return_amount
         assert parser_a.psbt.serialize() == parser_b.psbt.serialize()
 
 
@@ -3271,6 +3273,37 @@ def test_parse_op_return_with_no_payload():
     psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
 
     assert psbt_parser.op_return_data == [b""]
+
+
+
+def test_each_op_return_output_is_its_own_entry_with_its_own_value():
+    """
+        Should report each OP_RETURN output as its own entry, in output order, with its
+        own value, and track the burned sats outside spend and change so that the
+        totals still add up to the inputs.
+    """
+    payloads = [
+        b"Chancellor on the brink of third bailout",   # readable text
+        bytes(range(0x80, 0xcb)),                      # not valid UTF-8
+        b"",                                           # bare OP_RETURN
+    ]
+    psbt = create_op_return_psbt([
+        create_op_return_output(payloads[0]),
+        create_op_return_output(payloads[1], value=1_000),
+        create_op_return_output(payloads[2], value=2_000,
+            script_pubkey=script.Script(bytes([OPCODES.OP_RETURN]))),
+    ])
+    psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+    assert psbt_parser.num_op_returns == 3
+    assert psbt_parser.op_return_data == payloads
+    assert psbt_parser.op_return_amounts == [0, 1_000, 2_000]
+    assert psbt_parser.op_return_amount == 3_000
+
+    # None of it counts as spend or change, and the arithmetic still closes
+    assert psbt_parser.spend_amount == 0
+    assert psbt_parser.verified_input_amount == (psbt_parser.spend_amount
+        + psbt_parser.change_amount + psbt_parser.fee_amount + psbt_parser.op_return_amount)
 
 
 

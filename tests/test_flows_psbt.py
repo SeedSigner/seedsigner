@@ -811,6 +811,36 @@ class TestPSBTWarningRouting(PSBTSigningFlowTest):
         ]
 
 
+    def test_op_return_burn_warning_continues_to_the_high_fee_warning(self):
+        """
+        The psbt pays a 50,000 sat recipient and burns 10,000 sats in an OP_RETURN output
+        out of a 1 BTC input, with its change at an ordinary address index, so nearly all
+        of the input goes to the fee.
+
+        The user should see the burn warning, then the high fee warning, and then the
+        transaction details.
+        """
+        psbt = self._psbt_with_change()
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 50_000))
+        psbt.outputs.append(create_op_return_output(b"burn", value=10_000))
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+        ])
+
+        assert self.controller.psbt_parser.warnings == [
+            PSBTParser.WARNING__OP_RETURN_BURN,
+            PSBTParser.WARNING__HIGH_FEE,
+        ]
+
+
 
 class TestPSBTOpReturnPaging(BaseTest):
     """
@@ -819,8 +849,9 @@ class TestPSBTOpReturnPaging(BaseTest):
 
     def test_a_page_holds_what_it_has_room_for(self):
         """
-        Should fit MAX_UNITS_PER_PAGE on a page. A hex payload that needs a second page
-        gives up HEX_BYTES_PER_LINE for its size and page number line; text does not.
+        Should fit MAX_UNITS_PER_PAGE on a page. A hex payload gives up
+        HEX_BYTES_PER_LINE for each line of text above it after "raw hex data", such as
+        the size and page number once it needs a second page; text does not.
         """
         full_page = PSBTOpReturnView.MAX_UNITS_PER_PAGE
         hex_page = full_page - PSBTOpReturnView.HEX_BYTES_PER_LINE
@@ -830,6 +861,9 @@ class TestPSBTOpReturnPaging(BaseTest):
 
         pages, _, _ = PSBTOpReturnView.paginate(b"a" * (full_page + 1))
         assert [len(page) for page in pages] == [full_page, 1]
+
+        pages, _, _ = PSBTOpReturnView.paginate(b"a" * full_page, burns_sats=True)
+        assert pages == ["a" * full_page]
 
         # Hex draws two characters per byte
         payload = bytes(range(0x80, 0x80 + full_page)) * 2
@@ -917,6 +951,57 @@ class TestPSBTOpReturnPaging(BaseTest):
         assert kwargs["bytes_shown"] == num_chars_shown * 4
 
 
+    def test_each_screen_receives_its_own_output_and_page(self):
+        """
+        Should give each screen its own output's page, size and amount.
+        """
+        # The first output is hex, burns, and needs two pages, so it has three lines above
+        # it: "raw hex data", its size and page number, and "burns sats"
+        per_page = PSBTOpReturnView.MAX_UNITS_PER_PAGE - 2 * PSBTOpReturnView.HEX_BYTES_PER_LINE
+        first, second = b"\xff" * per_page + b"\xfe" * 20, b"second payload"
+
+        self.controller.psbt_parser = PSBTParser(
+            p=create_op_return_psbt([
+                create_op_return_output(first, value=7_000),
+                create_op_return_output(second),
+            ]),
+            seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+        expected = [
+            (0, 0, "ff" * per_page, len(first), 7_000),
+            (0, 1, "fe" * 20, len(first), 7_000),
+            (1, 0, "second payload", len(second), 0),
+        ]
+
+        for op_return_num, page_num, page_text, total_bytes, amount in expected:
+            with patch.object(psbt_views.View, "run_screen") as mock_run_screen:
+                mock_run_screen.return_value = 0
+                PSBTOpReturnView(op_return_num=op_return_num, page_num=page_num).run()
+
+            kwargs = mock_run_screen.call_args.kwargs
+            assert (kwargs["page_text"], kwargs["total_bytes"], kwargs["amount"],
+                kwargs["page_num"]) == (page_text, total_bytes, amount, page_num)
+
+
+
+class TestPSBTOverviewOpReturnRow(BaseTest):
+    """
+    The overview flow diagram's row for the OP_RETURN outputs.
+    """
+
+    def test_the_overview_marks_the_op_return_row_when_any_output_burns(self):
+        """
+        Should draw one OP_RETURN row however many outputs there are, marked only when at
+        least one of them burns sats.
+        """
+        from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen
+
+        assert PSBTOverviewScreen.op_return_row([0]) == "OP_RETURN"
+        assert PSBTOverviewScreen.op_return_row([0, 0, 0]) == "OP_RETURN"
+        marked = "OP_RETURN" + PSBTOverviewScreen.WARNING_MARK
+        assert PSBTOverviewScreen.op_return_row([0, 5_000, 0]) == marked
+
+
 
 class TestPSBTOpReturnFlows(PSBTSigningFlowTest):
     """
@@ -990,6 +1075,7 @@ class TestPSBTOpReturnFlows(PSBTSigningFlowTest):
         self.run_sequence([
             FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
             FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
             FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
             FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
             FlowStep(psbt_views.PSBTMathView),

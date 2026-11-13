@@ -244,7 +244,7 @@ class PSBTOverviewView(View):
             num_self_transfer_outputs=num_self_transfer_outputs,
             num_change_outputs=num_change_outputs,
             destination_addresses=psbt_parser.destination_addresses,
-            has_op_return=psbt_parser.num_op_returns > 0,
+            op_return_amounts=psbt_parser.op_return_amounts,
             is_high_fee_tx=psbt_parser.is_high_fee,
         )
 
@@ -277,8 +277,16 @@ class PSBTWarningView(View):
 
 
     def run(self):
-        warning = self.controller.psbt_parser.warnings[self.warning_index]
-        if warning == PSBTParser.WARNING__HIGH_FEE:
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+        warning = psbt_parser.warnings[self.warning_index]
+        if warning == PSBTParser.WARNING__OP_RETURN_BURN:
+            Screen_cls = DireWarningScreen
+            # TRANSLATOR_NOTE: Total sats destroyed by this transaction's OP_RETURN outputs (e.g. "10,000 sats")
+            status_headline = _("{amount} sats").format(amount=f"{psbt_parser.op_return_amount:,}")
+            # TRANSLATOR_NOTE: Shown under the burned amount. "OP_RETURN" is a technical term, should probably NOT be translated in most languages
+            text = _("This transaction burns these sats in OP_RETURN outputs. They can never be spent.")
+
+        elif warning == PSBTParser.WARNING__HIGH_FEE:
             Screen_cls = DireWarningScreen
             status_headline = _("High Fee!")
             # TRANSLATOR_NOTE: Variable is the percentage of the total output value (excluding change) that the fee exceeds. (e.g. "This transaction has a fee higher than 25% of the total output value (excluding change).")
@@ -331,6 +339,7 @@ class PSBTMathView(View):
         Follows the Overview pictogram. Shows:
         + total input value
         - recipients' value
+        - burned by OP_RETURN outputs, if any
         - fees
         -------------------
         + change value
@@ -350,6 +359,7 @@ class PSBTMathView(View):
             num_recipients=psbt_parser.num_destinations,
             fee_amount=psbt_parser.fee_amount,
             change_amount=psbt_parser.change_amount,
+            op_return_amount=psbt_parser.op_return_amount,
             is_high_fee_tx=psbt_parser.is_high_fee,
         )
 
@@ -1099,7 +1109,7 @@ class PSBTOpReturnView(View):
 
     # How much of a payload fits on one screen, in characters of text or bytes of hex.
     # 80 is the old relay limit, so any OP_RETURN that used to be standard still fits on
-    # one screen.
+    # one screen, unless it is hex and also burns sats.
     MAX_UNITS_PER_PAGE = 80
 
     # One line of hex on a 240px wide screen, the narrowest. Each extra line of text above
@@ -1119,13 +1129,15 @@ class PSBTOpReturnView(View):
 
 
     @staticmethod
-    def paginate(payload: bytes) -> tuple[list[str], bool, bool]:
+    def paginate(payload: bytes, burns_sats: bool = False) -> tuple[list[str], bool, bool]:
         """
             Splits a payload into pages for the screen. Returns the pages, whether they
             are hex, and whether any of the payload had to be dropped.
 
-            Text-or-hex is decided once for the whole payload, so a page never splits a
-            multi-byte character, and a text page ends on a word break where it can.
+            `burns_sats` means the screen will also show a "burns sats" line, which
+            leaves less room for a hex payload. Text-or-hex is decided once for the whole
+            payload, so a page never splits a multi-byte character, and a text page ends
+            on a word break where it can.
         """
         try:
             text = payload.decode(errors="strict")
@@ -1138,12 +1150,15 @@ class PSBTOpReturnView(View):
 
         units = payload if is_hex else text
         per_page = PSBTOpReturnView.MAX_UNITS_PER_PAGE
-        if is_hex and len(units) > per_page:
+        if is_hex:
             # Hex fills the page from the top in small lines, so each line of text above
-            # it after "raw hex data" costs it a line, as the size and page number do once
-            # it needs more than one page. Text is centered in the space left, which has
-            # room for them.
-            per_page -= PSBTOpReturnView.HEX_BYTES_PER_LINE
+            # it after "raw hex data" costs it a line: "burns N sats", and the size and
+            # page number once it needs more than one page. Text is centered in the space
+            # left, which has room for them.
+            if burns_sats:
+                per_page -= PSBTOpReturnView.HEX_BYTES_PER_LINE
+            if len(units) > per_page:
+                per_page -= PSBTOpReturnView.HEX_BYTES_PER_LINE
 
         pages = []
         start = 0
@@ -1179,7 +1194,8 @@ class PSBTOpReturnView(View):
             raise Exception("Routing error")
 
         payload = psbt_parser.op_return_data[self.op_return_num]
-        pages, is_hex, is_truncated = PSBTOpReturnView.paginate(payload)
+        amount = psbt_parser.op_return_amounts[self.op_return_num]
+        pages, is_hex, is_truncated = PSBTOpReturnView.paginate(payload, burns_sats=amount > 0)
 
         # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
         title = _("OP_RETURN")
@@ -1198,6 +1214,7 @@ class PSBTOpReturnView(View):
             page_text=pages[self.page_num],
             is_hex=is_hex,
             total_bytes=len(payload),
+            amount=amount,
             page_num=self.page_num,
             num_pages=len(pages),
             bytes_shown=bytes_shown,

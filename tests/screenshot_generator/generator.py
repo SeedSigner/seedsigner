@@ -82,7 +82,7 @@ BASE64_MULTISIG_PSBT = """cHNidP8BAP06AQIAAAAC5l4E3oEjI+H0im8t/K2nLmF5iJFdKEiuQs
 mnemonic_12b = ["abandon"] * 11 + ["about"]
 seed_12b = Seed(mnemonic=mnemonic_12b, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
 
-def add_op_return_to_psbt(psbt: PSBT, raw_payload_data: bytes):
+def add_op_return_to_psbt(psbt: PSBT, raw_payload_data: bytes, value: int = 0):
     if raw_payload_data:
         script = op_return_script(raw_payload_data)
     else:
@@ -91,7 +91,13 @@ def add_op_return_to_psbt(psbt: PSBT, raw_payload_data: bytes):
         script = Script(bytes([OPCODES.OP_RETURN]))
     output = OutputScope()
     output.script_pubkey = script
-    output.value = 0
+    output.value = value
+
+    if value > 0:
+        # Take the value from an existing output; otherwise the outputs would exceed the
+        # inputs and the fee would go negative.
+        psbt.outputs[0].value -= value
+
     psbt.outputs.append(output)
     return psbt.to_string()
 
@@ -136,6 +142,12 @@ BASE64_PSBT_WITH_OP_RETURN_TRUNCATED = add_op_return_to_psbt(PSBT.from_base64(BA
 
 # A bare OP_RETURN: an output that exists and pushes nothing
 BASE64_PSBT_WITH_OP_RETURN_EMPTY = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), b"")
+
+# Three OP_RETURN outputs where only the second burns sats
+psbt = keep_only_last_output(PSBT.from_base64(BASE64_MULTISIG_PSBT))
+add_op_return_to_psbt(psbt, "Hello, world".encode())
+add_op_return_to_psbt(psbt, raw_payload_data, value=50_000)
+BASE64_PSBT_WITH_ONE_BURNING_OP_RETURN = add_op_return_to_psbt(psbt, random.randbytes(32))
 
 mnemonic_12 = "forum undo fragile fade shy sign arrest garment culture tube off merit".split()
 mnemonic_24 = "attack pizza motion avocado network gather crop fresh patrol unusual wild holiday candy pony ranch winter theme error hybrid van cereal salon goddess expire".split()
@@ -381,6 +393,12 @@ def generate_screenshots(locale):
 
 
         @contextmanager
+        def mock_psbt_with_one_burning_op_return_loaded():
+            with mock_load_psbt(BASE64_PSBT_WITH_ONE_BURNING_OP_RETURN):
+                yield
+
+
+        @contextmanager
         def mock_version_to_most_recent_release():
             # Patch the Version get_* calls to the most recent release
             with patch.multiple(Version,
@@ -500,6 +518,10 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, dict(page_num=1), screenshot_name="PSBTOpReturnView_paged",     mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_LONG)),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_truncated",                   mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_TRUNCATED)),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_empty",                       mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_EMPTY)),
+                ScreenshotConfig(psbt_views.PSBTOverviewView, screenshot_name="PSBTOverviewView_op_return_burns_sats",                mock_context_manager=mock_psbt_with_one_burning_op_return_loaded),
+                ScreenshotConfig(psbt_views.PSBTWarningView, dict(warning_index=0), screenshot_name="PSBTWarningView_op_return_burn", mock_context_manager=mock_psbt_with_one_burning_op_return_loaded),
+                ScreenshotConfig(psbt_views.PSBTMathView, screenshot_name="PSBTMathView_op_return_burns_sats",                        mock_context_manager=mock_psbt_with_one_burning_op_return_loaded),
+                ScreenshotConfig(psbt_views.PSBTOpReturnView, dict(op_return_num=1), screenshot_name="PSBTOpReturnView_burns_sats",   mock_context_manager=mock_psbt_with_one_burning_op_return_loaded),
                 ScreenshotConfig(psbt_views.PSBTSurplusDerivationPathsView),
                 ScreenshotConfig(psbt_views.PSBTMixedDerivationPathTypesView),
                 ScreenshotConfig(psbt_views.PSBTMalformedOpReturnView),
