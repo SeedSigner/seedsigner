@@ -539,19 +539,19 @@ class DecodeQR:
         3E451EFE: xpub6ExQPvQxGBMaPxr8Fv7Vq91ztJFFX3VWvtpvex6UPZ1AptTeuAiJGCtKkgwJkrwpMZMagh9ex6rL4sM8axfFcdQbERoFCRUKTJxrBkJh56g
         """
         
+        if not text or not isinstance(text, str):
+            raise Exception("Empty or invalid config file data")
+
         lines = text.split('\n')
         
         m = 0
         n = 0
         xpubs = []
-        x = 0
         derivation = ''
-        descriptor = ''
-        
-        lines = text.split('\n')
+        script_type = None
         
         for l in lines:
-            if l.find('#') == 0:
+            if l.startswith('#'):
                 # skip comments
                 continue
         
@@ -566,38 +566,32 @@ class DecodeQR:
             value = value.strip()
         
             if label == 'policy':
-                try:
-                    match = re.search(r'(\d+)\D*(\d+)', value)
-                    m = int(match.group(1))
-                    n = int(match.group(2))
-                except:
-                    raise Exception(f"Policy line not supported")
+                match = re.search(r'(\d+)\D*(\d+)', value)
+                if not match:
+                    raise Exception("Policy line not supported")
+                m = int(match.group(1))
+                n = int(match.group(2))
             elif label == 'derivation':
                 derivation = value
             elif label == 'format':
                 if value.lower() in ['p2wsh', 'p2sh-p2wsh', 'p2wsh-p2sh']:
                     script_type = value.lower()
             elif len(label) == 8:
-                if len(xpubs) == 0:
-                    xpubs = [None] * n
+                xpubs.append({'xfp': label, 'key': value})
         
-                xpubs[x] = {'xfp': label, 'key': value}
-                x += 1
+        if m <= 0 or m > 9 or n <= 0 or n > 9 or m > n:
+            raise Exception("bad or missing policy")
         
-        if None in xpubs or len(xpubs) != n:
-            raise Exception(f"bad or missing xpub")
+        if len(xpubs) != n or any(not x.get('xfp') or not x.get('key') for x in xpubs):
+            raise Exception("bad or missing xpub")
         
-        if m <= 0 or m > 9 or n <= 0 or n > 9:
-            raise Exception(f"bad or missing policy")
+        if not derivation or len(derivation) == 0:
+            raise Exception("bad or missing derivation path")
         
-        if len(derivation) == 0:
-            raise Exception(f"bad or missing derivation path")
-        
-        if script_type not in ['p2wsh', 'p2sh-p2wsh', 'p2wsh-p2sh']:
-            raise Exception(f"bad or missing script format")
+        if not script_type or script_type not in ['p2wsh', 'p2sh-p2wsh', 'p2wsh-p2sh']:
+            raise Exception("bad or missing script format")
         
         # create descriptor string
-        
         if script_type == "p2wsh":
             script_open = "wsh(sortedmulti(" + str(m)
             script_close = "))"
@@ -608,10 +602,11 @@ class DecodeQR:
         descriptor = script_open
         
         for x in xpubs:
-            if derivation[0] == 'm':
-                derivation = derivation[1:]
-            derivation = derivation.replace("'", "h")
-            descriptor += ',[' + x['xfp'] + derivation + "]" + x['key'] + "/{0,1}/*"
+            deriv = derivation
+            if deriv.startswith('m'):
+                deriv = deriv[1:]
+            deriv = deriv.replace("'", "h")
+            descriptor += ',[' + x['xfp'] + deriv + "]" + x['key'] + "/{0,1}/*"
         
         descriptor += script_close
 
@@ -939,18 +934,26 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
     def add(self, segment, qr_type=QRType.SETTINGS):
         """
             * Ignores unrecognized settings options.
-            * Raises an Exception if a settings value is invalid.
+            * Validates structure before accepting.
 
             See `Settings.update()` for info on settings validation, especially for
             missing settings.
         """
-        if not segment.startswith("settings::"):
-            raise Exception("Invalid SettingsQR data")
-        
-        # Leave any other parsing or validation up to the Settings class itself.
-        # SettingsQR are just ascii data to hand it over as-is.
-        self.data = segment
+        if not segment or not isinstance(segment, str) or not segment.startswith("settings::"):
+            logger.warning("SettingsQrDecoder: Invalid SettingsQR prefix")
+            return DecodeQRStatus.INVALID
 
+        parts = segment.split()
+        if not parts:
+            return DecodeQRStatus.INVALID
+
+        prefix_parts = parts[0].split("::")
+        if len(prefix_parts) < 2 or not prefix_parts[1].startswith("v"):
+            logger.warning("SettingsQrDecoder: Missing or malformed version in SettingsQR data")
+            return DecodeQRStatus.INVALID
+
+        # Hand over valid structured string to Settings
+        self.data = segment
         self.complete = True
         self.collected_segments = 1
         return DecodeQRStatus.COMPLETE
@@ -1091,56 +1094,61 @@ class SpecterWalletQrDecoder(BaseAnimatedQrDecoder):
     """
         Decodes animated frames to get a wallet descriptor from Specter Desktop
     """
-    def validate_json(self) -> str:
+    def validate_json(self) -> bool:
         try:
             j = "".join(self.segments)
-            json.loads(j)
-        except json.decoder.JSONDecodeError:
+            data = json.loads(j)
+            return isinstance(data, dict)
+        except (json.decoder.JSONDecodeError, TypeError):
             return False
-        return True
 
 
     @property
-    def is_valid(self):
-        if self.validate_json():
+    def is_valid(self) -> bool:
+        try:
             j = "".join(self.segments)
             data = json.loads(j)
-            if "descriptor" in data:
+            if isinstance(data, dict) and "descriptor" in data and isinstance(data["descriptor"], str):
                 return True
-            return False
+        except Exception:
+            pass
+        return False
 
 
     def get_wallet_descriptor(self) -> str:
         if self.is_valid:
-            j = "".join(self.segments)
-            data = json.loads(j)
-            return data['descriptor']
+            try:
+                j = "".join(self.segments)
+                data = json.loads(j)
+                return data.get('descriptor')
+            except Exception:
+                return None
         return None
 
 
     def is_complete(self) -> bool:
-        return self.complete and self.is_valid()
+        return self.complete and self.is_valid
 
 
     def current_segment_num(self, segment) -> int:
-        if re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE) != None:
-            return int(re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE).group(1))
-        else:
-            return 1
+        match = re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+        return 1
 
 
     def total_segment_nums(self, segment) -> int:
-        if re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE) != None:
-            return int(re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE).group(2))
-        else:
-            return 1
+        match = re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE)
+        if match:
+            return int(match.group(2))
+        return 1
 
 
     def parse_segment(self, segment) -> str:
-        try:
-            return re.search(r'^p(\d+)of(\d+) (.+$)', segment, re.IGNORECASE).group(3)
-        except:
-            return segment
+        match = re.search(r'^p(\d+)of(\d+) (.+$)', segment, re.IGNORECASE)
+        if match:
+            return match.group(3)
+        return segment
 
 
 
@@ -1152,6 +1160,9 @@ class GenericWalletQrDecoder(BaseSingleFrameQrDecoder):
 
     def add(self, segment, qr_type=QRType.WALLET__GENERIC):
         from embit.descriptor import Descriptor
+        if not segment or not isinstance(segment, str):
+            logger.info("GenericWalletQrDecoder: empty or non-string segment")
+            return DecodeQRStatus.INVALID
         try:
             # Validate via embit
             Descriptor.from_string(segment)
@@ -1170,5 +1181,9 @@ class GenericWalletQrDecoder(BaseSingleFrameQrDecoder):
 
 class MultiSigConfigFileQRDecoder(GenericWalletQrDecoder):    
     def add(self, segment, qr_type=QRType.WALLET__CONFIGFILE):
-        descriptor = DecodeQR.multisig_setup_file_to_descriptor(segment)
-        return super().add(descriptor,qr_type=QRType.WALLET__CONFIGFILE)
+        try:
+            descriptor = DecodeQR.multisig_setup_file_to_descriptor(segment)
+            return super().add(descriptor, qr_type=QRType.WALLET__CONFIGFILE)
+        except Exception as e:
+            logger.warning(f"MultiSigConfigFileQRDecoder: Invalid config file: {e}")
+            return DecodeQRStatus.INVALID
