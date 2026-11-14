@@ -131,14 +131,27 @@ def parse_derivation_path(derivation_path: str) -> dict:
 
     May return None for fields it cannot parse.
     """
-    # Support either m/44'/... or m/44h/... style
-    derivation_path = derivation_path.replace("'", "h")
+    details = dict(
+        script_type=None,
+        network=None,
+        is_change=None,
+        index=None,
+        wallet_derivation_path=None,
+        clean_match=False,
+    )
 
+    if not derivation_path or not isinstance(derivation_path, str):
+        return details
+
+    derivation_path = derivation_path.replace("'", "h").replace("H", "h")
     sections = derivation_path.split("/")
+
+    if len(sections) < 3 or sections[0] != "m":
+        return details
 
     if sections[1] == "48h":
         # So far this helper is only meant for single sig message signing
-        raise Exception("Not implemented")
+        raise NotImplementedError("Signing messages for multisig paths not supported")
 
     lookups = {
         "script_types": {
@@ -153,39 +166,40 @@ def parse_derivation_path(derivation_path: str) -> dict:
         }
     }
 
-    details = dict()
-    details["script_type"] = lookups["script_types"].get(sections[1])
-    if not details["script_type"]:
-        details["script_type"] = SettingsConstants.CUSTOM_DERIVATION
+    def _is_valid_bip32_int(s: str) -> bool:
+        return s.isascii() and s.isdigit() and (0 <= int(s) < 2147483648)
+
+    details["script_type"] = lookups["script_types"].get(sections[1], SettingsConstants.CUSTOM_DERIVATION)
     details["network"] = lookups["networks"].get(sections[2])
 
     # Check if there's a standard change path
-    if sections[-2] in ["0", "1"]:
+    if len(sections) >= 4 and sections[-2] in ["0", "1"]:
         details["is_change"] = sections[-2] == "1"
     else:
         details["is_change"] = None
 
-    # Check if there's a standard address index
-    if sections[-1].isdigit():
+    # Check if there's a standard address index (< 2^31, unhardened)
+    if _is_valid_bip32_int(sections[-1]):
         details["index"] = int(sections[-1])
     else:
         details["index"] = None
 
-    if details["is_change"] is not None and details["index"] is not None:
-        # standard change and addr index; safe to truncate to the wallet level
-        details["wallet_derivation_path"] = "/".join(sections[:-2])
+    # Standard single-sig path: m / purpose' / coin_type' / account' / change / address_index
+    if (
+        len(sections) == 6
+        and details["is_change"] is not None
+        and details["index"] is not None
+        and sections[3].endswith("h")
+        and _is_valid_bip32_int(sections[3][:-1])
+    ):
+        details["wallet_derivation_path"] = f"{sections[0]}/{sections[1]}/{sections[2]}/{sections[3]}"
+        if details["script_type"] in lookups["script_types"].values() and details["network"] is not None:
+            details["clean_match"] = True
     else:
         details["wallet_derivation_path"] = None
-
-    details["clean_match"] = True
-    for k, v in details.items():
-        if v is None:
-            # At least one field couldn't be parsed
-            details["clean_match"] = False
-            break
+        details["clean_match"] = False
 
     return details
-
 
 
 def sign_message(seed_bytes: bytes, derivation: str, msg: bytes, compressed: bool = True, embit_network: str = "main") -> bytes:

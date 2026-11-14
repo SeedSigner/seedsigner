@@ -802,6 +802,30 @@ class TestMessageSigningFlows(FlowTest):
         assert self.controller.resume_main_flow is None
 
 
+    def test_sign_message_malformed_qr_payload_routes_to_invalid_qr_view(self):
+        """
+        Scanning a malformed signmessage payload (e.g. missing format colon) must
+        set qr_type = INVALID and route to ScanInvalidQRTypeView rather than dumping
+        to MainMenuView.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        def load_malformed_signmessage_qr(view: scan_views.ScanView):
+            view.decoder.add_data("signmessage m/84h/0h/0h asciimessage")
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+            FlowStep(scan_views.ScanView, before_run=load_malformed_signmessage_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
+            FlowStep(MainMenuView),
+        ])
+
+        assert self.controller.resume_main_flow is None
+
+
     def test_sign_message_unsupported_derivation_flow(self):
         """
         Should redirect to NotYetImplementedView if a message's derivation path isn't yet supported
@@ -823,5 +847,13 @@ class TestMessageSigningFlows(FlowTest):
 
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
         expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
+
+        def load_short_derivation_into_decoder(view: View):
+            self.load_signmessage_into_decoder(view, "m/84h", self.SHORT_MESSAGE)
+        expect_unsupported_derivation(load_short_derivation_into_decoder)
+
+        def load_multisig_derivation_into_decoder(view: View):
+            self.load_signmessage_into_decoder(view, "m/48h/0h/0h/2h", self.SHORT_MESSAGE)
+        expect_unsupported_derivation(load_multisig_derivation_into_decoder)
 
 
