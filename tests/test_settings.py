@@ -205,6 +205,19 @@ class TestSettingsQRParser(SettingsQRBase):
         assert "sigs" in str(e.value)
 
 
+    def test_settingsqr_rejects_truncated_payload(self):
+        """Truncated SettingsQR (header only, or empty name=) is InvalidSettingsQRData, not IndexError."""
+        with pytest.raises(InvalidSettingsQRData):
+            Settings.parse_settingsqr("settings::v1")
+
+        with pytest.raises(InvalidSettingsQRData) as e:
+            Settings.parse_settingsqr("settings::v1 name=")
+        assert "name" in str(e.value)
+
+        with pytest.raises(InvalidSettingsQRData):
+            Settings.parse_settingsqr("settings::v1 not-a-key-value")
+
+
     def test_settingsqr_parses_line_break_separators(self):
         """ SettingsQR parser should read line breaks as acceptable separators """
         attrs_with_line_breaks = self.settingsqr_default_attrs_str.replace(' ', '\n')
