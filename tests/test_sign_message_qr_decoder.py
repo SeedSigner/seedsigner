@@ -34,17 +34,19 @@ class TestSignMessageQrDecoder:
 
     def test_decode_sign_message_insufficient_parts(self):
         """
-        Should return DecodeQRStatus.INVALID instead of raising IndexError when payload is missing required parts.
+        Should return DecodeQRStatus.INVALID and set is_invalid=True when payload is missing required parts.
         """
         # Only 'signmessage' token
         decoder = DecodeQR()
         status = decoder.add_data("signmessage")
         assert status == DecodeQRStatus.INVALID
+        assert decoder.is_invalid is True
 
         # 'signmessage' with only derivation path, missing message part
         decoder = DecodeQR()
         status = decoder.add_data("signmessage m/84h/0h/0h")
         assert status == DecodeQRStatus.INVALID
+        assert decoder.is_invalid is True
 
 
     def test_decode_sign_message_missing_colon_format_prefix(self):

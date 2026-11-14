@@ -143,9 +143,8 @@ def parse_derivation_path(derivation_path: str) -> dict:
     if not derivation_path or not isinstance(derivation_path, str):
         return details
 
-    # Support either m/44'/... or m/44h/... or m/44H/... style
-    normalized_path = derivation_path.replace("'", "h").replace("H", "h")
-    sections = normalized_path.split("/")
+    derivation_path = derivation_path.replace("'", "h").replace("H", "h")
+    sections = derivation_path.split("/")
 
     if len(sections) < 3 or sections[0] != "m":
         return details
@@ -173,7 +172,7 @@ def parse_derivation_path(derivation_path: str) -> dict:
     details["script_type"] = lookups["script_types"].get(sections[1], SettingsConstants.CUSTOM_DERIVATION)
     details["network"] = lookups["networks"].get(sections[2])
 
-    # Check if there's a standard change path (0 or 1)
+    # Check if there's a standard change path
     if len(sections) >= 4 and sections[-2] in ["0", "1"]:
         details["is_change"] = sections[-2] == "1"
     else:
@@ -185,38 +184,20 @@ def parse_derivation_path(derivation_path: str) -> dict:
     else:
         details["index"] = None
 
-    # Standard BIP-44/49/84/86 single-sig path has exactly 6 components:
-    # m / purpose' / coin_type' / account' / change / address_index
-    if len(sections) == 6 and details["is_change"] is not None and details["index"] is not None:
-        account_section = sections[3]
-        if account_section.endswith("h") and _is_valid_bip32_int(account_section[:-1]):
-            details["wallet_derivation_path"] = "/".join(sections[:4])
-        else:
-            details["wallet_derivation_path"] = None
-    elif len(sections) > 3 and details["is_change"] is not None and details["index"] is not None:
-        valid_wallet = True
-        for comp in sections[1:-2]:
-            c = comp[:-1] if comp.endswith("h") else comp
-            if not _is_valid_bip32_int(c):
-                valid_wallet = False
-                break
-        if valid_wallet:
-            details["wallet_derivation_path"] = "/".join(sections[:-2])
-        else:
-            details["wallet_derivation_path"] = None
+    # Standard single-sig path: m / purpose' / coin_type' / account' / change / address_index
+    if (
+        len(sections) == 6
+        and details["is_change"] is not None
+        and details["index"] is not None
+        and sections[3].endswith("h")
+        and _is_valid_bip32_int(sections[3][:-1])
+    ):
+        details["wallet_derivation_path"] = f"{sections[0]}/{sections[1]}/{sections[2]}/{sections[3]}"
+        if details["script_type"] in lookups["script_types"].values() and details["network"] is not None:
+            details["clean_match"] = True
     else:
         details["wallet_derivation_path"] = None
-
-    # clean_match is True ONLY if:
-    # 1. It is a standard single-sig script type (not CUSTOM_DERIVATION)
-    # 2. Path has exactly 6 components
-    # 3. All fields are parsed and valid
-    is_standard_script = details["script_type"] in lookups["script_types"].values()
-    details["clean_match"] = (
-        is_standard_script
-        and len(sections) == 6
-        and all(v is not None for v in details.values())
-    )
+        details["clean_match"] = False
 
     return details
 

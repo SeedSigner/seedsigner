@@ -112,6 +112,8 @@ class DecodeQR:
             rt = self.decoder.add(data, QRType.SEED__COMPACTSEEDQR)
             if rt == DecodeQRStatus.COMPLETE:
                 self.complete = True
+            elif rt == DecodeQRStatus.INVALID:
+                self.qr_type = QRType.INVALID
             return rt
 
         # Convert to string data
@@ -139,6 +141,8 @@ class DecodeQR:
             rt = self.decoder.add(qr_str, self.qr_type)
             if rt == DecodeQRStatus.COMPLETE:
                 self.complete = True
+            elif rt == DecodeQRStatus.INVALID:
+                self.qr_type = QRType.INVALID
             return rt
 
 
