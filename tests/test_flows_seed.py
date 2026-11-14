@@ -20,6 +20,19 @@ def load_seed_into_decoder(view: scan_views.ScanView):
 
 class TestSeedFlows(FlowTest):
 
+    def test_scan_truncated_signmessage_shows_invalid_qr_error(self):
+        """A recognized-but-malformed signmessage QR must show ScanInvalidQRTypeView, not Main Menu."""
+        def load_truncated_signmessage(view: scan_views.ScanView):
+            view.decoder.add_data("signmessage m")
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_truncated_signmessage),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
+            FlowStep(MainMenuView),
+        ])
+
+
     def test_scan_seedqr_flow(self):
         """
             Selecting "Scan" from the MainMenuView and scanning a SeedQR should enter the
