@@ -2135,7 +2135,7 @@ class SeedSignMessageStartView(View):
             self.controller.resume_main_flow = None
             return
 
-        if not addr_format["clean_match"]:
+        if not addr_format["clean_match"] or addr_format["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
             self.set_redirect(Destination(NotYetImplementedView, view_args=dict(text=f"Signing messages for custom derivation paths not supported")))
             self.controller.resume_main_flow = None
             return

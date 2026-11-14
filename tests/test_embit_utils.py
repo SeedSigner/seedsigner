@@ -437,12 +437,11 @@ def test_parse_derivation_path():
     for expected_result, derivation_path in vectors_args.items():
         actual_result = embit_utils.parse_derivation_path(derivation_path)
 
-        if expected_result[0] == SC.MAINNET:
+        if expected_result[1] == SC.CUSTOM_DERIVATION or expected_result[0] is None:
+            assert actual_result["clean_match"] is False
+        elif expected_result[0] == SC.MAINNET:
             assert actual_result["network"] == expected_result[0]
             assert actual_result["clean_match"] is True
-        elif expected_result[0] is None:
-            assert actual_result["network"] is None
-            assert actual_result["clean_match"] is False
         else:
             # Testnet and regtest are returned as a list since the parser can't tell which is intended
             assert expected_result[0] in actual_result["network"]
@@ -461,11 +460,27 @@ def test_parse_derivation_path():
 def test_parse_derivation_path_short_and_invalid_paths():
     """
     Short, partial, or malformed derivation paths should safely return clean_match=False
-    without raising unhandled IndexError.
+    without raising unhandled IndexError, ValueError, or HDError.
     """
-    for short_path in ["m/84h", "0/0", "m", "", "m/84'/0'", "invalid"]:
-        result = embit_utils.parse_derivation_path(short_path)
+    fuzzer_invalid_paths = [
+        "m/84h", "0/0", "m", "", "m/84'/0'", "invalid",
+        "m/84h/0h/0h/0/2147483648",              # hardened index >= 2^31
+        "m/84h/0h/0h/0/999999999999999999999999", # index out of range
+        "m/84h/0h/invalid_acc/0/0",               # non-integer account
+        "m/84h/0h/999999999999999999999999h/0/0", # account index out of range
+        "m/84h/0h/-1/0/0",                        # negative index
+        "m/84h/0h//0/0",                          # empty component
+        "m/99h/0h/0h/0/0",                        # custom script type
+        "m/84h/0h/0h/0/²",                        # unicode non-ascii digit
+    ]
+    for path in fuzzer_invalid_paths:
+        result = embit_utils.parse_derivation_path(path)
         assert result["clean_match"] is False
+
+    # Uppercase H should normalize and match cleanly
+    res_h = embit_utils.parse_derivation_path("m/84H/0h/0h/0/0")
+    assert res_h["clean_match"] is True
+    assert res_h["script_type"] == SC.NATIVE_SEGWIT
 
 
 def test_parse_derivation_path_bip48_multisig():
