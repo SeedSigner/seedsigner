@@ -17,6 +17,8 @@ from seedsigner.models.seed import Seed
 DICE__NUM_ROLLS__12WORD = 50
 DICE__NUM_ROLLS__24WORD = 99
 
+COIN__NUM_FLIPS__12WORD = 128
+COIN__NUM_FLIPS__24WORD = 256
 
 
 def calculate_checksum(mnemonic: list | str, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
@@ -71,6 +73,8 @@ def generate_mnemonic_from_dice(roll_data: str, wordlist_language_code: str = Se
 
         Important note: This method is NOT compatible with iancoleman's "Dice" mode.
     """
+    assert (len(roll_data) == DICE__NUM_ROLLS__12WORD) or (len(roll_data) == DICE__NUM_ROLLS__24WORD), "Invalid number of dice rolls"
+
     entropy_bytes = hashlib.sha256(roll_data.encode()).digest()
 
     if len(roll_data) == DICE__NUM_ROLLS__12WORD:
@@ -90,9 +94,11 @@ def generate_mnemonic_from_coin_flips(coin_flips: str, wordlist_language_code: s
         * binary digit stream is treated as string data.
         * hashed via SHA256.
     """
+    assert (len(roll_data) == COIN__NUM_FLIPS__12WORD) or (len(roll_data) == COIN__NUM_FLIPS__24WORD), "Invalid number of coin flips"
+
     entropy_bytes = hashlib.sha256(coin_flips.encode()).digest()
 
-    if len(coin_flips) == 128:
+    if len(coin_flips) == COIN__NUM_FLIPS__12WORD:
         # 12-word mnemonic; only use 128bits / 16 bytes
         entropy_bytes = entropy_bytes[:16]
 
