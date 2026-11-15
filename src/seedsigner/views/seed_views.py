@@ -557,8 +557,17 @@ class SeedOptionsView(View):
             return Destination(SeedExportXpubScriptTypeView, view_args=dict(seed=self.seed, sig_type=SettingsConstants.SINGLE_SIG), skip_current_view=True)
 
         elif self.controller.resume_main_flow == Controller.FLOW__SIGN_MESSAGE:
-            self.controller.sign_message_data["seed"] = self.seed
-            return Destination(SeedSignMessageConfirmMessageView, skip_current_view=True)
+            # Only resume message review when a message was actually captured.
+            # A recognized non-message QR can route through seed import and return
+            # here with the sign-message flow armed but without any message data.
+            if self.controller.sign_message_data and "message" in self.controller.sign_message_data:
+                self.controller.sign_message_data["seed"] = self.seed
+                return Destination(SeedSignMessageConfirmMessageView, skip_current_view=True)
+
+            # Treat an incomplete sign-message flow as an abort and return to the
+            # normal Seed Options menu instead of opening review with missing data.
+            self.controller.resume_main_flow = None
+            self.controller.sign_message_data = None
 
         if self.controller.psbt:
             from seedsigner.models.psbt_parser import PSBTParser
