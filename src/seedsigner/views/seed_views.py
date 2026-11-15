@@ -518,8 +518,8 @@ class SeedElectrumMnemonicStartView(View):
 
         self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
 
-        return Destination(SeedMnemonicEntryView)
-
+        # Use skip_current_view=True to prevent BACK from landing on this warning screen
+        return Destination(SeedMnemonicEntryView, skip_current_view=True)
 
 
 """****************************************************************************
