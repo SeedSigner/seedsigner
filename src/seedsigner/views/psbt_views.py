@@ -282,7 +282,7 @@ class PSBTWarningView(View):
         if warning == PSBTParser.WARNING__OP_RETURN_BURN:
             Screen_cls = DireWarningScreen
             # TRANSLATOR_NOTE: Total sats destroyed by this transaction's OP_RETURN outputs (e.g. "10,000 sats")
-            status_headline = _("{amount} sats").format(amount=f"{psbt_parser.op_return_amount:,}")
+            status_headline = _("{amount} sats").format(amount=f"{psbt_parser.burn_amount:,}")
             # TRANSLATOR_NOTE: Shown under the burned amount. "OP_RETURN" is a technical term, should probably NOT be translated in most languages
             text = _("This transaction burns these sats in OP_RETURN outputs. They can never be spent.")
 
@@ -359,7 +359,7 @@ class PSBTMathView(View):
             num_recipients=psbt_parser.num_destinations,
             fee_amount=psbt_parser.fee_amount,
             change_amount=psbt_parser.change_amount,
-            op_return_amount=psbt_parser.op_return_amount,
+            burn_amount=psbt_parser.burn_amount,
             is_high_fee_tx=psbt_parser.is_high_fee,
         )
 

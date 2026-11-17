@@ -354,10 +354,9 @@ class PSBTParser():
         self.op_return_data: List[bytes] = []
 
         # The value on each OP_RETURN output, in the same order, and their total. Sats
-        # sent to an OP_RETURN are burned: neither spend nor change, so they get their own
-        # total.
+        # sent to an OP_RETURN are burned so they get their own total.
         self.op_return_amounts: List[int] = []
-        self.op_return_amount: int = 0
+        self.burn_amount: int = 0
 
         # Whether the fee is high relative to what is being sent; see has_high_fee().
         # Computed once at the end of parse() so the views can read it without each
@@ -558,7 +557,7 @@ class PSBTParser():
 
         # Record the non-fatal findings, most serious first
         self.warnings = []
-        if self.op_return_amount > 0:
+        if self.burn_amount > 0:
             self.warnings.append(PSBTParser.WARNING__OP_RETURN_BURN)
 
         if self.is_high_fee:
@@ -981,7 +980,7 @@ class PSBTParser():
         self.destination_amounts = []
         self.op_return_data = []
         self.op_return_amounts = []
-        self.op_return_amount = 0
+        self.burn_amount = 0
 
         # Asking the PSBT for its transaction rebuilds that entire transaction from
         # scratch on every single request. The outputs are consulted a dozen times
@@ -1209,7 +1208,7 @@ class PSBTParser():
             if script_data[:1] == bytes([OPCODES.OP_RETURN]):
                 self.op_return_data.append(PSBTParser._parse_op_return_payload(script_data))
                 self.op_return_amounts.append(vout[i].value)
-                self.op_return_amount += vout[i].value
+                self.burn_amount += vout[i].value
 
             elif is_presumed_change:
                 # Remember that "change" in this function is ANY output coming back to our

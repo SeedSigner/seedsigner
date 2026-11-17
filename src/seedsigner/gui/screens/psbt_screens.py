@@ -511,7 +511,7 @@ class PSBTMathScreen(ButtonListScreen):
     num_recipients: int = 0
     fee_amount: int = 0
     change_amount: int = 0
-    op_return_amount: int = 0
+    burn_amount: int = 0
     is_high_fee_tx: bool = False
 
 
@@ -525,18 +525,18 @@ class PSBTMathScreen(ButtonListScreen):
 
         # Only show the "burned" line when something was burned (most OP_RETURNs carry no
         # value). Decided before the amount is reformatted into a string below.
-        shows_burned_amount = self.op_return_amount > 0
+        shows_burned_amount = self.burn_amount > 0
 
         if self.input_amount > 1e6:
             denomination = _("btc")
             self.input_amount /= 1e8
             self.spend_amount /= 1e8
             self.change_amount /= 1e8
-            self.op_return_amount /= 1e8
+            self.burn_amount /= 1e8
             self.input_amount = f"{self.input_amount:,.8f}"
             self.spend_amount = f"{self.spend_amount:,.8f}"
             self.change_amount = f"{self.change_amount:,.8f}"
-            self.op_return_amount = f"{self.op_return_amount:,.8f}"
+            self.burn_amount = f"{self.burn_amount:,.8f}"
 
             # Note: We keep the fee denominated in sats; just left pad it so it still
             # lines up properly.
@@ -547,9 +547,9 @@ class PSBTMathScreen(ButtonListScreen):
             self.spend_amount = f"{self.spend_amount:,}"
             self.fee_amount = f"{self.fee_amount:,}"
             self.change_amount = f"{self.change_amount:,}"
-            self.op_return_amount = f"{self.op_return_amount:,}"
+            self.burn_amount = f"{self.burn_amount:,}"
 
-        longest_amount = max(len(self.input_amount), len(self.spend_amount), len(self.fee_amount), len(self.change_amount), len(self.op_return_amount))
+        longest_amount = max(len(self.input_amount), len(self.spend_amount), len(self.fee_amount), len(self.change_amount), len(self.burn_amount))
         if len(self.input_amount) < longest_amount:
             self.input_amount = " " * (longest_amount - len(self.input_amount)) + self.input_amount
 
@@ -562,8 +562,8 @@ class PSBTMathScreen(ButtonListScreen):
         if len(self.change_amount) < longest_amount:
             self.change_amount = " " * (longest_amount - len(self.change_amount)) + self.change_amount
 
-        if len(self.op_return_amount) < longest_amount:
-            self.op_return_amount = " " * (longest_amount - len(self.op_return_amount)) + self.op_return_amount
+        if len(self.burn_amount) < longest_amount:
+            self.burn_amount = " " * (longest_amount - len(self.burn_amount)) + self.burn_amount
 
         # Render the info to temp Image
         # TODO: Test rendering the numeric amounts without the supersampling
@@ -625,7 +625,7 @@ class PSBTMathScreen(ButtonListScreen):
             cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
             render_amount(
                 cur_y,
-                f"-{self.op_return_amount}",
+                f"-{self.burn_amount}",
                 # TRANSLATOR_NOTE: Sats destroyed by an OP_RETURN output; sits alongside "recipients", "fee", and "change" in the transaction's arithmetic
                 info_text=_("burned") + PSBTOverviewScreen.WARNING_MARK,
                 info_text_color=GUIConstants.DIRE_WARNING_COLOR,
