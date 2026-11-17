@@ -1427,12 +1427,13 @@ class SeedTranscribeSeedQRFormatView(View):
 
         if self.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR) != SettingsConstants.OPTION__ENABLED:
             # Only configured for standard SeedQR
+            num_modules = self.STANDARD_12.return_data if len(self.seed.mnemonic_list) == 12 else self.STANDARD_24.return_data
             return Destination(
                 SeedTranscribeSeedQRWarningView,
                 view_args={
                     "seed": self.seed,
                     "seedqr_format": QRType.SEED__SEEDQR,
-                    "num_modules": self.STANDARD_12.return_data,
+                    "num_modules": num_modules,
                 },
                 skip_current_view=True,
             )
