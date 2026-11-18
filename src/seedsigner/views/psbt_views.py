@@ -244,7 +244,7 @@ class PSBTOverviewView(View):
             num_self_transfer_outputs=num_self_transfer_outputs,
             num_change_outputs=num_change_outputs,
             destination_addresses=psbt_parser.destination_addresses,
-            has_op_return=psbt_parser.op_return_data is not None,
+            op_return_amounts=psbt_parser.op_return_amounts,
             is_high_fee_tx=psbt_parser.is_high_fee,
         )
 
@@ -277,8 +277,16 @@ class PSBTWarningView(View):
 
 
     def run(self):
-        warning = self.controller.psbt_parser.warnings[self.warning_index]
-        if warning == PSBTParser.WARNING__HIGH_FEE:
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+        warning = psbt_parser.warnings[self.warning_index]
+        if warning == PSBTParser.WARNING__OP_RETURN_BURN:
+            Screen_cls = DireWarningScreen
+            # TRANSLATOR_NOTE: Total sats destroyed by this transaction's OP_RETURN outputs (e.g. "10,000 sats")
+            status_headline = _("{amount} sats").format(amount=f"{psbt_parser.burn_amount:,}")
+            # TRANSLATOR_NOTE: Shown under the burned amount. "OP_RETURN" is a technical term, should probably NOT be translated in most languages
+            text = _("This transaction burns these sats in OP_RETURN outputs. They can never be spent.")
+
+        elif warning == PSBTParser.WARNING__HIGH_FEE:
             Screen_cls = DireWarningScreen
             status_headline = _("High Fee!")
             # TRANSLATOR_NOTE: Variable is the percentage of the total output value (excluding change) that the fee exceeds. (e.g. "This transaction has a fee higher than 25% of the total output value (excluding change).")
@@ -331,6 +339,7 @@ class PSBTMathView(View):
         Follows the Overview pictogram. Shows:
         + total input value
         - recipients' value
+        - burned by OP_RETURN outputs, if any
         - fees
         -------------------
         + change value
@@ -350,6 +359,7 @@ class PSBTMathView(View):
             num_recipients=psbt_parser.num_destinations,
             fee_amount=psbt_parser.fee_amount,
             change_amount=psbt_parser.change_amount,
+            burn_amount=psbt_parser.burn_amount,
             is_high_fee_tx=psbt_parser.is_high_fee,
         )
 
@@ -358,9 +368,17 @@ class PSBTMathView(View):
 
         if len(psbt_parser.destination_addresses) > 0:
             return Destination(PSBTAddressDetailsView, view_args={"address_num": 0})
-        else:
+
+        elif psbt_parser.num_change_outputs > 0:
             # This is a self-transfer
             return Destination(PSBTChangeDetailsView, view_args={"change_address_num": 0})
+
+        elif psbt_parser.num_op_returns > 0:
+            # No recipient and no change, so every output is an OP_RETURN
+            return Destination(PSBTOpReturnView)
+
+        else:
+            return Destination(PSBTFinalizeView)
 
 
 
@@ -412,7 +430,7 @@ class PSBTAddressDetailsView(View):
             # Move on to display change
             return Destination(PSBTChangeDetailsView, view_args={"change_address_num": 0})
 
-        elif psbt_parser.op_return_data:
+        elif psbt_parser.num_op_returns > 0:
             return Destination(PSBTOpReturnView)
 
         else:
@@ -518,7 +536,7 @@ class PSBTChangeDetailsView(View):
             if self.change_address_num < psbt_parser.num_change_outputs - 1:
                 return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
 
-            elif psbt_parser.op_return_data:
+            elif psbt_parser.num_op_returns > 0:
                 return Destination(PSBTOpReturnView)
 
             else:
@@ -1082,8 +1100,13 @@ class PSBTMissingInputUtxoView(View):
 
 class PSBTOpReturnView(View):
     """
-        Shows the OP_RETURN data
+        Shows one OP_RETURN output's data. `op_return_num` picks the output.
     """
+    def __init__(self, op_return_num: int = 0):
+        super().__init__()
+        self.op_return_num = op_return_num
+
+
     def run(self):
         from seedsigner.gui.screens.psbt_screens import PSBTOpReturnScreen
         psbt_parser: PSBTParser = self.controller.psbt_parser
@@ -1092,18 +1115,25 @@ class PSBTOpReturnView(View):
             # Should not be able to get here
             raise Exception("Routing error")
 
+        # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
         title = _("OP_RETURN")
+        if psbt_parser.num_op_returns > 1:
+            title += f" (#{self.op_return_num + 1})"
         button_data = [ButtonOption("Next")]
 
         selected_menu_num = self.run_screen(
             PSBTOpReturnScreen,
             title=title,
             button_data=button_data,
-            op_return_data=psbt_parser.op_return_data,
+            op_return_data=psbt_parser.op_return_data[self.op_return_num],
+            burn_amount=psbt_parser.op_return_amounts[self.op_return_num],
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
+        if self.op_return_num < psbt_parser.num_op_returns - 1:
+            return Destination(PSBTOpReturnView, view_args={"op_return_num": self.op_return_num + 1})
 
         return Destination(PSBTFinalizeView)
 

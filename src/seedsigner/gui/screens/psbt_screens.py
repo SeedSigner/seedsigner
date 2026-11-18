@@ -24,12 +24,32 @@ class PSBTOverviewScreen(ButtonListScreen):
     num_self_transfer_outputs: int = 0
     num_change_outputs: int = 0
     destination_addresses: list[str] = None
-    has_op_return: bool = False
+    op_return_amounts: list[int] = None
     is_high_fee_tx: bool = False
 
     # Appended to a row that needs the user's attention, drawn in the dire warning color
     WARNING_MARK = " (!)"
     
+
+    @staticmethod
+    def op_return_row(op_return_amounts: list[int]) -> str:
+        """
+            Represent OP_RETURN outputs as a single row. Even if there is more than one
+            in the transaction, we have to prioritize conserving vertical space.
+
+            Note: an option to display a plural form ("OP_RETURNs") creates more
+            translation complications than it's worth.
+        """
+        # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
+        row = _("OP_RETURN")
+
+        for amount in op_return_amounts:
+            if amount > 0:
+                row += PSBTOverviewScreen.WARNING_MARK
+                break
+
+        return row
+
 
     def __post_init__(self):
         # Customize defaults
@@ -159,9 +179,8 @@ class PSBTOverviewScreen(ButtonListScreen):
                 fee_label += PSBTOverviewScreen.WARNING_MARK
             destination_column.append(fee_label)
 
-            if self.has_op_return:
-                # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
-                destination_column.append(_("OP_RETURN"))
+            if self.op_return_amounts:
+                destination_column.append(PSBTOverviewScreen.op_return_row(self.op_return_amounts))
 
             if self.num_change_outputs > 0:
                 for i in range(0, self.num_change_outputs):
@@ -182,10 +201,17 @@ class PSBTOverviewScreen(ButtonListScreen):
         else:
             destination_text_width = None
             destination_column = None
-            # Steadliy widen out the destination column until we run out of space
+            # The fixed labels (fee, OP_RETURN, change) set the column's minimum width, so
+            # we first measure the widest one. Setting truncate_at=0 cuts every address
+            # down to just "...", which is narrower than any fixed label.
+            (fixed_labels_width, _unused) = calculate_destination_col_width(truncate_at=0)
+
+            # Steadily widen out the destination column until we run out of space. The
+            # addresses can always widen to match the widest fixed label.
+            width_limit = max(max_destination_col_width, fixed_labels_width)
             for i in range(6, 14):
                 (new_width, new_col_text) = calculate_destination_col_width(truncate_at=i)
-                if new_width > max_destination_col_width:
+                if new_width > width_limit:
                     if not destination_text_width:
                         destination_text_width = new_width
                     if not destination_column:
@@ -485,6 +511,7 @@ class PSBTMathScreen(ButtonListScreen):
     num_recipients: int = 0
     fee_amount: int = 0
     change_amount: int = 0
+    burn_amount: int = 0
     is_high_fee_tx: bool = False
 
 
@@ -496,14 +523,20 @@ class PSBTMathScreen(ButtonListScreen):
 
         super().__post_init__()
 
+        # Only show the "burned" line when something was burned (most OP_RETURNs carry no
+        # value). Decided before the amount is reformatted into a string below.
+        shows_burned_amount = self.burn_amount > 0
+
         if self.input_amount > 1e6:
             denomination = _("btc")
             self.input_amount /= 1e8
             self.spend_amount /= 1e8
             self.change_amount /= 1e8
+            self.burn_amount /= 1e8
             self.input_amount = f"{self.input_amount:,.8f}"
             self.spend_amount = f"{self.spend_amount:,.8f}"
             self.change_amount = f"{self.change_amount:,.8f}"
+            self.burn_amount = f"{self.burn_amount:,.8f}"
 
             # Note: We keep the fee denominated in sats; just left pad it so it still
             # lines up properly.
@@ -514,8 +547,9 @@ class PSBTMathScreen(ButtonListScreen):
             self.spend_amount = f"{self.spend_amount:,}"
             self.fee_amount = f"{self.fee_amount:,}"
             self.change_amount = f"{self.change_amount:,}"
+            self.burn_amount = f"{self.burn_amount:,}"
 
-        longest_amount = max(len(self.input_amount), len(self.spend_amount), len(self.fee_amount), len(self.change_amount))
+        longest_amount = max(len(self.input_amount), len(self.spend_amount), len(self.fee_amount), len(self.change_amount), len(self.burn_amount))
         if len(self.input_amount) < longest_amount:
             self.input_amount = " " * (longest_amount - len(self.input_amount)) + self.input_amount
 
@@ -527,6 +561,9 @@ class PSBTMathScreen(ButtonListScreen):
 
         if len(self.change_amount) < longest_amount:
             self.change_amount = " " * (longest_amount - len(self.change_amount)) + self.change_amount
+
+        if len(self.burn_amount) < longest_amount:
+            self.burn_amount = " " * (longest_amount - len(self.burn_amount)) + self.burn_amount
 
         # Render the info to temp Image
         # TODO: Test rendering the numeric amounts without the supersampling
@@ -581,6 +618,17 @@ class PSBTMathScreen(ButtonListScreen):
                 cur_y,
                 f"-{self.spend_amount}",
                 info_text=ngettext("recipient", "recipients", self.num_recipients),
+            )
+
+        # Burned sats get their own line so the numbers on screen add up to the inputs
+        if shows_burned_amount:
+            cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
+            render_amount(
+                cur_y,
+                f"-{self.burn_amount}",
+                # TRANSLATOR_NOTE: Sats destroyed by an OP_RETURN output; sits alongside "recipients", "fee", and "change" in the transaction's arithmetic
+                info_text=_("burned") + PSBTOverviewScreen.WARNING_MARK,
+                info_text_color=GUIConstants.DIRE_WARNING_COLOR,
             )
 
         cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
@@ -776,6 +824,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
 @dataclass
 class PSBTOpReturnScreen(ButtonListScreen):
     op_return_data: bytes = None
+    burn_amount: int = 0
 
     def __post_init__(self):
         # Customize defaults
@@ -783,45 +832,96 @@ class PSBTOpReturnScreen(ButtonListScreen):
 
         super().__post_init__()
 
+        # TODO: Page through a payload too big for one screen instead of cutting it. That
+        # needs a paged Screen that measures each page against the screen size.
+        # 80 is the old relay limit, so any OP_RETURN that used to be standard fits.
+        max_length = 80
+        lines = []
         try:
-            # Simple case: display human-readable text
-            self.components.append(TextArea(
-                text=self.op_return_data.decode(errors="strict"),  # "strict" is a good enough heuristic to decide if it's human readable
-                font_size=GUIConstants.get_top_nav_title_font_size(),
-                is_text_centered=True,
-                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
-                height=self.buttons[0].screen_y - self.top_nav.height - 2*GUIConstants.COMPONENT_PADDING,
-            ))
-            return
+            # Decide on the whole payload before cutting it, so the cut can't split a
+            # multi-byte character
+            text = self.op_return_data.decode(errors="strict")[:max_length]  # "strict" is a good enough heuristic to decide if it's human readable
+            num_bytes_not_shown = len(self.op_return_data) - len(text.encode())
+            is_hex = False
         except UnicodeDecodeError:
             # Contains data that can't be converted to UTF-8; probably encoded and not
             # meant to be human readable.
-            font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.get_body_font_size())
-            (left, top, right, bottom) = font.getbbox("X", anchor="ls")
-            chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
-            decoded_str = self.op_return_data.hex()
-            num_lines = math.ceil(len(decoded_str) / chars_per_line)
-            text = ""
-            for i in range(num_lines):
-                text += (decoded_str[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
-            text = text[:-1]
-
             # TRANSLATOR_NOTE: Shown when displaying OP_RETURN as non-human-readable hexadecimal data
-            hex_label = _("raw hex data")
-            label = TextArea(
-                text=hex_label,
-                font_color=GUIConstants.LABEL_FONT_COLOR,
-                font_size=GUIConstants.LABEL_FONT_SIZE,
-                screen_y=self.top_nav.height,
-            )
-            self.components.append(label)
+            lines.append((_("raw hex data"), GUIConstants.LABEL_FONT_COLOR))
 
+            # Hex fills the screen from the top, 12 bytes to a line on a 240px wide
+            # screen, so each line above it after "raw hex data" costs it 12 bytes
+            if self.burn_amount > 0:
+                max_length -= 12
+            if len(self.op_return_data) > max_length:
+                max_length -= 12
+            text = self.op_return_data[:max_length].hex()
+            num_bytes_not_shown = max(len(self.op_return_data) - max_length, 0)
+            is_hex = True
+
+        if num_bytes_not_shown:
+            # Without this line, a cut-short payload would look just like a complete one
+            # TRANSLATOR_NOTE: How much of an OP_RETURN payload too large to show all of could not be displayed (e.g. "3,456 bytes not shown"). Keep it short: it must fit on one line.
+            lines.append((_("{num_bytes} bytes not shown").format(num_bytes=f"{num_bytes_not_shown:,}"), GUIConstants.WARNING_COLOR))
+
+        if self.burn_amount > 0:
+            # TRANSLATOR_NOTE: An OP_RETURN output destroys any value sent to it. "amount" is in sats (e.g. "burns 10,000 sats"). Keep it short: it must fit on one line.
+            lines.append((_("burns {amount} sats").format(amount=f"{self.burn_amount:,}"), GUIConstants.DIRE_WARNING_COLOR))
+
+        screen_y = self.top_nav.height
+        for line, font_color in lines:
+            self.components.append(TextArea(
+                text=line,
+                font_color=font_color,
+                font_size=GUIConstants.LABEL_FONT_SIZE,
+                screen_y=screen_y,
+                # Measure to the baseline so the lines are evenly spaced, whichever
+                # letters they have
+                height_ignores_below_baseline=True,
+            ))
+            screen_y += self.components[-1].height + GUIConstants.BODY_LINE_SPACING
+
+        if not lines:
+            screen_y += GUIConstants.COMPONENT_PADDING
+
+        if not self.op_return_data:
+            # Say so rather than leave a blank screen that looks like a rendering bug
+            self.components.append(TextArea(
+                # TRANSLATOR_NOTE: Shown in place of an OP_RETURN payload when the output carries no data
+                text=_("(no data)"),
+                font_color=GUIConstants.LABEL_FONT_COLOR,
+                screen_y=screen_y,
+                height=self.buttons[0].screen_y - screen_y - GUIConstants.COMPONENT_PADDING,
+            ))
+            return
+
+        if not is_hex:
+            # Simple case: display human-readable text
             self.components.append(TextArea(
                 text=text,
-                font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
-                font_size=GUIConstants.get_body_font_size(),
-                screen_y=label.screen_y + label.height + GUIConstants.COMPONENT_PADDING,
+                font_size=GUIConstants.get_top_nav_title_font_size(),
+                is_text_centered=True,
+                screen_y=screen_y,
+                height=self.buttons[0].screen_y - screen_y - GUIConstants.COMPONENT_PADDING,
             ))
+            return
+
+        # Not readable text, so show it as hex
+        font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.get_body_font_size())
+        (left, top, right, bottom) = font.getbbox("X", anchor="ls")
+        chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
+        num_lines = math.ceil(len(text) / chars_per_line)
+        hex_text = ""
+        for i in range(num_lines):
+            hex_text += (text[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
+        hex_text = hex_text[:-1]
+
+        self.components.append(TextArea(
+            text=hex_text,
+            font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+            font_size=GUIConstants.get_body_font_size(),
+            screen_y=screen_y,
+        ))
 
 
 
