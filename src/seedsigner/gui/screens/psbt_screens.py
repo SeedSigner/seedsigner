@@ -823,17 +823,8 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
 
 @dataclass
 class PSBTOpReturnScreen(ButtonListScreen):
-    """
-        Shows one page of an OP_RETURN payload.
-    """
-    page_text: str = ""
-    is_hex: bool = False
-    total_bytes: int = 0
-    amount: int = 0
-    page_num: int = 0
-    num_pages: int = 1
-    bytes_shown: int = 0
-    is_truncated: bool = False
+    op_return_data: bytes = None
+    burn_amount: int = 0
 
     def __post_init__(self):
         # Customize defaults
@@ -841,41 +832,46 @@ class PSBTOpReturnScreen(ButtonListScreen):
 
         super().__post_init__()
 
-        screen_y = self.top_nav.height
-
-        # One short line for each thing the user can't tell from the page itself.
-        # PSBTOpReturnView.paginate() makes room for these lines above a hex payload, so
-        # each one has to stay on a single line.
+        # TODO: Page through a payload too big for one screen instead of cutting it. That
+        # needs a paged Screen that measures each page against the screen size.
+        # 80 is the old relay limit, so any OP_RETURN that used to be standard fits.
+        max_length = 80
         lines = []
-        if self.is_hex:
+        try:
+            # Decide on the whole payload before cutting it, so the cut can't split a
+            # multi-byte character
+            text = self.op_return_data.decode(errors="strict")[:max_length]  # "strict" is a good enough heuristic to decide if it's human readable
+            num_bytes_not_shown = len(self.op_return_data) - len(text.encode())
+            is_hex = False
+        except UnicodeDecodeError:
+            # Contains data that can't be converted to UTF-8; probably encoded and not
+            # meant to be human readable.
             # TRANSLATOR_NOTE: Shown when displaying OP_RETURN as non-human-readable hexadecimal data
             lines.append((_("raw hex data"), GUIConstants.LABEL_FONT_COLOR))
 
-        if self.is_truncated and self.page_num == self.num_pages - 1:
-            # This is the page where the data runs out. Without this line, the last page
-            # of a cut-short payload would look just like the last page of a complete one.
+            # Hex fills the screen from the top, 12 bytes to a line on a 240px wide
+            # screen, so each line above it after "raw hex data" costs it 12 bytes
+            if self.burn_amount > 0:
+                max_length -= 12
+            if len(self.op_return_data) > max_length:
+                max_length -= 12
+            text = self.op_return_data[:max_length].hex()
+            num_bytes_not_shown = max(len(self.op_return_data) - max_length, 0)
+            is_hex = True
+
+        if num_bytes_not_shown:
+            # Without this line, a cut-short payload would look just like a complete one
             # TRANSLATOR_NOTE: How much of an OP_RETURN payload too large to show all of could not be displayed (e.g. "3,456 bytes not shown"). Keep it short: it must fit on one line.
-            text = _("{num_bytes} bytes not shown").format(
-                num_bytes=f"{self.total_bytes - self.bytes_shown:,}")
-            lines.append((text, GUIConstants.WARNING_COLOR))
+            lines.append((_("{num_bytes} bytes not shown").format(num_bytes=f"{num_bytes_not_shown:,}"), GUIConstants.WARNING_COLOR))
 
-        elif self.num_pages > 1:
-            # TRANSLATOR_NOTE: Size of an OP_RETURN payload and which page of it is on screen (e.g. "300 bytes  2 of 5"). Keep it short: it must fit on one line.
-            text = _("{num_bytes} bytes  {page} of {num_pages}").format(
-                num_bytes=f"{self.total_bytes:,}", page=self.page_num + 1, num_pages=self.num_pages)
-            # Warning color for a payload that was cut short
-            font_color = (GUIConstants.WARNING_COLOR if self.is_truncated
-                else GUIConstants.LABEL_FONT_COLOR)
-            lines.append((text, font_color))
-
-        if self.amount > 0:
+        if self.burn_amount > 0:
             # TRANSLATOR_NOTE: An OP_RETURN output destroys any value sent to it. "amount" is in sats (e.g. "burns 10,000 sats"). Keep it short: it must fit on one line.
-            text = _("burns {amount} sats").format(amount=f"{self.amount:,}")
-            lines.append((text, GUIConstants.DIRE_WARNING_COLOR))
+            lines.append((_("burns {amount} sats").format(amount=f"{self.burn_amount:,}"), GUIConstants.DIRE_WARNING_COLOR))
 
-        for text, font_color in lines:
+        screen_y = self.top_nav.height
+        for line, font_color in lines:
             self.components.append(TextArea(
-                text=text,
+                text=line,
                 font_color=font_color,
                 font_size=GUIConstants.LABEL_FONT_SIZE,
                 screen_y=screen_y,
@@ -888,7 +884,7 @@ class PSBTOpReturnScreen(ButtonListScreen):
         if not lines:
             screen_y += GUIConstants.COMPONENT_PADDING
 
-        if self.total_bytes == 0:
+        if not self.op_return_data:
             # Say so rather than leave a blank screen that looks like a rendering bug
             self.components.append(TextArea(
                 # TRANSLATOR_NOTE: Shown in place of an OP_RETURN payload when the output carries no data
@@ -899,10 +895,10 @@ class PSBTOpReturnScreen(ButtonListScreen):
             ))
             return
 
-        if not self.is_hex:
+        if not is_hex:
             # Simple case: display human-readable text
             self.components.append(TextArea(
-                text=self.page_text,
+                text=text,
                 font_size=GUIConstants.get_top_nav_title_font_size(),
                 is_text_centered=True,
                 screen_y=screen_y,
@@ -914,14 +910,14 @@ class PSBTOpReturnScreen(ButtonListScreen):
         font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.get_body_font_size())
         (left, top, right, bottom) = font.getbbox("X", anchor="ls")
         chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
-        num_lines = math.ceil(len(self.page_text) / chars_per_line)
-        text = ""
+        num_lines = math.ceil(len(text) / chars_per_line)
+        hex_text = ""
         for i in range(num_lines):
-            text += (self.page_text[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
-        text = text[:-1]
+            hex_text += (text[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
+        hex_text = hex_text[:-1]
 
         self.components.append(TextArea(
-            text=text,
+            text=hex_text,
             font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
             font_size=GUIConstants.get_body_font_size(),
             screen_y=screen_y,

@@ -116,14 +116,6 @@ def keep_only_last_output(psbt: PSBT) -> PSBT:
     return psbt
 
 
-def op_return_filler(num_bytes: int) -> bytes:
-    """
-        Numbered filler text, so a screenshot shows at a glance which part of a long
-        payload is on screen.
-    """
-    return ("".join(f"{i:04d} " for i in range(num_bytes//5 + 1)))[:num_bytes].encode()
-
-
 # Prep a PSBT with a human-readable OP_RETURN
 raw_payload_data = "Chancellor on the brink of third bailout for banks".encode()
 psbt = keep_only_last_output(PSBT.from_base64(BASE64_MULTISIG_PSBT))
@@ -133,12 +125,9 @@ BASE64_PSBT_WITH_OP_RETURN_TEXT = add_op_return_to_psbt(psbt, raw_payload_data)
 random.seed(6102)
 BASE64_PSBT_WITH_OP_RETURN_RAW_BYTES = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), random.randbytes(80))
 
-# A payload too long for one screen, so the paging and the "N of M" label show.
-BASE64_PSBT_WITH_OP_RETURN_LONG = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), op_return_filler(300))
-
-# Too large even for paging. Bitcoin Core v30 allows up to 100,000 bytes by default, so
-# sizes like this are now ordinary.
-BASE64_PSBT_WITH_OP_RETURN_TRUNCATED = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), op_return_filler(4096))
+# Too long for one screen, so it is cut and says how much wasn't shown. Bitcoin Core v30
+# allows up to 100,000 bytes by default, so sizes like this are now ordinary.
+BASE64_PSBT_WITH_OP_RETURN_TRUNCATED = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), b" ".join([raw_payload_data] * 80))
 
 # A bare OP_RETURN: an output that exists and pushes nothing
 BASE64_PSBT_WITH_OP_RETURN_EMPTY = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), b"")
@@ -515,7 +504,6 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTOverviewView, screenshot_name="PSBTOverviewView_op_return",    mock_context_manager=mock_psbt_with_op_return_loaded),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_text",         mock_context_manager=mock_psbt_with_op_return_loaded),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_raw_hex_data", mock_context_manager=mock_psbt_with_op_return_raw_bytes_loaded),
-                ScreenshotConfig(psbt_views.PSBTOpReturnView, dict(page_num=1), screenshot_name="PSBTOpReturnView_paged",     mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_LONG)),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_truncated",                   mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_TRUNCATED)),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_empty",                       mock_context_manager=lambda: mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_EMPTY)),
                 ScreenshotConfig(psbt_views.PSBTOverviewView, screenshot_name="PSBTOverviewView_op_return_burns_sats",                mock_context_manager=mock_psbt_with_one_burning_op_return_loaded),

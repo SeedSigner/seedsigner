@@ -1100,89 +1100,11 @@ class PSBTMissingInputUtxoView(View):
 
 class PSBTOpReturnView(View):
     """
-        Shows one page of one OP_RETURN output's data. `op_return_num` picks the output
-        and `page_num` the page within it.
+        Shows one OP_RETURN output's data. `op_return_num` picks the output.
     """
-
-    # TODO: Measure pages against the real screen instead of these fixed sizes, like
-    # `SeedSignMessageConfirmMessageScreen` does with `reflow_text_into_pages`.
-
-    # How much of a payload fits on one screen, in characters of text or bytes of hex.
-    # 80 is the old relay limit, so any OP_RETURN that used to be standard still fits on
-    # one screen, unless it is hex and also burns sats.
-    MAX_UNITS_PER_PAGE = 80
-
-    # One line of hex on a 240px wide screen, the narrowest. Each extra line of text above
-    # a hex payload costs it this much of the page; wider screens fit more on a line, so
-    # they just have room to spare.
-    HEX_BYTES_PER_LINE = 12
-
-    # Beyond this many pages, stop and say the payload was cut short. The screen always
-    # shows the real size, so the user knows how much they didn't see.
-    MAX_PAGES = 10
-
-
-    def __init__(self, op_return_num: int = 0, page_num: int = 0):
+    def __init__(self, op_return_num: int = 0):
         super().__init__()
         self.op_return_num = op_return_num
-        self.page_num = page_num
-
-
-    @staticmethod
-    def paginate(payload: bytes, burns_sats: bool = False) -> tuple[list[str], bool, bool]:
-        """
-            Splits a payload into pages for the screen. Returns the pages, whether they
-            are hex, and whether any of the payload had to be dropped.
-
-            `burns_sats` means the screen will also show a "burns sats" line, which
-            leaves less room for a hex payload. Text-or-hex is decided once for the whole
-            payload, so a page never splits a multi-byte character, and a text page ends
-            on a word break where it can.
-        """
-        try:
-            text = payload.decode(errors="strict")
-        except UnicodeDecodeError:
-            # Contains data that can't be converted to UTF-8; probably encoded and not
-            # meant to be human readable.
-            text = None
-
-        is_hex = text is None
-
-        units = payload if is_hex else text
-        per_page = PSBTOpReturnView.MAX_UNITS_PER_PAGE
-        if is_hex:
-            # Hex fills the page from the top in small lines, so each line of text above
-            # it after "raw hex data" costs it a line: "burns N sats", and the size and
-            # page number once it needs more than one page. Text is centered in the space
-            # left, which has room for them.
-            if burns_sats:
-                per_page -= PSBTOpReturnView.HEX_BYTES_PER_LINE
-            if len(units) > per_page:
-                per_page -= PSBTOpReturnView.HEX_BYTES_PER_LINE
-
-        pages = []
-        start = 0
-        while start < len(units) and len(pages) < PSBTOpReturnView.MAX_PAGES:
-            end = start + per_page
-            if not is_hex and end < len(units) and units[end] not in " \n":
-                # Don't split a word across two pages: end this one after its last space
-                # or line break, if it has one
-                word_break = max(units.rfind(" ", start, end), units.rfind("\n", start, end))
-                if word_break > start:
-                    end = word_break + 1
-            pages.append(units[start:end])
-            start = end
-
-        is_truncated = start < len(units)
-
-        if not pages:
-            # A bare OP_RETURN, one that pushes nothing, still gets a page
-            pages = [units]
-
-        if is_hex:
-            pages = [page.hex() for page in pages]
-
-        return pages, is_hex, is_truncated
 
 
     def run(self):
@@ -1193,42 +1115,24 @@ class PSBTOpReturnView(View):
             # Should not be able to get here
             raise Exception("Routing error")
 
-        payload = psbt_parser.op_return_data[self.op_return_num]
-        amount = psbt_parser.op_return_amounts[self.op_return_num]
-        pages, is_hex, is_truncated = PSBTOpReturnView.paginate(payload, burns_sats=amount > 0)
-
         # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
         title = _("OP_RETURN")
         if psbt_parser.num_op_returns > 1:
             title += f" (#{self.op_return_num + 1})"
         button_data = [ButtonOption("Next")]
 
-        # Count bytes, not characters: a page of text may hold multi-byte characters
-        shown = "".join(pages)
-        bytes_shown = len(shown) // 2 if is_hex else len(shown.encode())
-
         selected_menu_num = self.run_screen(
             PSBTOpReturnScreen,
             title=title,
             button_data=button_data,
-            page_text=pages[self.page_num],
-            is_hex=is_hex,
-            total_bytes=len(payload),
-            amount=amount,
-            page_num=self.page_num,
-            num_pages=len(pages),
-            bytes_shown=bytes_shown,
-            is_truncated=is_truncated,
+            op_return_data=psbt_parser.op_return_data[self.op_return_num],
+            burn_amount=psbt_parser.op_return_amounts[self.op_return_num],
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        if self.page_num < len(pages) - 1:
-            return Destination(PSBTOpReturnView, view_args={
-                "op_return_num": self.op_return_num, "page_num": self.page_num + 1})
-
-        elif self.op_return_num < psbt_parser.num_op_returns - 1:
+        if self.op_return_num < psbt_parser.num_op_returns - 1:
             return Destination(PSBTOpReturnView, view_args={"op_return_num": self.op_return_num + 1})
 
         return Destination(PSBTFinalizeView)
