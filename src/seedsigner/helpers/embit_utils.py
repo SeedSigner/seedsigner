@@ -143,6 +143,7 @@ def parse_derivation_path(derivation_path: str) -> dict:
     lookups = {
         "script_types": {
             "44h": SettingsConstants.LEGACY_P2PKH,
+            "47h": SettingsConstants.LEGACY_P2PKH,
             "49h": SettingsConstants.NESTED_SEGWIT,
             "84h": SettingsConstants.NATIVE_SEGWIT,
             "86h": SettingsConstants.TAPROOT,
