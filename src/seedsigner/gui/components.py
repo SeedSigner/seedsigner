@@ -20,6 +20,16 @@ from seedsigner.models.threads import BaseThread
 logger = logging.getLogger(__name__)
 
 
+def _get_single_paragraph_text_bbox(font, text: str):
+    """Measure text without passing paragraph separators to libraqm.
+
+    libraqm 0.11 rejects text spanning multiple paragraphs. TextArea handles explicit
+    line breaks itself when it reflows and renders the text, so replacing newlines with
+    spaces here only affects the initial font-metrics calculation.
+    """
+    return font.getbbox(text.replace("\n", " "), anchor="ls")
+
+
 
 # TODO: Remove all pixel hard coding
 class GUIConstants:
@@ -398,7 +408,7 @@ class TextArea(BaseComponent):
         # Note: from the baseline anchor, `top` is a negative number while `bottom`
         # conveys the height of the pixels that rendered below the baseline, if any
         # (e.g. "py" in "python").
-        (left, top, full_text_width, bottom) = font.getbbox(self.text, anchor="ls")
+        (left, top, full_text_width, bottom) = _get_single_paragraph_text_bbox(font, self.text)
         self.text_height_above_baseline = -1 * top
         self.text_height_below_baseline = bottom
 
@@ -1393,7 +1403,9 @@ class Button(BaseComponent):
             self.font = Fonts.get_font(self.font_name, self.font_size)
 
             # Calc true pixel height (any anchor from "baseline" will work)
-            (left, top, self.text_width, bottom) = self.font.getbbox(self.text, anchor="ls")
+            (left, top, self.text_width, bottom) = _get_single_paragraph_text_bbox(
+                self.font, self.text
+            )
             # print(f"left: {left} |  top: {top} | right: {self.text_width} | bottom: {bottom}")
 
             # Note: "top" is negative when measured from a "baseline" anchor. Intentionally
@@ -1833,7 +1845,7 @@ def reflow_text_for_width(text: str,
     #   font.
     font = Fonts.get_font(font_name=font_name, size=font_size)
     # Measure from left baseline ("ls")
-    (left, top, full_text_width, px_below_baseline) = font.getbbox(text, anchor="ls")
+    (left, top, full_text_width, px_below_baseline) = _get_single_paragraph_text_bbox(font, text)
 
     # Assume we can break Asian text on any character
     treat_chars_as_words = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE) in [
