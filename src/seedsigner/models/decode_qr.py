@@ -383,7 +383,10 @@ class DecodeQR:
                 return QRType.WALLET__GENERIC
 
             # Seed
-            if re.search(r'\d{48,96}', s):
+            # A SeedQR is *only* 4-digit wordlist indices: exactly 48 digits (12 words)
+            # or 96 digits (24 words). Must be a full match; a loose search would claim
+            # any QR that merely contains a long run of digits (e.g. a SettingsQR).
+            if re.fullmatch(r'\d{48}|\d{96}', s.strip()):
                 return QRType.SEED__SEEDQR
 
             # Bitcoin Address
@@ -841,6 +844,13 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
         if qr_type == QRType.SEED__SEEDQR:
             try:
                 self.seed_phrase = []
+                segment = segment.strip()
+
+                # 4 digits per word; only 12- or 24-word mnemonics are supported. Reject
+                # anything else outright rather than decoding a prefix and silently
+                # discarding the remaining digits.
+                if len(segment) not in [48, 96]:
+                    return DecodeQRStatus.INVALID
 
                 # Parse 12 or 24-word QR code
                 num_words = int(len(segment) / 4)
@@ -848,15 +858,19 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
                     index = int(segment[i * 4: (i*4) + 4])
                     word = self.wordlist[index]
                     self.seed_phrase.append(word)
-                if len(self.seed_phrase) > 0:
-                    if self.is_12_or_24_word_phrase() == False:
-                        return DecodeQRStatus.INVALID
-                    self.complete = True
-                    self.collected_segments = 1
-                    return DecodeQRStatus.COMPLETE
-                else:
-                    return DecodeQRStatus.INVALID
+
+                # Validate the BIP-39 checksum. Raises if it doesn't match. A SeedQR
+                # that was hand-transcribed incorrectly must be rejected here; otherwise
+                # it is handed off to the seed loading flow which will raise an
+                # InvalidSeedException and dump the user out to the generic error screen.
+                bip39.mnemonic_to_bytes(" ".join(self.seed_phrase), wordlist=self.wordlist)
+
+                self.complete = True
+                self.collected_segments = 1
+                return DecodeQRStatus.COMPLETE
             except Exception as e:
+                logger.info(repr(e), exc_info=True)
+                self.seed_phrase = []
                 return DecodeQRStatus.INVALID
 
         if qr_type == QRType.SEED__COMPACTSEEDQR:
