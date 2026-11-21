@@ -1085,7 +1085,7 @@ class TestPSBTMultisigDescriptorRouting(PSBTSigningFlowTest):
             FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
             FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
             FlowStep(psbt_views.PSBTMathView),
-            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG_ADDR),
             FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
             FlowStep(scan_views.ScanWalletDescriptorView, before_run=self._descriptor_loader(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR)),
             FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
@@ -1233,3 +1233,35 @@ class TestPSBTMultisigDescriptorRouting(PSBTSigningFlowTest):
         ])
 
         assert self.controller.multisig_wallet_descriptor is None
+
+
+    def test_change_and_self_transfer_screens_leave_the_verify_buttons_unchanged(self):
+        """
+        The psbt sends a self-transfer and then change back to the wallet. The user skips
+        verification on the self-transfer screen and then on the change screen. Afterward
+        the View's verify buttons should still have different labels, so the self-transfer
+        screen's label can't carry over to the change screen.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_SELF_TRANSFER, 10_000))
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, 10_000))
+        self._load_psbt_for_signing(psbt)
+
+        # The self-transfer counts toward what is being sent, so its fee warning comes
+        # first
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.SKIP_VERIFICATION),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.SKIP_VERIFICATION),
+            FlowStep(psbt_views.PSBTFinalizeView),
+        ])
+
+        # The verify buttons are class attributes, shared by every test in the run. So an
+        # earlier test may already have relabeled one by the time this test starts.
+        # Checking that the verify buttons still have different labels doesn't depend on
+        # which test runs first.
+        assert psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG.button_label != psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG_ADDR.button_label

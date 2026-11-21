@@ -474,6 +474,7 @@ class PSBTChangeDetailsView(BasePSBTChangeView):
     NEXT = ButtonOption("Next")
     SKIP_VERIFICATION = ButtonOption("Skip verification")
     VERIFY_MULTISIG = ButtonOption("Verify multisig change")
+    VERIFY_MULTISIG_ADDR = ButtonOption("Verify multisig addr")
 
     def run(self):
         from embit import bip32
@@ -506,9 +507,6 @@ class PSBTChangeDetailsView(BasePSBTChangeView):
             title = _("Your Change")
         else:
             title = _("Self-Transfer")
-            self.VERIFY_MULTISIG.button_label = _("Verify multisig addr")
-        # if psbt_parser.num_change_outputs > 1:
-        #     title += f" (#{self.change_address_num + 1})"
 
         is_change_addr_verified = False
         is_unverified_change = False
@@ -527,7 +525,11 @@ class PSBTChangeDetailsView(BasePSBTChangeView):
                 # so the descriptor check is unnecessary. We still ask for it as a best
                 # practice: it encourages the user to keep their descriptor accessible
                 # and confirms that they haven't lost it.
-                button_data = [self.VERIFY_MULTISIG, self.SKIP_VERIFICATION]
+                if is_change_derivation_path:
+                    verify_multisig = self.VERIFY_MULTISIG
+                else:
+                    verify_multisig = self.VERIFY_MULTISIG_ADDR
+                button_data = [verify_multisig, self.SKIP_VERIFICATION]
 
                 if not psbt_parser.are_cosigners_resolved:
                     is_unverified_change = True
@@ -568,7 +570,7 @@ class PSBTChangeDetailsView(BasePSBTChangeView):
         elif button_data[selected_menu_num] == self.NEXT or button_data[selected_menu_num] == self.SKIP_VERIFICATION:
             return self.get_next_destination()
 
-        elif button_data[selected_menu_num] == self.VERIFY_MULTISIG:
+        elif button_data[selected_menu_num] == self.VERIFY_MULTISIG or button_data[selected_menu_num] == self.VERIFY_MULTISIG_ADDR:
             from seedsigner.controller import Controller
             from seedsigner.views.seed_views import LoadMultisigWalletDescriptorView
             self.controller.resume_main_flow = Controller.FLOW__PSBT
