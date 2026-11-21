@@ -276,7 +276,7 @@ def set_input_locking_script(inp: InputScope, script_pubkey: Script):
     inp.non_witness_utxo = None
 
 
-def repoint_at_a_different_quorum(psbt: PSBT):
+def repoint_at_a_different_quorum(psbt: PSBT, reverse_key_order: bool = False):
     """
     Rebuilds the change output's script so it pays a 2-of-3 that still holds the signing
     seed's key, but with one cosigner swapped for a different seed. That swap makes the
@@ -285,6 +285,9 @@ def repoint_at_a_different_quorum(psbt: PSBT):
     The psbt's global xpubs are left as the fixture wrote them: the inputs' three
     cosigners (the expected behavior for all known coordinators). The outsider's xpub is
     not added to the global xpubs.
+
+    With reverse_key_order, the script lists the keys in reverse sorted order, so they are
+    out of BIP-67 order.
     """
     # Callers pass a psbt whose change output comes first
     out = psbt.outputs[0]
@@ -320,8 +323,9 @@ def repoint_at_a_different_quorum(psbt: PSBT):
         else:
             new_pubkey_list.append(public_key)
 
-    # The fixtures are sortedmulti, so keep the keys in lexicographic order
-    new_pubkey_list.sort(key=lambda public_key: public_key.sec())
+    # The fixtures are sortedmulti, so keep the keys in lexicographic order, unless the
+    # caller asked for the reverse
+    new_pubkey_list.sort(key=lambda public_key: public_key.sec(), reverse=reverse_key_order)
     rebuilt_script = script.multisig(m, new_pubkey_list)
 
     # Swap the displaced cosigner's derivation path entry for the outsider's, so

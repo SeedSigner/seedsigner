@@ -236,6 +236,21 @@ class PSBTChangeDerivationPathError(PSBTVerificationError):
         self.derivation_path = derivation_path
 
 
+class PSBTUnsortedMultisigKeysError(PSBTVerificationError):
+    """
+    A multisig output that holds this seed's key, with the inputs' script type and m-of-n,
+    lists its keys out of sorted (BIP-67) order.
+
+    We only support sortedmulti() wallets, which sort the keys in every script they
+    derive. The ordering affects the resulting address derived for this output, and the
+    user's coordinator might not find coins sent to it.
+
+    An honest multi() wallet, which keeps its keys in one fixed order, can also produce
+    this. So we don't try to decide whether this is an attack or a mistake.
+    """
+    pass
+
+
 class PSBTUnverifiableMixedInputBasePathsError(PSBTVerificationError):
     """
     The inputs of a single sig segwit v0 psbt that this seed owns are at different
@@ -444,9 +459,10 @@ class PSBTParser():
         self.held_output_indices: List[int] = []
 
         # The verified derivation paths of multisig outputs that pay a multisig our seed
-        # is part of, but that we count as spends because their cosigners differ from the
-        # inputs' cosigners (or fail to resolve).
-        self.verified_cosigner_mismatch_output_derivation_paths: List[DerivationPath] = []
+        # is part of, but that we count as spends. Either their cosigners differ from the
+        # inputs' cosigners (or the output's policy has none), or their script's keys are
+        # unsorted.
+        self.verified_spend_output_derivation_paths: List[DerivationPath] = []
 
         # The user's multisig descriptor, once it has been verified against the psbt's
         # inputs and change.
@@ -995,6 +1011,8 @@ class PSBTParser():
         Holds:
           * PSBTSurplusDerivationPathsError: An output claims more derivation path entries
             than it can use.
+          * PSBTUnsortedMultisigKeysError: A multisig output that holds this seed's key,
+            with the inputs' script type and m-of-n, lists its keys out of sorted order.
         """
 
         """********************* How output ownership is determined *********************
@@ -1043,7 +1061,7 @@ class PSBTParser():
         self.spend_amount = 0
         self.change_amount = 0
         self.change_data = []
-        self.verified_cosigner_mismatch_output_derivation_paths = []
+        self.verified_spend_output_derivation_paths = []
         self.fee_amount = 0
         self.destination_addresses = []
         self.destination_amounts = []
@@ -1230,9 +1248,11 @@ class PSBTParser():
                                 # of. But note that we do not know yet if this is truly
                                 # change coming back to our wallet or if it is paying out
                                 # to a different multisig that happens to include our
-                                # seed. Final change verification can only happen if and
-                                # when the user loads their "known-good" multisig
-                                # descriptor.
+                                # seed. When the inputs' cosigners resolve, the checks
+                                # below and the change path rules later in the parse
+                                # settle whether this output is our change. Otherwise,
+                                # final change verification can only happen if and when
+                                # the user loads their "known-good" multisig descriptor.
                                 is_presumed_change = True
 
                                 # One thing we can rule out now: if the psbt supplied
@@ -1246,10 +1266,29 @@ class PSBTParser():
                                 if input_cosigners is not None and input_cosigners != output_cosigners:
                                     is_presumed_change = False
 
+                                if not PSBTParser._multisig_script_has_sorted_keys(multisig_script):
+                                    # We refuse a script with unsorted keys, whether or
+                                    # not its cosigners match the inputs'. We only support
+                                    # sortedmulti() wallets, which sort the keys (per
+                                    # BIP-67) in every script they derive. The finding is
+                                    # held. In the meantime, the output is counted as a
+                                    # spend.
+                                    is_presumed_change = False
+                                    self._hold_output_finding(i, PSBTUnsortedMultisigKeysError("Multisig output lists its keys out of sorted order"))
+
+                                if not is_presumed_change:
                                     # The output still pays our key, so we record where
                                     # that key is for the change path rules to check later
                                     # in the parse.
-                                    self.verified_cosigner_mismatch_output_derivation_paths.append(verified_derivation_paths[0])
+                                    self.verified_spend_output_derivation_paths.append(verified_derivation_paths[0])
+
+                                elif input_cosigners is not None:
+                                    # The descriptor check is now unnecessary for this
+                                    # output; scanning the user's descriptor will not
+                                    # provide any further guarantees. Whether the UX still
+                                    # encourages loading the descriptor is out of scope
+                                    # for the parser.
+                                    pass
 
                 elif verified_derivation_paths != [] and self.policy["type"] != "p2tr":
                     # The psbt claims one of this seed's keys on this output, yet the
@@ -1562,6 +1601,17 @@ class PSBTParser():
         """
         m, n, pubkeys = PSBTParser._parse_multisig(multisig_script)
         return any(pubkey.sec() == public_key.sec() for pubkey in pubkeys)
+
+
+    @staticmethod
+    def _multisig_script_has_sorted_keys(multisig_script: script.Script) -> bool:
+        """
+        Returns True if multisig_script's keys are in BIP-67 order: sorted by their
+        compressed serialization, the order a sortedmulti() descriptor derives.
+        """
+        m, n, pubkeys = PSBTParser._parse_multisig(multisig_script)
+        secs = [pubkey.sec() for pubkey in pubkeys]
+        return secs == sorted(secs)
 
 
     @staticmethod
@@ -2113,10 +2163,10 @@ class PSBTParser():
             if not self._is_change_address_index_within_window(change_derivation_path):
                 change_data["address_index_beyond_window"] = True
 
-        # Check the multisig outputs that pay our key but were counted as SPENDS
-        # because their cosigners differ from the inputs'. They must pass the same rules.
-        # (the address index window check only applies to change, already checked above)
-        for verified_derivation_path in self.verified_cosigner_mismatch_output_derivation_paths:
+        # Check the multisig outputs that pay our key but were counted as SPENDS (see
+        # _parse_outputs). They must pass the same rules. (the address index window check
+        # only applies to change, already checked above)
+        for verified_derivation_path in self.verified_spend_output_derivation_paths:
             if not self._is_wallet_change_derivation_path(verified_derivation_path.derivation):
                 raise PSBTChangeDerivationPathError(derivation_path=verified_derivation_path.derivation)
 

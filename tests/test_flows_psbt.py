@@ -607,6 +607,34 @@ class TestPSBTOwnershipClaimRouting(PSBTSigningFlowTest):
         ])
 
 
+    def test_unsorted_multisig_keys_terminate_signing_flow(self):
+        """
+        The psbt's multisig change output pays the wallet's own keys, but its script lists
+        them in reverse sorted order.
+
+        The flow should stop at PSBTUnsortedMultisigKeysView, before any transaction
+        detail is rendered.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, 10_000))
+
+        # Rebuild the change's p2wsh script with its keys in reverse sorted order
+        out = psbt.outputs[0]
+        m, n, public_keys = PSBTParser._parse_multisig(out.witness_script)
+        public_keys.sort(key=lambda public_key: public_key.sec(), reverse=True)
+        out.witness_script = script.multisig(m, public_keys)
+        out.script_pubkey = script.p2wsh(out.witness_script)
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnsortedMultisigKeysView, button_data_selection=psbt_views.PSBTUnsortedMultisigKeysView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
     def test_wrong_seed_routes_back_to_seed_selection_flow(self):
         """
         The wrong seed for a psbt redirects before any transaction detail is rendered and

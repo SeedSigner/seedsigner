@@ -9,8 +9,8 @@ from seedsigner.models.psbt_parser import (PSBTChangeDerivationPathError,
     PSBTMissingInputUtxoError, PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError,
     PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
     PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError,
-    PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError,
-    PSBTUnverifiableMixedInputBasePathsError)
+    PSBTUnsortedMultisigKeysError, PSBTUnsupportedDerivationPathError,
+    PSBTUnsupportedScriptPathError, PSBTUnverifiableMixedInputBasePathsError)
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
@@ -184,6 +184,10 @@ class PSBTOverviewView(View):
 
             except PSBTUnverifiableMixedInputBasePathsError:
                 self.set_redirect(Destination(PSBTUnverifiableMixedInputBasePathsView, clear_history=True))
+                return
+
+            except PSBTUnsortedMultisigKeysError:
+                self.set_redirect(Destination(PSBTUnsortedMultisigKeysView, clear_history=True))
                 return
 
             except PSBTSeedCannotSignError:
@@ -495,8 +499,11 @@ class PSBTChangeDetailsView(View):
                 button_data = [self.NEXT]
 
             else:
-                # Nothing to check against yet. Have the Screen offer to load in the
-                # multisig descriptor.
+                # Have the Screen offer to load in the multisig descriptor. When the
+                # cosigners resolve, the parser has already verified this change output,
+                # so the descriptor check is unnecessary. We still ask for it as a best
+                # practice: it encourages the user to keep their descriptor accessible
+                # and confirms that they haven't lost it.
                 button_data = [self.VERIFY_MULTISIG, self.SKIP_VERIFICATION]
 
         else:
@@ -992,6 +999,34 @@ class PSBTUnverifiableMixedInputBasePathsView(View):
             status_headline=None,
             # TRANSLATOR_NOTE: This transaction includes inputs from multiple wallets (accounts) controlled by this seed. This can be allowed for some script types, but not this one.
             text=_("Inputs from multiple wallets: cannot complete verification for this script type."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTUnsortedMultisigKeysView(View):
+    """
+    Reached when a multisig output that holds this seed's key, with the inputs' script
+    type and m-of-n, lists its keys out of sorted order (see
+    PSBTUnsortedMultisigKeysError).
+
+    We only support sortedmulti() wallets, but an honest multi() wallet can produce this.
+    We do not allow the user to continue, but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            text=_("A multisig output to this seed does not properly sort its keys. SeedSigner only supports BIP-67 compliant wallets."),
             button_data=[self.DISCARD],
             show_back_button=False,
         )
