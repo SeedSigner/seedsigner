@@ -443,15 +443,37 @@ class PSBTAddressDetailsView(View):
 
 
 
-class PSBTChangeDetailsView(View):
-    NEXT = ButtonOption("Next")
-    SKIP_VERIFICATION = ButtonOption("Skip verification")
-    VERIFY_MULTISIG = ButtonOption("Verify multisig change")
-
-    def __init__(self, change_address_num):
+class BasePSBTChangeView(View):
+    """
+    Base class for the Views that step through the psbt's change outputs, one
+    change_address_num at a time.
+    """
+    def __init__(self, change_address_num: int):
         super().__init__()
         self.change_address_num = change_address_num
 
+
+    def get_next_destination(self) -> Destination:
+        """
+        Where the flow goes once the user moves on from this change output.
+        """
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+        if self.change_address_num < psbt_parser.num_change_outputs - 1:
+            return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
+
+        elif psbt_parser.num_op_returns > 0:
+            return Destination(PSBTOpReturnView)
+
+        else:
+            # There's no more change to verify. Move on to sign the PSBT.
+            return Destination(PSBTFinalizeView)
+
+
+
+class PSBTChangeDetailsView(BasePSBTChangeView):
+    NEXT = ButtonOption("Next")
+    SKIP_VERIFICATION = ButtonOption("Skip verification")
+    VERIFY_MULTISIG = ButtonOption("Verify multisig change")
 
     def run(self):
         from embit import bip32
@@ -489,6 +511,7 @@ class PSBTChangeDetailsView(View):
         #     title += f" (#{self.change_address_num + 1})"
 
         is_change_addr_verified = False
+        is_unverified_change = False
         if psbt_parser.is_multisig:
             # Multisig change is verified against the user's descriptor, which arrives
             # mid-flow. Every change output is checked as soon as the descriptor
@@ -505,6 +528,14 @@ class PSBTChangeDetailsView(View):
                 # practice: it encourages the user to keep their descriptor accessible
                 # and confirms that they haven't lost it.
                 button_data = [self.VERIFY_MULTISIG, self.SKIP_VERIFICATION]
+
+                if not psbt_parser.are_cosigners_resolved:
+                    is_unverified_change = True
+                    if is_change_derivation_path:
+                        # TRANSLATOR_NOTE: The amount you're receiving back from the transaction, not yet verified as going to your wallet
+                        title = _("Unverified Change")
+                    else:
+                        title = _("Unverified Self-Transfer")
 
         else:
             # The PSBTParser already proves that single sig change outputs are owned by
@@ -524,28 +555,66 @@ class PSBTChangeDetailsView(View):
             is_change_derivation_path=is_change_derivation_path,
             derivation_path_addr_index=derivation_path_addr_index,
             is_change_addr_verified=is_change_addr_verified,
+            is_unverified_change=is_unverified_change,
             is_address_index_beyond_window=change_data["address_index_beyond_window"],
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
+        elif button_data[selected_menu_num] == self.SKIP_VERIFICATION and not psbt_parser.are_cosigners_resolved:
+            return Destination(PSBTUnverifiedChangeWarningView, view_args={"change_address_num": self.change_address_num})
+
         elif button_data[selected_menu_num] == self.NEXT or button_data[selected_menu_num] == self.SKIP_VERIFICATION:
-            if self.change_address_num < psbt_parser.num_change_outputs - 1:
-                return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
+            return self.get_next_destination()
 
-            elif psbt_parser.num_op_returns > 0:
-                return Destination(PSBTOpReturnView)
-
-            else:
-                # There's no more change to verify. Move on to sign the PSBT.
-                return Destination(PSBTFinalizeView)
-            
         elif button_data[selected_menu_num] == self.VERIFY_MULTISIG:
             from seedsigner.controller import Controller
             from seedsigner.views.seed_views import LoadMultisigWalletDescriptorView
             self.controller.resume_main_flow = Controller.FLOW__PSBT
             return Destination(LoadMultisigWalletDescriptorView)
+
+
+
+class PSBTUnverifiedChangeWarningView(BasePSBTChangeView):
+    """
+    Reached when the user skips verifying a multisig change output in a psbt whose
+    inputs' cosigners are unresolved, for example because the psbt omits the optional
+    global xpubs.
+
+    We proved that our key is one of the output's keys. But the other keys could belong
+    to anyone. Only the user's descriptor can confirm them.
+
+    The user's options:
+      * If they don't have their descriptor, they can still continue after acknowledging
+        the risk.
+      * Or they can navigate BACK to the change screen, where they're given another
+        opportunity to load their descriptor.
+    """
+    PROCEED_ANYWAY = ButtonOption("Proceed anyway")
+
+    def run(self):
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+        change_data = psbt_parser.get_change_data(change_num=self.change_address_num)
+        if PSBTParser.is_change_branch(change_data["verified_derivation_path"]):
+            status_headline = _("Unverified Change")
+        else:
+            status_headline = _("Unverified Self-Transfer")
+
+        button_data = [self.PROCEED_ANYWAY]
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
+            title=_("Caution"),
+            status_headline=status_headline,
+            text=_("This address can't be verified as yours unless you scan your descriptor."),
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.PROCEED_ANYWAY:
+            return self.get_next_destination()
 
 
 

@@ -712,6 +712,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
     is_change_derivation_path: bool = True
     derivation_path_addr_index: int = 0
     is_change_addr_verified: bool = False
+    is_unverified_change: bool = False
     is_address_index_beyond_window: bool = False
 
     def __post_init__(self):
@@ -738,9 +739,19 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
         # note: NOT marking this for translation, hoping that the var ordering will not
         # need to change in other languages.
         value_text = f"{addr_type} {index_num_symbol}{self.derivation_path_addr_index}"
+        index_font_color = GUIConstants.LABEL_FONT_COLOR
+        address_font_color = GUIConstants.ACCENT_COLOR
+        if self.is_unverified_change:
+            # Question the address until it's verified as the user's own. The index line
+            # takes the warning color and the address fades to gray, so that the warning
+            # stands out.
+            value_text += " (?)"
+            index_font_color = GUIConstants.DIRE_WARNING_COLOR
+            address_font_color = GUIConstants.LABEL_FONT_COLOR
+
         self.components.append(TextArea(
             text=value_text,
-            font_color=GUIConstants.LABEL_FONT_COLOR,
+            font_color=index_font_color,
             font_size=GUIConstants.LABEL_FONT_SIZE,
             is_text_centered=True,
             screen_x=GUIConstants.EDGE_PADDING,
@@ -751,6 +762,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
             screen_y=self.components[-1].screen_y + self.components[-1].height,
             address=self.address,
             max_lines=1,
+            font_accent_color=address_font_color,
         ))
 
         # Each status line below the address is an icon and a short message

@@ -493,6 +493,15 @@ class PSBTParser():
 
 
     @property
+    def are_cosigners_resolved(self):
+        """
+            Multisig psbts whose input keys all trace back to the global xpubs will have
+            "cosigners" defined in policy
+        """
+        return "cosigners" in self.policy
+
+
+    @property
     def num_destinations(self):
         return len(self.destination_addresses)
 

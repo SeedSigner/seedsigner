@@ -1096,6 +1096,57 @@ class TestPSBTMultisigDescriptorRouting(PSBTSigningFlowTest):
         assert self.controller.psbt_parser is None
 
 
+    def test_skipping_unverified_change_warns_before_signing(self):
+        """
+        The psbt omits its global xpubs, so its change is unverified. Skipping
+        verification should lead to the unverified change warning. Its back button should
+        return to the change screen. Proceeding should continue on to signing.
+        """
+        psbt = self._multisig_psbt_with_change()
+        psbt.xpubs.clear()
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.SKIP_VERIFICATION),
+            FlowStep(psbt_views.PSBTUnverifiedChangeWarningView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.SKIP_VERIFICATION),
+            FlowStep(psbt_views.PSBTUnverifiedChangeWarningView, button_data_selection=psbt_views.PSBTUnverifiedChangeWarningView.PROCEED_ANYWAY),
+            FlowStep(psbt_views.PSBTFinalizeView),
+        ])
+
+
+    def test_proceeding_past_unverified_change_shows_the_next_change_output(self):
+        """
+        The psbt sends a self-transfer and then change back to the wallet. It omits its
+        global xpubs, so the self-transfer and the change are both unverified. Proceeding
+        past the warning for the self-transfer should lead to the change screen, not
+        straight to signing.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_SELF_TRANSFER, 10_000))
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, 10_000))
+        psbt.xpubs.clear()
+        self._load_psbt_for_signing(psbt)
+
+        # The self-transfer counts toward what is being sent, so its fee warning comes
+        # first
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.SKIP_VERIFICATION),
+            FlowStep(psbt_views.PSBTUnverifiedChangeWarningView, button_data_selection=psbt_views.PSBTUnverifiedChangeWarningView.PROCEED_ANYWAY),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.SKIP_VERIFICATION),
+            FlowStep(psbt_views.PSBTUnverifiedChangeWarningView, button_data_selection=psbt_views.PSBTUnverifiedChangeWarningView.PROCEED_ANYWAY),
+            FlowStep(psbt_views.PSBTFinalizeView),
+        ])
+
+
     def test_backing_out_of_the_descriptor_screen_drops_its_verification(self):
         """
         The user scans the wallet's descriptor, then backs out of the descriptor screen
