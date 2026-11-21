@@ -481,6 +481,7 @@ def generate_screenshots(locale):
 
                 ScreenshotConfig(seed_views.LoadMultisigWalletDescriptorView),
                 ScreenshotConfig(seed_views.MultisigWalletDescriptorView, mock_context_manager=mock_multisig_wallet_descriptor_loaded),
+                ScreenshotConfig(seed_views.UnsupportedMultisigDescriptorView),
                 ScreenshotConfig(seed_views.SeedDiscardView, dict(seed=seed_12)),
 
                 ScreenshotConfig(seed_views.SeedSelectSeedView, dict(flow=Controller.FLOW__SIGN_MESSAGE), screenshot_name="SeedSelectSeedView_sign_message"),

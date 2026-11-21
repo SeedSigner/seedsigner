@@ -1,5 +1,6 @@
 from binascii import a2b_base64
 from copy import deepcopy
+import json
 
 from embit import bip32, script
 from embit.psbt import PSBT, DerivationPath
@@ -1091,3 +1092,65 @@ class TestPSBTMultisigDescriptorRouting(PSBTSigningFlowTest):
         ])
 
         assert self.controller.psbt_parser.verified_multisig_descriptor is None
+
+
+    def test_unsupported_descriptor_is_refused_at_scan(self):
+        """
+        From the change screen, the user scans a descriptor with a fixed key. The user
+        should see the unsupported descriptor warning, which returns to the prompt to scan
+        a descriptor. The descriptor should not be kept.
+        """
+        self._load_psbt_for_signing(self._multisig_psbt_with_change())
+
+        # The wallet's descriptor with its first key fixed at a single child
+        descriptor_str = PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR.split("#")[0]
+        fixed_key_descriptor_str = descriptor_str.replace("/<0;1>/*", "/0/3", 1)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=self._descriptor_loader(fixed_key_descriptor_str)),
+            FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
+            FlowStep(seed_views.UnsupportedMultisigDescriptorView, button_data_selection=0),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.CANCEL),
+            FlowStep(psbt_views.PSBTChangeDetailsView),
+        ])
+
+        assert self.controller.multisig_wallet_descriptor is None
+
+
+    def test_multi_descriptor_is_refused_at_scan(self):
+        """
+        From the change screen, the user scans a Specter wallet export. Its descriptor is
+        the wallet's descriptor changed from sortedmulti() to multi(), which keeps its
+        keys in one fixed order. The user should see the unsupported descriptor warning,
+        which returns to the prompt to scan a descriptor. The descriptor should not be
+        kept.
+        """
+        self._load_psbt_for_signing(self._multisig_psbt_with_change())
+
+        # A plain-text descriptor QR is only read as a descriptor if it contains
+        # "sortedmulti", so the multi() descriptor arrives in a Specter wallet export.
+        descriptor_str = PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR.split("#")[0]
+        multi_descriptor_str = json.dumps({
+            "label": "multi",
+            "descriptor": descriptor_str.replace("sortedmulti(", "multi("),
+        })
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=self._descriptor_loader(multi_descriptor_str)),
+            FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
+            FlowStep(seed_views.UnsupportedMultisigDescriptorView, button_data_selection=0),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.CANCEL),
+            FlowStep(psbt_views.PSBTChangeDetailsView),
+        ])
+
+        assert self.controller.multisig_wallet_descriptor is None

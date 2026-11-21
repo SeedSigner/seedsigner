@@ -21,8 +21,8 @@ from seedsigner.models.psbt_parser import (OPCODES, PSBTChangeDerivationPathErro
     PSBTMissingInputUtxoError, PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError,
     PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
     PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError, PSBTUnresolvedCosigners,
-    PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError,
-    PSBTUnverifiableMixedInputBasePathsError)
+    PSBTUnsupportedDerivationPathError, PSBTUnsupportedMultisigDescriptorError,
+    PSBTUnsupportedScriptPathError, PSBTUnverifiableMixedInputBasePathsError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
@@ -3195,6 +3195,24 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
                     with pytest.raises(PSBTInputDescriptorMismatchError):
                         psbt_parser.verify_multisig_descriptor(descriptor)
                     assert psbt_parser.verified_multisig_descriptor is None
+
+
+    def test__verify_multisig_descriptor__refuses_an_unsupported_descriptor(self):
+        """
+        A multisig descriptor must be in a supported form: sortedmulti(), with every key
+        ending in "/{0,1}/*".
+
+        The psbt spends from the wallet and has a change output. The user's descriptor is
+        the wallet's own, rewritten with multi() in place of sortedmulti(). It should be
+        refused with PSBTUnsupportedMultisigDescriptorError and not recorded as verified.
+        """
+        psbt_parser = self._parse(self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE))
+        descriptor_str = PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR.split("#")[0]
+        multi_descriptor = Descriptor.from_string(descriptor_str.replace("sortedmulti(", "multi("))
+
+        with pytest.raises(PSBTUnsupportedMultisigDescriptorError):
+            psbt_parser.verify_multisig_descriptor(multi_descriptor)
+        assert psbt_parser.verified_multisig_descriptor is None
 
 
     def test__verify_multisig_descriptor__checks_every_input_the_seed_owns(self):

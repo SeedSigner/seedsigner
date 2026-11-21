@@ -248,6 +248,43 @@ class TestToolsFlows(FlowTest):
         ])
 
 
+    def test__verify_address__unsupported_multisig_descriptor__flow(self):
+        """
+        Verifying a multisig address with no psbt in progress, the user scans a
+        descriptor with a fixed key. The user should see the unsupported descriptor
+        warning, which returns to the prompt to scan a descriptor. The descriptor should
+        not be kept.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # Receive addr @ index 5 from test_psbt_parser.py
+            view.decoder.add_data("2N5eN5vUpgsLHAGzKm2VfmYyvNwXmCug5dH")
+
+        def load_descriptor_into_decoder(view: scan_views.ScanView):
+            # The descriptor from the test above, with its first key fixed at a single
+            # child
+            p2sh_descriptor = "sh(sortedmulti(2,[0f889044/45h]tpubD8NkS3Gngj7L4FJRYrwojKhsx2seBhrNrXVdvqaUyvtVe1YDCVcziZVa9g3KouXz7FN5CkGBkoC16nmNu2HcG9ubTdtCbSW8DEXSMHmmu62/<0;1>/*,[03cd0a2b/45h]tpubD8HkLLgkdJkVitn1i9CN4HpFKJdom48iKm9PyiXYz5hivn1cGz6H3VeS6ncmCEgamvzQA2Qofu2YSTwWzvuaYWbJDEnvTUtj5R96vACdV6L/<0;1>/*,[769f695c/45h]tpubD98hRDKvtATTM8hy5Vvt5ZrvDXwJvrUZm1p1mTKDmd7FqUHY9Wj2k4X1CvxjjtTf3JoChWqYbnWjfkRJ65GQnpVJKbbMfjnGzCwoBUXafyM/<0;1>/*))"
+            view.decoder.add_data(p2sh_descriptor.replace("/<0;1>/*", "/0/3", 1))
+
+        controller = Controller.get_instance()
+        controller.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),  # simulate read address QR
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_descriptor_into_decoder),  # simulate read descriptor QR
+            FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
+            FlowStep(seed_views.UnsupportedMultisigDescriptorView, button_data_selection=0),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView),
+        ])
+
+        assert controller.psbt_parser is None
+        assert controller.multisig_wallet_descriptor is None
+
+
     def test__verify_address__singlesig__flow(self):
         """
             Address Explorer should be able to scan a singlesig address and

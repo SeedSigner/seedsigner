@@ -272,6 +272,17 @@ class PSBTNegativeFeeError(PSBTVerificationError):
     pass
 
 
+class PSBTUnsupportedMultisigDescriptorError(PSBTVerificationError):
+    """
+    The user's multisig descriptor is in an unsupported form. We only verify a psbt
+    against a sortedmulti() descriptor whose keys all end in "/{0,1}/*".
+
+    An honest wallet can produce an unsupported descriptor (e.g. a multi() wallet). So we
+    don't try to decide whether this is an attack or a mistake.
+    """
+    pass
+
+
 class PSBTInputDescriptorMismatchError(PSBTVerificationError):
     """
     One of this seed's inputs doesn't belong to the wallet that the user's descriptor
@@ -2235,6 +2246,8 @@ class PSBTParser():
         outputs' claims by proving that both belong to the same wallet.
           * The user loads the descriptor, which lists the cosigners' xpubs and derivation
             paths that define the wallet.
+          * We check that the descriptor is in a supported form: sortedmulti(), with every
+            key ending in "/{0,1}/*".
           * We confirm that the descriptor derives the addresses of the psbt's inputs.
           * Then we verify that it also derives the addresses of the change outputs.
 
@@ -2252,6 +2265,10 @@ class PSBTParser():
         Note: in a collaborative transaction, another party's inputs belong to their own
         wallet, so we only check the inputs this seed owns.
         """
+        from seedsigner.helpers import embit_utils
+        if not embit_utils.is_supported_multisig_descriptor(descriptor):
+            raise PSBTUnsupportedMultisigDescriptorError("Unsupported multisig descriptor form")
+
         if not self.is_multisig:
             # We shouldn't be able to get here with a single sig psbt; just a precaution
             return

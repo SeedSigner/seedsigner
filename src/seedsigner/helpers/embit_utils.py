@@ -112,6 +112,45 @@ def get_multisig_policy(descriptor: Descriptor) -> tuple:
 
 
 
+def is_supported_multisig_descriptor(descriptor: Descriptor) -> bool:
+    """
+    Returns True if the multisig descriptor is sortedmulti() and every key ends in
+    "/{0,1}/*".
+
+    BIP-44 sets the receive branch to 0 and the change branch to 1. Any other ending
+    diverges from the BIP, would complicate change verification, and can even enable
+    attacks, so we refuse it here.
+
+    The "/*" ending makes the key ranged, so it derives a new key for each address. Ranged
+    keys are required per BIP-388.
+
+    sortedmulti() sorts the keys at each address and is the widely accepted convention.
+    But descriptors technically allow for being defined with "multi()" instead. We reject
+    multi() descriptors because a malicious coordinator could intentionally swap
+    sortedmulti() for multi() (or vice versa), which could compromise our verification of
+    change outputs. Wallets from before the sortedmulti() keyword existed generally
+    followed BIP-67, so their descriptors would be written with sortedmulti() today;
+    disallowing multi() should have minimal real-world impact.
+    """
+    # Must be a sortedmulti() descriptor
+    if not descriptor.is_sorted:
+        return False
+
+    for key in descriptor.keys:
+        # Must have ranged keys
+        if not key.is_wildcard:
+            return False
+
+        # Must limit branches to 0 or 1.
+        # Note: embit stores "/{0,1}/*" as [[0, 1], None] where `None` represents the
+        # wildcard.
+        if key.allowed_derivation.indexes != [[0, 1], None]:
+            return False
+
+    return True
+
+
+
 def get_embit_network_name(settings_name):
     """ Convert SeedSigner SettingsConstants for `network` to embit's NETWORK key """
     lookup = {
