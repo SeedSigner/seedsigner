@@ -7,10 +7,11 @@ from embit.psbt import PSBT, DerivationPath
 from base import FlowTest, FlowStep
 from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_key,
     create_op_return_output, create_op_return_psbt, create_output, foreign_public_key,
-    p2tr_with_script_tree, repoint_change, root_for_seed, set_input_locking_script,
-    tapleaf_hash)
+    p2tr_with_script_tree, repoint_at_a_different_quorum, repoint_change, root_for_seed,
+    set_input_locking_script, tapleaf_hash)
 
 from seedsigner.controller import Controller
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.views.view import MainMenuView, View
 from seedsigner.views import scan_views, seed_views, psbt_views
 from seedsigner.models.psbt_parser import OPCODES, PSBTParser
@@ -915,3 +916,178 @@ class TestPSBTOpReturnFlows(PSBTSigningFlowTest):
             FlowStep(psbt_views.PSBTSignedQRDisplayView),
             FlowStep(MainMenuView),
         ])
+
+
+
+class TestPSBTMultisigDescriptorRouting(PSBTSigningFlowTest):
+    """
+    Multisig change is checked against the user's descriptor, which the user scans in the
+    middle of the signing flow. The user can also skip that check. The tests below cover
+    where each outcome leads.
+    """
+
+    def _multisig_psbt_with_change(self) -> PSBT:
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, 10_000))
+        return psbt
+
+
+    def _descriptor_loader(self, descriptor: str):
+        """
+        A before_run for the descriptor scan step that feeds the descriptor to the
+        decoder, as if its QR had just been read.
+        """
+        def load_descriptor_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data(descriptor)
+        return load_descriptor_into_decoder
+
+
+    def test_multisig_change_is_verified_when_the_descriptor_arrives(self):
+        """
+        The user scans the wallet's descriptor from the change screen. The change should
+        be verified as soon as the descriptor arrives. The change screen should then show
+        the change as verified, with no option to skip.
+        """
+        self._load_psbt_for_signing(self._multisig_psbt_with_change())
+
+        # The change screen only offers NEXT once its change is verified
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=self._descriptor_loader(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR)),
+            FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
+            FlowStep(seed_views.MultisigWalletDescriptorView, button_data_selection=seed_views.MultisigWalletDescriptorView.RETURN),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+        ])
+
+        # The descriptor that arrived is the one recorded as verified
+        assert self.controller.psbt_parser.verified_multisig_descriptor is self.controller.multisig_wallet_descriptor
+
+
+    def test_wrong_descriptor_is_refused_and_another_can_be_scanned(self):
+        """
+        The user first scans another wallet's descriptor. The user should see the wrong
+        descriptor warning. The refused descriptor should be dropped. The warning's back
+        button should return to the prompt to scan a descriptor. Scanning the wallet's own
+        descriptor should then verify the change.
+        """
+        self._load_psbt_for_signing(self._multisig_psbt_with_change())
+
+        def assert_refused_descriptor_dropped(view: seed_views.LoadMultisigWalletDescriptorView):
+            assert self.controller.multisig_wallet_descriptor is None
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=self._descriptor_loader(PSBTTestData.MULTISIG_NESTED_SEGWIT_DESCRIPTOR)),
+            FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
+            FlowStep(psbt_views.PSBTInputDescriptorMismatchView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, before_run=assert_refused_descriptor_dropped, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=self._descriptor_loader(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR)),
+            FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
+            FlowStep(seed_views.MultisigWalletDescriptorView, button_data_selection=seed_views.MultisigWalletDescriptorView.RETURN),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+            FlowStep(psbt_views.PSBTFinalizeView),
+        ])
+
+        # The second descriptor is the one recorded as verified
+        assert self.controller.psbt_parser.verified_multisig_descriptor is self.controller.multisig_wallet_descriptor
+
+
+    def test_change_the_descriptor_does_not_derive_terminates_signing_flow(self):
+        """
+        The psbt's change pays a different quorum. The psbt also omits its global xpubs.
+        The user scans the wallet's own descriptor, which does not derive the change's
+        address. The user should see the address verification failure, which ends the
+        flow.
+        """
+        psbt = self._multisig_psbt_with_change()
+        repoint_at_a_different_quorum(psbt)
+        psbt.xpubs.clear()
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=self._descriptor_loader(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR)),
+            FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
+            FlowStep(psbt_views.PSBTAddressVerificationFailedView, button_data_selection=0),
+            FlowStep(MainMenuView),
+        ])
+
+        assert self.controller.psbt_parser is None
+
+
+    def test_self_transfer_the_descriptor_does_not_derive_terminates_signing_flow(self):
+        """
+        The psbt's self-transfer pays a different quorum. The psbt also omits its global
+        xpubs. From the self-transfer screen, the user chooses to verify the multisig
+        address and scans the wallet's own descriptor, which does not derive the
+        self-transfer's address. The user should see the address verification failure for
+        a self-transfer, with nothing left to go back to.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_SELF_TRANSFER, 10_000))
+        repoint_at_a_different_quorum(psbt)
+        psbt.xpubs.clear()
+        self._load_psbt_for_signing(psbt)
+
+        def assert_self_transfer_with_no_history(view: psbt_views.PSBTAddressVerificationFailedView):
+            # The failure is for a self-transfer. Only this View is left on the back stack.
+            assert view.is_change is False
+            assert len(self.controller.back_stack) == 1
+
+        # The self-transfer counts toward what is being sent, so its fee warning comes
+        # first
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=self._descriptor_loader(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR)),
+            FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
+            FlowStep(psbt_views.PSBTAddressVerificationFailedView, before_run=assert_self_transfer_with_no_history, button_data_selection=0),
+            FlowStep(MainMenuView),
+        ])
+
+        assert self.controller.psbt_parser is None
+
+
+    def test_backing_out_of_the_descriptor_screen_drops_its_verification(self):
+        """
+        The user scans the wallet's descriptor, then backs out of the descriptor screen
+        and cancels back to the change screen. The change screen should not show the
+        change as verified.
+        """
+        self._load_psbt_for_signing(self._multisig_psbt_with_change())
+
+        # The change screen only offers SKIP_VERIFICATION while its change is unverified
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.VERIFY_MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=self._descriptor_loader(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR)),
+            FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
+            FlowStep(seed_views.MultisigWalletDescriptorView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.CANCEL),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.SKIP_VERIFICATION),
+            FlowStep(psbt_views.PSBTFinalizeView),
+        ])
+
+        assert self.controller.psbt_parser.verified_multisig_descriptor is None

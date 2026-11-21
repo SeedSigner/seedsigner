@@ -206,6 +206,7 @@ class TestToolsFlows(FlowTest):
             FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
             FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_DESCRIPTOR),
             FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_descriptor_into_decoder),  # simulate read descriptor QR
+            FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
             FlowStep(seed_views.MultisigWalletDescriptorView, button_data_selection=seed_views.MultisigWalletDescriptorView.ADDRESS_EXPLORER),
             FlowStep(tools_views.ToolsAddressExplorerAddressTypeView, button_data_selection=tools_views.ToolsAddressExplorerAddressTypeView.RECEIVE),
             FlowStep(tools_views.ToolsAddressExplorerAddressListView, screen_return_value=10),  # ret NEXT page of addrs
@@ -240,6 +241,7 @@ class TestToolsFlows(FlowTest):
             FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.MULTISIG),
             FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
             FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_descriptor_into_decoder),  # simulate read descriptor QR
+            FlowStep(seed_views.VerifyMultisigWalletDescriptorView, is_redirect=True),
             FlowStep(seed_views.MultisigWalletDescriptorView, screen_return_value=0),
             FlowStep(seed_views.SeedAddressVerificationView),
             FlowStep(seed_views.SeedAddressVerificationSuccessView),

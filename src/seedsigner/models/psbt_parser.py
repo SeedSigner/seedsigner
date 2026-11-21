@@ -2,6 +2,7 @@ import logging
 from binascii import hexlify
 from embit import psbt, script, ec, bip32
 from embit.descriptor import Descriptor
+from embit.descriptor.errors import ArgumentError
 from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope, PSBTError
 from embit.ec import PublicKey
@@ -237,7 +238,7 @@ class PSBTChangeDerivationPathError(PSBTVerificationError):
 
 class PSBTUnverifiableMixedInputBasePathsError(PSBTVerificationError):
     """
-    The inputs of a single sig segwit v0 psbt that this seed signs are at different
+    The inputs of a single sig segwit v0 psbt that this seed owns are at different
     base paths and non_witness_utxo data was not provided.
 
     The change path rules require change to go back to the same wallet (base path) that
@@ -269,6 +270,31 @@ class PSBTNegativeFeeError(PSBTVerificationError):
     attack.
     """
     pass
+
+
+class PSBTInputDescriptorMismatchError(PSBTVerificationError):
+    """
+    One of this seed's inputs doesn't belong to the wallet that the user's descriptor
+    defines.
+
+    The user may have loaded the wrong descriptor. So we don't try to decide whether this
+    is an attack or a mistake.
+    """
+    pass
+
+
+class PSBTChangeDescriptorMismatchError(PSBTVerificationError):
+    """
+    A multisig change output doesn't come back to the wallet that the user's descriptor
+    defines.
+
+    The user may have another multisig wallet that also holds this seed's key. An honest
+    transfer into that wallet looks the same. So we don't try to decide whether this is an
+    attack or a mistake.
+    """
+    def __init__(self, change_num: int):
+        super().__init__()
+        self.change_num = change_num
 
 
 class PSBTUnresolvedCosigners(Exception):
@@ -314,9 +340,11 @@ class PSBTParser():
 
     A psbt is written by an untrusted coordinator. The metadata it carries about keys
     (fingerprints, derivation paths, xpubs) is a claim, not a fact. The onus is on us to
-    verify by re-deriving from the signing seed. For multisig, verification depends on the
-    user providing a "known good" descriptor (i.e. can be trusted) from which we can
-    verify the outputs by deriving from the cosigners' xpubs.
+    verify by re-deriving from the signing seed.
+
+    For multisig, re-deriving from the signing seed only proves our own key. The other
+    keys are verified through the cosigners' xpubs, taken from the psbt or from the user's
+    descriptor (see parse()).
 
     This class makes the difference visible in its own names:
 
@@ -327,8 +355,7 @@ class PSBTParser():
                     derivation.
 
     Invariant: no verified_ value is ever assigned from a claimed_ value without an
-    intervening re-derivation from self.root or from a user-supplied "known good"
-    descriptor.
+    intervening re-derivation from self.root or from the user's known-good descriptor.
     """
 
     # Upper bound on how many levels of derivation a single parse will cache. 1000 is
@@ -409,6 +436,10 @@ class PSBTParser():
         # is part of, but that we count as spends because their cosigners differ from the
         # inputs' cosigners (or fail to resolve).
         self.verified_cosigner_mismatch_output_derivation_paths: List[DerivationPath] = []
+
+        # The user's multisig descriptor, once it has been verified against the psbt's
+        # inputs and change.
+        self.verified_multisig_descriptor: Descriptor | None = None
 
         self.root = None
 
@@ -2081,9 +2112,9 @@ class PSBTParser():
 
     def _evaluate_input_base_paths(self):
         """
-        A check for single sig segwit v0 inputs that this seed signs. The inputs must
+        A check for single sig segwit v0 inputs that this seed owns. The inputs must
         either:
-          * Only spend from a single wallet (every input this seed signs must be at the
+          * Only spend from a single wallet (every input this seed owns must be at the
             same base path).
           * Or each input must supply a non_witness_utxo.
 
@@ -2184,12 +2215,88 @@ class PSBTParser():
 
 
     def verify_multisig_output(self, descriptor: Descriptor, change_num: int) -> bool:
+        """
+        Returns True if the descriptor derives the address of the change output at
+        change_num.
+        """
         change_data = self.get_change_data(change_num)
         i = change_data["output_index"]
         output = self.psbt.outputs[i]
-        is_owner = descriptor.owns(output)
-        # print(f"{self.psbt.tx.vout[i].script_pubkey.address()} | {output.value} | {is_owner}")
+        is_owner = PSBTParser._descriptor_owns(descriptor, output)
         return is_owner
+
+
+    def verify_multisig_descriptor(self, descriptor: Descriptor):
+        """
+        Checks the user's multisig descriptor against this psbt and records it in
+        verified_multisig_descriptor if it passes.
+
+        Verifying the user's multisig descriptor unifies the inputs' facts with the change
+        outputs' claims by proving that both belong to the same wallet.
+          * The user loads the descriptor, which lists the cosigners' xpubs and derivation
+            paths that define the wallet.
+          * We confirm that the descriptor derives the addresses of the psbt's inputs.
+          * Then we verify that it also derives the addresses of the change outputs.
+
+        We cannot just accept the descriptor at face value; a compromised coordinator
+        could supply a forged descriptor. A forged descriptor can list the seed's real key
+        but replace the cosigners with the attacker's keys. A malicious coordinator can
+        create the psbt with change outputs built from that forged descriptor. So a
+        "does the descriptor derive the change?" check alone is not sufficient.
+
+        The inputs are different. A forged descriptor would not be able to derive the
+        addresses for the wallet's genuine inputs. So by requiring the descriptor to match
+        the inputs, we know that it describes the correct wallet. We can then safely use
+        the descriptor to verify the change outputs (and apply other correctness checks).
+
+        Note: in a collaborative transaction, another party's inputs belong to their own
+        wallet, so we only check the inputs this seed owns.
+        """
+        if not self.is_multisig:
+            # We shouldn't be able to get here with a single sig psbt; just a precaution
+            return
+
+        # First the input side: loop over the inputs using their verified derivation
+        # paths. Every input has an entry, in input order.
+        num_inputs_checked = 0
+        for i, verified_derivation_paths in enumerate(self.verified_input_derivation_paths):
+            if verified_derivation_paths == []:
+                # The seed does not own this input
+                continue
+
+            if not PSBTParser._descriptor_owns(descriptor, self.psbt.inputs[i]):
+                raise PSBTInputDescriptorMismatchError(f"Descriptor does not derive the address of input {i}")
+
+            num_inputs_checked += 1
+
+        if num_inputs_checked == 0:
+            # We shouldn't be able to get here: the parse would have already rejected a
+            # psbt that the seed can't sign. But the assurances provided by the change
+            # verification step below depend on the descriptor matching against an input.
+            # So this sanity check is important.
+            raise RuntimeError("Should not have been able to reach here: the seed doesn't own any of the inputs in the PSBT")
+
+        # Now verify that the same descriptor derives the change outputs
+        for change_num in range(self.num_change_outputs):
+            if not self.verify_multisig_output(descriptor, change_num):
+                raise PSBTChangeDescriptorMismatchError(change_num=change_num)
+
+        self.verified_multisig_descriptor = descriptor
+
+
+    @staticmethod
+    def _descriptor_owns(descriptor: Descriptor, scope: InputScope | OutputScope) -> bool:
+        """
+        Returns True if the descriptor derives the address of the input or output.
+
+        embit's Descriptor.owns() raises ArgumentError when a derivation path entry
+        matches one of the descriptor's keys but ends in a hardened address index. A
+        ranged key only derives non-hardened children, so we count that as not owned.
+        """
+        try:
+            return descriptor.owns(scope)
+        except ArgumentError:
+            return False
 
 
     def _fill_missing_fingerprints(self, child_key_derivation_cache: dict):

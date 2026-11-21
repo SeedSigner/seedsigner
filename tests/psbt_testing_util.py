@@ -276,6 +276,74 @@ def set_input_locking_script(inp: InputScope, script_pubkey: Script):
     inp.non_witness_utxo = None
 
 
+def repoint_at_a_different_quorum(psbt: PSBT):
+    """
+    Rebuilds the change output's script so it pays a 2-of-3 that still holds the signing
+    seed's key, but with one cosigner swapped for a different seed. That swap makes the
+    output's 2-of-3 a different wallet from the one the inputs spend from.
+
+    The psbt's global xpubs are left as the fixture wrote them: the inputs' three
+    cosigners (the expected behavior for all known coordinators). The outsider's xpub is
+    not added to the global xpubs.
+    """
+    # Callers pass a psbt whose change output comes first
+    out = psbt.outputs[0]
+
+    seed_fingerprint = root_for_seed(PSBTTestData.seed).my_fingerprint
+
+    # The replacement cosigner will use the same account-level derivation path as the
+    # first xpub.
+    account_derivation_path = list(psbt.xpubs.values())[0].derivation
+
+    # Pick the first entry that isn't the current seed's.
+    for public_key, derivation_path_obj in out.bip32_derivations.items():
+        if derivation_path_obj.fingerprint != seed_fingerprint:
+            displaced_public_key = public_key
+            address_derivation_path = derivation_path_obj.derivation
+            break
+
+    # Build the outsider from a different seed: its account xpub at the shared
+    # account path, then the child key two levels down at the displaced entry's
+    # change/index.
+    outsider_root = root_for_seed(PSBTTestData.recipient_seed)
+    outsider_account = outsider_root.derive(account_derivation_path)
+    outsider_public_key = outsider_account.derive(address_derivation_path[-2:]).get_public_key()
+
+    # Rebuild the multisig script with the outsider's key in place of the displaced
+    # key.
+    original_script = out.witness_script if out.witness_script is not None else out.redeem_script
+    m, n, public_keys = PSBTParser._parse_multisig(original_script)
+    new_pubkey_list = []
+    for public_key in public_keys:
+        if public_key == displaced_public_key:
+            new_pubkey_list.append(outsider_public_key)
+        else:
+            new_pubkey_list.append(public_key)
+
+    # The fixtures are sortedmulti, so keep the keys in lexicographic order
+    new_pubkey_list.sort(key=lambda public_key: public_key.sec())
+    rebuilt_script = script.multisig(m, new_pubkey_list)
+
+    # Swap the displaced cosigner's derivation path entry for the outsider's, so
+    # the psbt describes the rebuilt script truthfully.
+    del out.bip32_derivations[displaced_public_key]
+    out.bip32_derivations[outsider_public_key] = DerivationPath(outsider_root.my_fingerprint, address_derivation_path)
+
+    # Recommit the output to the rebuilt script, through the wrapping the fixture
+    # uses: p2wsh, p2sh-p2wsh, or bare p2sh.
+    if out.witness_script is not None:
+        out.witness_script = rebuilt_script
+        inner_script = script.p2wsh(rebuilt_script)
+    else:
+        inner_script = rebuilt_script
+
+    if out.redeem_script is not None:
+        out.redeem_script = inner_script
+        out.script_pubkey = script.p2sh(inner_script)
+    else:
+        out.script_pubkey = inner_script
+
+
 def repoint_change(psbt: PSBT, derivation_path: str, seed: Seed = None):
     """
     Moves the psbt's change output to derivation_path, still paying seed. Lets a test
