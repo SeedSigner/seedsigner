@@ -18,7 +18,7 @@ from seedsigner.models.psbt_parser import (OPCODES, PSBTChangeDerivationPathErro
     PSBTInputScriptMismatchError, PSBTMalformedOpReturnError, PSBTMissingInputScriptError,
     PSBTMissingInputUtxoError, PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError,
     PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
-    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError,
+    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError, PSBTUnresolvedCosigners,
     PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError,
     PSBTUnverifiableMixedInputBasePathsError)
 from seedsigner.models.seed import Seed
@@ -1053,21 +1053,22 @@ class TestPSBTParserOptimizations:
             assert derived.key.sec() == expected_key
 
 
-    def test_get_cosigners_identical_with_and_without_cache(self):
+    def test_get_valid_cosigners_identical_with_and_without_cache(self):
         """
-        The cache is transparent to callers: _get_cosigners returns the same cosigner
-        list whether it derives every level itself or reads them back out of the cache.
+        The cache is transparent to callers: _get_valid_cosigners returns the same
+        cosigner list whether it derives every level itself or reads them back out of the
+        cache.
         """
         psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
         inp = psbt.inputs[0]
         pubkeys = list(inp.bip32_derivations.keys())
 
         # No cache at all; every level is derived directly
-        uncached = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, None)
+        uncached = PSBTParser._get_valid_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, None)
 
         # An empty cache still has to derive every level, but now stores each one
         child_key_derivation_cache = {}
-        populating_the_cache = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, child_key_derivation_cache)
+        populating_the_cache = PSBTParser._get_valid_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, child_key_derivation_cache)
 
         # 3 cosigners x 2 levels each
         assert len(child_key_derivation_cache) == 6
@@ -1075,7 +1076,7 @@ class TestPSBTParserOptimizations:
         # The same call against the now-populated cache reads those levels back instead
         # of deriving them. Each level sits below a different cosigner's xpub, so a cache
         # that confused parents would return the wrong cosigner here.
-        reading_from_the_cache = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, child_key_derivation_cache)
+        reading_from_the_cache = PSBTParser._get_valid_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, child_key_derivation_cache)
 
         assert populating_the_cache == uncached
         assert reading_from_the_cache == uncached
@@ -2810,18 +2811,18 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
         assert psbt_parser.spend_amount == 10_000
 
 
-    def test_get_cosigners_returns_a_sorted_list(self):
+    def test_get_valid_cosigners_returns_a_sorted_list(self):
         """
         Two multisig scripts can list the same wallet's keys in different orders, so the
         cosigners resolved for one script and the cosigners resolved for another have to
-        be sorted before they can be compared. Regression test against _get_cosigners
-        ever dropping the sort logic.
+        be sorted before they can be compared. Regression test against
+        _get_valid_cosigners ever dropping the sort logic.
         """
         psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
         inp = psbt.inputs[0]
         pubkeys = list(inp.bip32_derivations.keys())
 
-        cosigners = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, None)
+        cosigners = PSBTParser._get_valid_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, None)
 
         assert cosigners == sorted(cosigners)
 
@@ -2829,9 +2830,53 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
         assert len(set(cosigners)) == 3
 
         # The same keys, handed over in the opposite order
-        reordered = PSBTParser._get_cosigners(list(reversed(pubkeys)), inp.bip32_derivations, psbt.xpubs, None)
+        reordered = PSBTParser._get_valid_cosigners(list(reversed(pubkeys)), inp.bip32_derivations, psbt.xpubs, None)
 
         assert reordered == cosigners
+
+
+    def test_get_valid_cosigners_leaves_a_key_at_a_hardened_level_unresolved(self):
+        """
+        A key at a hardened "branch" or "address_index" can't be traced back to a global
+        xpub, since an xpub only derives non-hardened children.
+
+        The psbt's multisig input has every key at the same path. Two cases are tested:
+          * every key's "branch" hardened
+          * every key's "address_index" hardened
+
+        In each case the cosigners should be reported as unresolved, with
+        PSBTUnresolvedCosigners.
+        """
+        # Case: every key's "branch" hardened. Only the paths change. The keys stay as they
+        # were, since the check reads the paths before it derives anything.
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        inp = psbt.inputs[0]
+        for derivation_path_obj in inp.bip32_derivations.values():
+            derivation_path_obj.derivation[-2] += bip32.HARDENED_INDEX
+
+        with pytest.raises(PSBTUnresolvedCosigners):
+            PSBTParser._get_valid_cosigners(list(inp.bip32_derivations.keys()), inp.bip32_derivations, psbt.xpubs, None)
+
+        # Case: every key's "address_index" hardened
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        inp = psbt.inputs[0]
+        for derivation_path_obj in inp.bip32_derivations.values():
+            derivation_path_obj.derivation[-1] += bip32.HARDENED_INDEX
+
+        with pytest.raises(PSBTUnresolvedCosigners):
+            PSBTParser._get_valid_cosigners(list(inp.bip32_derivations.keys()), inp.bip32_derivations, psbt.xpubs, None)
+
+
+    def test__parse__stops_on_an_unexpected_error_while_resolving_cosigners(self):
+        """
+        An unexpected error while resolving a multisig script's cosigners stops the
+        parse, rather than leaving the policy without its cosigners.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+
+        with patch.object(PSBTParser, "_get_valid_cosigners", side_effect=RuntimeError("Unexpected error")):
+            with pytest.raises(RuntimeError, match="Unexpected error"):
+                self._parse(psbt)
 
 
     def _repoint_at_a_different_quorum(self, psbt: PSBT):
@@ -3044,6 +3089,94 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
             # Parser categorizes the output as presumed change.
             assert psbt_parser.change_amount == 10_000
             assert psbt_parser.spend_amount == 0
+
+
+    def _repoint_change_cosigners(self, psbt: PSBT, derivation_paths: list[str]):
+        """
+        Rebuilds the change output from the wallet's cosigner keys, moving each key to its
+        own path provided by derivation_paths. Lets a test put the wallet's own keys at
+        different "branch" or "address_index" values within one output.
+          * derivation_paths: lists one path per cosigner, in the order of the multisig
+            fixtures' cosigner seeds.
+
+        Callers pass a psbt whose change output comes first.
+        """
+        out = psbt.outputs[0]
+
+        # Drop the entries describing the old paths
+        out.bip32_derivations.clear()
+
+        # Each cosigner's key at its own path, claimed under that cosigner's fingerprint
+        cosigner_public_keys = []
+        for i, cosigner_seed in enumerate(PSBTTestData.multisig_cosigner_seeds):
+            public_key = root_for_seed(cosigner_seed).derive(derivation_paths[i]).get_public_key()
+            cosigner_public_keys.append(public_key)
+            claim_seed_owns_key(out, derivation_paths[i], public_key, seed=cosigner_seed)
+
+        # The fixtures are sortedmulti, so keep the keys in lexicographic order
+        cosigner_public_keys.sort(key=lambda public_key: public_key.sec())
+        multisig_script = script.multisig(2, cosigner_public_keys)
+
+        # Recommit the output to the rebuilt script, through the wrapping the fixture
+        # uses: p2wsh, p2sh-p2wsh, or bare p2sh.
+        if out.witness_script is not None:
+            out.witness_script = multisig_script
+            inner_script = script.p2wsh(multisig_script)
+        else:
+            inner_script = multisig_script
+
+        if out.redeem_script is not None:
+            out.redeem_script = inner_script
+            out.script_pubkey = script.p2sh(inner_script)
+        else:
+            out.script_pubkey = inner_script
+
+
+    def test__parse__counts_mixed_path_change_as_a_spend(self):
+        """
+        The parse withholds the cosigners of a mixed-path script, one whose keys are at
+        different "branch" or "address_index" values.
+
+        The psbt's change output has one cosigner's key at a different "branch" or
+        "address_index" from ours. Two cases are tested:
+          * that cosigner's key on the receive "branch"
+          * that cosigner's key at the next "address_index"
+
+        The inputs' cosigners resolve but the output's are withheld, so the output should
+        be counted as a spend.
+        """
+        for input_base64, change_hex in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        ]:
+            # Change on the input's base path, at the input's "address_index"
+            input_derivation_path = self._input_derivation_path(input_base64)
+            address_index = int(input_derivation_path.split("/")[-1])
+            change_derivation_path = self._sibling_path(input_derivation_path, branch=1, address_index=address_index)
+
+            # The wallet's own change, every key at the same path, for comparison
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_change_cosigners(psbt, [change_derivation_path] * 3)
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 10_000
+            assert psbt_parser.spend_amount == 0
+
+            # Case: the second cosigner's key on the receive "branch"
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            receive_derivation_path = self._sibling_path(input_derivation_path, branch=0, address_index=address_index)
+            self._repoint_change_cosigners(psbt, [change_derivation_path, receive_derivation_path, change_derivation_path])
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 0
+            assert psbt_parser.spend_amount == 10_000
+
+            # Case: the second cosigner's key at the next "address_index"
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            next_derivation_path = self._sibling_path(input_derivation_path, branch=1, address_index=address_index + 1)
+            self._repoint_change_cosigners(psbt, [change_derivation_path, next_derivation_path, change_derivation_path])
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 0
+            assert psbt_parser.spend_amount == 10_000
 
 
     def test__parse__refuses_an_unsupported_script_type(self):

@@ -271,6 +271,31 @@ class PSBTNegativeFeeError(PSBTVerificationError):
     pass
 
 
+class PSBTUnresolvedCosigners(Exception):
+    """
+    We could not resolve a multisig script's cosigners.
+
+    Resolving them means tracing every key in the script back to one of the psbt's global
+    xpubs.
+
+    The global xpubs and the derivation paths are optional psbt fields. A psbt that leaves
+    them out can't resolve its cosigners either. So unresolved cosigners are never grounds
+    to reject the psbt.
+    """
+    pass
+
+
+class PSBTMixedPathScript(Exception):
+    """
+    A multisig script's keys are at different branches or address indices (a mixed-path
+    script).
+
+    Standard wallets don't generate a mixed-path script: they derive every key in an
+    address at the same branch and address index. So we withhold the script's cosigners.
+    """
+    pass
+
+
 class PSBTParser():
     """
     Reads a psbt on behalf of one seed and works out everything the signing flow shows the
@@ -447,12 +472,9 @@ class PSBTParser():
              A policy is one of:
                - single-sig: the script type alone. Says nothing about keys.
                - multisig, cosigners resolved: script type, m-of-n, and the cosigner
-                 xpubs that every key in the script was traced back to.
+                 xpubs that the script's keys trace back to. The keys all share one
+                 branch and address index.
                - multisig, cosigners unresolved: script type and m-of-n only.
-                 _get_policy doesn't propagate cosigner errors, so two such policies match
-                 without anything having tied them to the same keys. TODO: don't let a
-                 policy with no cosigner information pass as a match between inputs.
-                 Outputs deliberately compare shape alone; see _is_change_candidate.
 
           5. _reject_if_seed_cannot_sign: rejects the psbt if none of the inputs can be
              signed by the seed. A mismatch rather than an attack, caught here so the flow
@@ -673,8 +695,8 @@ class PSBTParser():
     def _parse_inputs(self, child_key_derivation_cache: dict):
         """
         Verifies each input's claims on this seed and determines the wallet policy.
-        Perceived attacks are raised immediately. Milder errors are held, and processing
-        of the inputs continues uninterrupted. Every input must resolve to the same policy,
+        Perceived attacks are raised immediately. Milder errors are held; processing of
+        the inputs continues uninterrupted. Every input must resolve to the same policy,
         otherwise a RuntimeError is raised.
 
         First we re-derive each key the input claims for our seed, which confirms that the
@@ -684,6 +706,11 @@ class PSBTParser():
 
         We need to be certain which inputs are ours because they determine what a valid
         change output should look like.
+
+        Note: when the cosigners can't be determined, the wallet policy only consists of
+        the script type and m-of-n. So inputs from two multisig wallets with the same
+        script type and m-of-n would be considered the same wallet. Only a user-provided
+        descriptor can disambiguate the inputs.
 
         Holds:
           * PSBTInputOwnershipClaimError: An input carries a false claim on this seed.
@@ -1167,10 +1194,10 @@ class PSBTParser():
                                 is_presumed_change = True
 
                                 # One thing we can rule out now: if the psbt supplied
-                                # global xpubs (see _get_cosigners), we can compare this
-                                # output's cosigners to the inputs' cosigners. Real change
-                                # should have the same cosigners; if this output's
-                                # cosigners differ or fail to resolve at all, we classify
+                                # global xpubs (see _get_valid_cosigners), we can compare
+                                # this output's cosigners to the inputs' cosigners. Real
+                                # change should have the same cosigners; if this output's
+                                # cosigners differ or its policy has none, we classify
                                 # this output as NOT change.
                                 input_cosigners = self.policy.get("cosigners")
                                 output_cosigners = out_policy.get("cosigners")
@@ -1378,13 +1405,11 @@ class PSBTParser():
 
                 # check pubkeys are derived from cosigners
                 try:
-                    cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs, child_key_derivation_cache)
+                    cosigners = PSBTParser._get_valid_cosigners(pubkeys, scope.bip32_derivations, xpubs, child_key_derivation_cache)
                     policy.update({"m": m, "n": n, "cosigners": cosigners})
-                except:
-                    # TODO: stop swallowing everything here. This also catches bugs in the
-                    # cosigner check itself, and cannot tell those apart from the psbt
-                    # simply not supplying xpubs to check against, which is valid and must
-                    # not be rejected outright.
+                except (PSBTUnresolvedCosigners, PSBTMixedPathScript):
+                    # We either could not resolve the cosigners or withheld them, so the
+                    # policy carries only the m-of-n that the script itself provides.
                     policy.update({"m": m, "n": n})
 
         return policy
@@ -1562,15 +1587,18 @@ class PSBTParser():
 
 
     @staticmethod
-    def _get_cosigners(pubkeys, derivations, xpubs, child_key_derivation_cache: dict | None):
+    def _get_valid_cosigners(pubkeys, derivations, xpubs, child_key_derivation_cache: dict | None):
         """
-        Traces every key in a multisig script back to the global xpub it was derived
-        from, then returns the xpubs it found as a sorted list of base58 strings.
+        Validates the cosigners for a multisig input or output, then returns their xpubs
+        as a sorted list of base58 strings. The cosigners are considered valid when every
+        key that defines the input or output traces back to one of the psbt's global xpubs
+        and all of those keys are at the same branch and address index (e.g. .../1/5 for
+        each key).
 
         Args:
-          * pubkeys: The keys that actually appear in the script (the witness script for
-            segwit; the redeem script for legacy p2sh). Extracted by _get_policy(). One
-            per cosigner.
+          * pubkeys: The keys that actually appear in an input's or output's script (the
+            witness script for segwit; the redeem script for legacy p2sh). Extracted by
+            _get_policy(). One per cosigner.
 
           * derivations: (embit's bip32_derivations) Each pubkey's associated fingerprint
             and full derivation path (e.g. m/48'/0'/0'/2'/1/5). A dict keyed on each
@@ -1591,25 +1619,49 @@ class PSBTParser():
         The list is sorted so that two scripts holding the same wallet's keys in a
         different order resolve to the same cosigners.
 
-        Note that the bip32_derivations and the global xpubs are both optional psbt
-        fields. If either is omitted or incomplete, this function raises rather than
-        return a partial list.
-        """
-        # TODO: Improve error handling by providing custom exceptions.
+        Raises one of the following two exceptions when it can't return valid cosigners.
+        Neither is an error (so their names omit the "Error" suffix); the exceptions are
+        just to ensure that the caller explicitly handles these cases.
+          * PSBTUnresolvedCosigners: raised when a key can't be traced back to one of the
+            global xpubs. The bip32_derivations and the global xpubs are both optional
+            psbt fields, so either may be omitted or incomplete.
 
+          * PSBTMixedPathScript: raised when the keys are at different branches or address
+            indices (a mixed-path script), even if each key traces back to one of the
+            xpubs. BIP-383 requires the shared address index. The shared branch follows
+            BIP-45. A standard wallet doesn't generate a mixed-path script. If we returned
+            such a script's cosigners, an output paying to one would match the inputs'
+            cosigners and pass as change, even though a standard wallet wouldn't find
+            those funds. So we withhold a mixed-path script's cosigners.
+        """
         # Early-out if the optional data is omitted. Not actually an error: raising is
         # how this function reports that a complete cosigner list can't be built.
         if not xpubs:
-            raise ValueError("No global xpubs supplied")
+            raise PSBTUnresolvedCosigners("No global xpubs supplied")
         if not derivations:
-            raise ValueError("No derivation paths supplied")
+            raise PSBTUnresolvedCosigners("No derivation paths supplied")
 
         cosigners = []
+        shared_branch_and_address_index = None
         for i, pubkey in enumerate(pubkeys):
             # For each pubkey, get the claimed fingerprint and full derivation path
             if pubkey not in derivations:
-                raise ValueError("Missing derivation")
+                raise PSBTUnresolvedCosigners("Missing derivation path")
             der = derivations[pubkey]
+
+            # The last two indices are the branch and address index; must be the same for
+            # every key.
+            branch_and_address_index = der.derivation[-2:]
+            if shared_branch_and_address_index is None:
+                shared_branch_and_address_index = branch_and_address_index
+            elif branch_and_address_index != shared_branch_and_address_index:
+                raise PSBTMixedPathScript("Keys at different branches or address indices")
+
+            # An xpub can only derive non-hardened children
+            for index in branch_and_address_index:
+                if index >= bip32.HARDENED_INDEX:
+                    # It's inherently impossible to resolve this cosigner from an xpub
+                    raise PSBTUnresolvedCosigners("Key at a hardened branch or address index")
 
             # Scan the xpubs for one whose derivation path matches the claim.
             for xpub in xpubs:
@@ -1630,7 +1682,7 @@ class PSBTParser():
         # Every key in the script has to trace back to an xpub for the result to mean
         # anything.
         if len(cosigners) != len(pubkeys):
-            raise RuntimeError("Can't get all cosigners")
+            raise PSBTUnresolvedCosigners("Could not resolve every cosigner")
         return sorted(cosigners)
 
 
