@@ -4691,6 +4691,30 @@ class TestPSBTParserDerivationPathValidation(PSBTParserOwnershipTestBase):
             assert validation_result.indicated_network == SettingsConstants.MAINNET
 
 
+    def test__parse__refuses_inputs_at_both_coin_types_on_either_network(self):
+        """
+        Switching networks can't get a psbt signed when it spends coins at both coin types.
+
+        The taproot psbt spends the fixture's coin at its regtest path and another of our
+        coins at the mainnet path m/86h/0h/0h/0/5. On regtest the parse should refuse the
+        mainnet input, and on mainnet the regtest one, each with
+        PSBTDerivationPathNetworkMismatchError.
+        """
+        mainnet_derivation_path = "m/86h/0h/0h/0/5"
+        regtest_derivation_path = self._input_derivation_path(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT)
+
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+        self._add_own_input(psbt, mainnet_derivation_path)
+
+        with pytest.raises(PSBTDerivationPathNetworkMismatchError) as exc_info:
+            self._parse(psbt)
+        assert exc_info.value.validation_result.derivation_path == bip32.parse_path(mainnet_derivation_path)
+
+        with pytest.raises(PSBTDerivationPathNetworkMismatchError) as exc_info:
+            PSBTParser(psbt, self.seed, network=SettingsConstants.MAINNET, derivation_path_validator=DerivationPathValidator())
+        assert exc_info.value.validation_result.derivation_path == bip32.parse_path(regtest_derivation_path)
+
+
     def test__parse__refuses_an_input_at_a_path_for_another_script_type(self):
         """
         An input at a standard path for a different script type is refused with
