@@ -1,5 +1,6 @@
 import pytest
 
+from seedsigner.models.derivation_path_validator import DerivationPathValidator
 from seedsigner.models.settings_definition import SettingsConstants as SC
 from seedsigner.helpers import embit_utils
 
@@ -94,6 +95,22 @@ def test_get_standard_derivation_path():
             print(f"asserting {func.__name__}(**{a_dict}) raises Exception")
             with pytest.raises(expected):
                 func(**a_dict)
+
+
+def test_get_policy_type():
+    """
+    Every policy type in the validator's registry has a script type and sig type setting,
+    and that pair maps back to the same policy type. Taproot multisig and unknown settings
+    have no policy type.
+    """
+    assert set(embit_utils.POLICY_TYPE_SETTINGS) == set(DerivationPathValidator.STANDARD_REGISTRY)
+
+    for policy_type, (script_type, sig_type) in embit_utils.POLICY_TYPE_SETTINGS.items():
+        assert embit_utils.get_policy_type(script_type=script_type, sig_type=sig_type) == policy_type
+
+    assert embit_utils.get_policy_type(script_type=SC.TAPROOT, sig_type=SC.MULTISIG) is None
+    assert embit_utils.get_policy_type(script_type=SC.CUSTOM_DERIVATION, sig_type=SC.SINGLE_SIG) is None
+    assert embit_utils.get_policy_type(script_type=SC.NATIVE_SEGWIT, sig_type="invalid") is None
 
 
 def test_get_xpub():
