@@ -73,35 +73,56 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
 
 
 
-def get_display_derivation_path(derivation_path: list[int], offending_level_index: int = 0, max_chars: int = 22) -> str:
+def get_display_derivation_path(derivation_path: list[int], offending_level_index: int = 0, max_chars: int = 21, max_lines: int = 1) -> str:
     """
     Returns derivation_path in the ' notation shown on screen (m/84'/0'/0'/0/5),
-    shortened if needed to fit one line of a warning screen's body text.
+    shortened if needed to fit a warning screen's body text: at most max_lines lines of
+    max_chars characters each.
 
-    A path longer than max_chars keeps "m", the level before the offending one, the
-    offending level, and as many of the levels after it as fit. Each run of dropped levels
-    shows as "…". Those kept levels are shown even if they don't fit.
+    The warning screen only breaks lines at spaces, and a path has none, so a path on two
+    lines is broken here. Each break comes after a "/", never inside a level.
 
-    22 characters fit on one line for the paths these screens show. A path made almost
-    entirely of digits can run slightly into the margins.
+    A path that doesn't fit keeps "m", the level before the offending one, the offending
+    level, and as many of the levels after it as fit. Each run of dropped levels shows as
+    "…". Those kept levels are shown even if they don't fit.
+
+    21 characters keep every standard path on one line in every locale's font, which the
+    network mismatch screen needs to fit beside its two buttons. A nonstandard path made
+    mostly of digits can still be too wide. It then runs into the margins, or wraps in
+    Chinese, Japanese, and Korean, which those one-button screens have room for.
     """
     levels = bip32.path_to_str(derivation_path).replace("h", "'").split("/")
-    if len("/".join(levels)) <= max_chars:
-        return "/".join(levels)
+
+    def lay_out(shown: list[str]) -> list[str]:
+        # Fill each line in turn. The last line takes whatever is left, even if it's too
+        # long, which fits() then reports.
+        lines = [""]
+        for index, level in enumerate(shown):
+            piece = level if index == len(shown) - 1 else level + "/"
+            if lines[-1] and len(lines[-1]) + len(piece) > max_chars and len(lines) < max_lines:
+                lines.append("")
+            lines[-1] += piece
+        return lines
+
+    def fits(shown: list[str]) -> bool:
+        return all(len(line) <= max_chars for line in lay_out(shown))
+
+    if fits(levels):
+        return "\n".join(lay_out(levels))
 
     # levels[0] is the root "m", so the offending level is one further along
     first = max(offending_level_index, 1)
     last = offending_level_index + 1
 
-    def join(first: int, last: int) -> str:
+    def shorten(first: int, last: int) -> list[str]:
         shown = ["m"] + (["…"] if first > 1 else []) + levels[first:last + 1]
         if last < len(levels) - 1:
             shown.append("…")
-        return "/".join(shown)
+        return shown
 
-    while last + 1 < len(levels) and len(join(first, last + 1)) <= max_chars:
+    while last + 1 < len(levels) and fits(shorten(first, last + 1)):
         last += 1
-    return join(first, last)
+    return "\n".join(lay_out(shorten(first, last)))
 
 
 

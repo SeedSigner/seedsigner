@@ -898,7 +898,7 @@ class TestPSBTDerivationPathValidationRouting(PSBTSigningFlowTest):
         """
         The psbt spends one of our coins at m/84h/1h/0h/7777/0/5.
 
-        The flow should stop at PSBTUnexpectedInputDerivationPathView, headed "Nonstandard
+        The flow should stop at PSBTUnexpectedInputDerivationPathView, titled "Nonstandard
         Path", showing the path with no explanation line. Discarding should return to the
         Main Menu.
         """
@@ -912,7 +912,8 @@ class TestPSBTDerivationPathValidationRouting(PSBTSigningFlowTest):
             FlowStep(MainMenuView),
         ])
 
-        assert screen_kwargs["status_headline"] == "Nonstandard Path"
+        assert screen_kwargs["title"] == "Nonstandard Path"
+        assert screen_kwargs["status_headline"] is None
         assert screen_kwargs["text"] == "m/84'/1'/0'/7777/0/5"
         assert screen_kwargs["button_data"] == [psbt_views.PSBTUnexpectedInputDerivationPathView.DISCARD]
 
@@ -922,7 +923,7 @@ class TestPSBTDerivationPathValidationRouting(PSBTSigningFlowTest):
         The native segwit psbt spends one of our coins at the nested segwit path
         m/49h/1h/0h/0/5.
 
-        The flow should stop at PSBTUnexpectedInputDerivationPathView, headed "Script Type
+        The flow should stop at PSBTUnexpectedInputDerivationPathView, titled "Script Type
         Mismatch", with the path's script type named below the path. Discarding should
         return to the Main Menu.
         """
@@ -936,7 +937,8 @@ class TestPSBTDerivationPathValidationRouting(PSBTSigningFlowTest):
             FlowStep(MainMenuView),
         ])
 
-        assert screen_kwargs["status_headline"] == "Script Type Mismatch"
+        assert screen_kwargs["title"] == "Script Type Mismatch"
+        assert screen_kwargs["status_headline"] is None
         assert screen_kwargs["text"] == "m/49'/1'/0'/0/5\nPath is for Nested Segwit"
         assert screen_kwargs["button_data"] == [psbt_views.PSBTUnexpectedInputDerivationPathView.DISCARD]
 
@@ -945,7 +947,7 @@ class TestPSBTDerivationPathValidationRouting(PSBTSigningFlowTest):
         """
         A regtest psbt is scanned on a device set to mainnet.
 
-        The flow should stop at PSBTUnexpectedInputDerivationPathView, headed "Network
+        The flow should stop at PSBTUnexpectedInputDerivationPathView, titled "Network
         Mismatch", naming Testnet below the path, with a button to change the setting.
         Choosing it should drop the psbt, which was parsed for the old network, and open
         the network setting. After the user picks Regtest and scans the psbt again, it
@@ -971,7 +973,8 @@ class TestPSBTDerivationPathValidationRouting(PSBTSigningFlowTest):
             FlowStep(settings_views.SettingsEntryUpdateSelectionView),
         ])
 
-        assert screen_kwargs["status_headline"] == "Network Mismatch"
+        assert screen_kwargs["title"] == "Network Mismatch"
+        assert screen_kwargs["status_headline"] is None
         assert screen_kwargs["text"] == "m/84'/1'/0'/0/3\nPath is for Testnet"
         assert screen_kwargs["button_data"] == [
             psbt_views.PSBTUnexpectedInputDerivationPathView.CHANGE_SETTING,
@@ -1024,3 +1027,29 @@ class TestPSBTDerivationPathValidationRouting(PSBTSigningFlowTest):
             ], initial_destination_view_args=dict(validation_result=validation_result))
 
             assert screen_kwargs["text"].split("\n")[1] == expected_line, derivation_path
+
+
+    def test_only_a_nonstandard_path_takes_two_lines(self):
+        """
+        A nonstandard path too long for one line continues on a second line, broken after
+        a "/". Network Mismatch and Script Type Mismatch keep the path to one line, with
+        the line explaining it below.
+        """
+        validator = DerivationPathValidator()
+
+        # (input's policy type, path, network, text on the screen)
+        cases = [
+            ("p2wpkh", "m/84h/1h/0h/7777/7777/7777/0/5", SettingsConstants.REGTEST, "m/84'/1'/0'/7777/\n7777/7777/0/5"),
+            ("p2wpkh", "m/84h/1h/2147483646h/1/12345", SettingsConstants.MAINNET, "m/84'/1'/…\nPath is for Testnet"),
+            ("p2tr", "m/84h/1h/2147483646h/1/12345", SettingsConstants.REGTEST, "m/84'/1'/…\nPath is for Native Segwit"),
+        ]
+        for policy_type, derivation_path, network, expected_text in cases:
+            validation_result = validator.validate(bip32.parse_path(derivation_path), policy_type, network)
+
+            screen_kwargs = {}
+            self.run_sequence([
+                FlowStep(psbt_views.PSBTUnexpectedInputDerivationPathView, before_run=self._capture_screen_kwargs(screen_kwargs), button_data_selection=psbt_views.PSBTUnexpectedInputDerivationPathView.DISCARD),
+                FlowStep(MainMenuView),
+            ], initial_destination_view_args=dict(validation_result=validation_result))
+
+            assert screen_kwargs["text"] == expected_text, derivation_path

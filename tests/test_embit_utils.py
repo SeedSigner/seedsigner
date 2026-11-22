@@ -115,9 +115,11 @@ def test_get_policy_type():
 
 def test_get_display_derivation_path():
     """
-    A path of up to 22 characters is shown whole, in the ' notation. A longer one keeps
+    A path of up to 21 characters is shown whole, in the ' notation. A longer one keeps
     "m", the level before the offending one, the offending level, and as many of the
     levels after it as fit, with "…" for each run of dropped levels.
+
+    Allowed two lines, a path continues on the second line, broken after a "/".
     """
     from embit import bip32
 
@@ -126,11 +128,14 @@ def test_get_display_derivation_path():
     # (path, offending level index, what is shown)
     vectors = [
         ("m/84h/0h/0h/7777/0/5", 3, "m/84'/0'/0'/7777/0/5"),
-        ("m/48h/0h/0h/2h/1/12345", 3, "m/48'/0'/0'/2'/1/12345"),       # exactly 22 characters
-        ("m/48h/1h/0h/2h/7777/1/0", 4, "m/…/2'/7777/1/0"),             # 23 characters
+        ("m/48h/0h/0h/2h/1/1234", 3, "m/48'/0'/0'/2'/1/1234"),         # exactly 21 characters
+        ("m/48h/0h/0h/2h/1/12345", 3, "m/…/0'/2'/1/12345"),            # 22 characters
+        ("m/48h/1h/0h/2h/7777/1/0", 4, "m/…/2'/7777/1/0"),
+        ("m/84h/0h/0h/7777/0/1234567", 3, "m/…/0'/7777/0/1234567"),    # shortened to exactly 21
 
-        # The offending level near the start, as on the network mismatch screen
-        ("m/84h/1h/2147483646h/1/12345", 1, "m/84'/1'/2147483646'/…"),
+        # The offending level near the start, as on the network mismatch screen. The
+        # account would make it 22 characters.
+        ("m/84h/1h/2147483646h/1/12345", 1, "m/84'/1'/…"),
 
         # A 200-level path, shortened around the offending level 1100 (at index 103, after
         # 84h/0h/0h)
@@ -143,6 +148,25 @@ def test_get_display_derivation_path():
     ]
     for derivation_path, offending_level_index, expected in vectors:
         assert embit_utils.get_display_derivation_path(bip32.parse_path(derivation_path), offending_level_index) == expected, derivation_path
+
+    # (path, offending level index, what is shown on up to two lines)
+    two_line_vectors = [
+        # Fits on one line, so stays there
+        ("m/84h/0h/0h/7777/0/5", 3, "m/84'/0'/0'/7777/0/5"),
+
+        # Too long for one line, but fits whole on two
+        ("m/48h/1h/0h/2h/7777/1/0", 4, "m/48'/1'/0'/2'/7777/\n1/0"),
+        ("m/84h/0h/0h/7777/777/0/5", 3, "m/84'/0'/0'/7777/777/\n0/5"),     # first line exactly 21 characters
+
+        # Shortened, with the second line exactly 21 characters
+        ("m/84h/0h/0h/" + "/".join(["7777"] * 200), 3, "m/…/0'/7777/7777/\n7777/7777/7777/7777/…"),
+        (numbered_path, 103, "m/…/1099/1100/1101/\n1102/1103/1104/1105/…"),
+
+        # The levels that always stay fit on two lines, even at the largest index
+        ("m/2147483647h/2147483647h/2147483647h/0/5", 1, "m/2147483647'/\n2147483647'/…"),
+    ]
+    for derivation_path, offending_level_index, expected in two_line_vectors:
+        assert embit_utils.get_display_derivation_path(bip32.parse_path(derivation_path), offending_level_index, max_lines=2) == expected, derivation_path
 
 
 def test_get_xpub():

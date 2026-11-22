@@ -1016,7 +1016,7 @@ class PSBTUnexpectedInputDerivationPathView(View):
     """
     Reached when the "Validate derivations" setting is on and an input this seed signs
     isn't at a standard derivation path (see PSBTParser._validate_input_derivation_paths).
-    Shows the input's path and what is wrong with it:
+    Shows the input's path under a title naming what is wrong with it:
       * Network Mismatch: a standard path for the other network. The user can open the
         network setting from here, then scan the psbt again.
       * Script Type Mismatch: a standard path for a different script type.
@@ -1041,9 +1041,10 @@ class PSBTUnexpectedInputDerivationPathView(View):
         validation_result = self.validation_result
         button_data = [self.DISCARD]
         explanation = None
+        max_lines = 1
 
         if validation_result.status == DerivationPathValidator.STATUS__ANOTHER_NETWORK:
-            status_headline = _("Network Mismatch")
+            title = _("Network Mismatch")
             network = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__NETWORK).get_selection_option_display_name_by_value(validation_result.indicated_network)
             # TRANSLATOR_NOTE: Says what the derivation path of a coin being spent is for: a network (e.g. "Path is for Testnet") or a script type (e.g. "Path is for Nested Segwit")
             explanation = _("Path is for {}").format(_(network))
@@ -1051,7 +1052,7 @@ class PSBTUnexpectedInputDerivationPathView(View):
 
         elif validation_result.status == DerivationPathValidator.STATUS__ANOTHER_SCRIPT_TYPE:
             # TRANSLATOR_NOTE: A coin being spent is at the standard derivation path for a different script type (e.g. a Native Segwit coin at a Nested Segwit path)
-            status_headline = _("Script Type Mismatch")
+            title = _("Script Type Mismatch")
             # Name the path's script type, even when only single sig vs multisig differs
             script_type = embit_utils.POLICY_TYPE_SETTINGS[validation_result.indicated_policy_type][0]
             script_type_name = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(script_type)
@@ -1060,16 +1061,20 @@ class PSBTUnexpectedInputDerivationPathView(View):
 
         else:
             # TRANSLATOR_NOTE: A coin being spent is at a derivation path that wallets following the standard BIPs don't use
-            status_headline = _("Nonstandard Path")
+            title = _("Nonstandard Path")
+            # With no explanation line below it, a long path here can take two lines
+            max_lines = 2
 
-        text = embit_utils.get_display_derivation_path(validation_result.derivation_path, validation_result.offending_level_index)
+        text = embit_utils.get_display_derivation_path(validation_result.derivation_path, validation_result.offending_level_index, max_lines=max_lines)
         if explanation:
             text += f"\n{explanation}"
 
+        # Other refusals are titled "Transaction Problem", but the coins and the transaction
+        # may be fine here. So the title names what was found, and no headline repeats it.
         selected_menu_num = self.run_screen(
             WarningScreen,
-            title=_("Transaction Problem"),
-            status_headline=status_headline,
+            title=title,
+            status_headline=None,
             text=text,
             button_data=button_data,
             show_back_button=False,
