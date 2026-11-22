@@ -350,6 +350,7 @@ class SettingsConstants:
     SETTING__BIP85_CHILD_SEEDS = "bip85_child_seeds"
     SETTING__ELECTRUM_SEEDS = "electrum_seeds"
     SETTING__MESSAGE_SIGNING = "message_signing"
+    SETTING__VALIDATE_DERIVATIONS = "validate_derivations"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
     SETTING__QR_BRIGHTNESS_TIPS = "qr_brightness_tips"
@@ -690,6 +691,16 @@ class SettingsDefinition:
                       display_name=_mft("Message signing"),
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__VALIDATE_DERIVATIONS,
+                      abbreviated_name="val_deriv",
+                      # TRANSLATOR_NOTE: Advanced setting that checks the derivation paths of the coins a transaction spends
+                      display_name=_mft("Validate derivations"),
+                      # TRANSLATOR_NOTE: Help text for "Validate derivations"; "input paths" are the derivation paths of the coins being spent
+                      help_text=_mft("Require standard input paths during signing"),
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__ENABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__PRIVACY_WARNINGS,
