@@ -73,6 +73,38 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
 
 
 
+def get_display_derivation_path(derivation_path: list[int], offending_level_index: int = 0, max_chars: int = 22) -> str:
+    """
+    Returns derivation_path in the ' notation shown on screen (m/84'/0'/0'/0/5),
+    shortened if needed to fit one line of a warning screen's body text.
+
+    A path longer than max_chars keeps "m", the level before the offending one, the
+    offending level, and as many of the levels after it as fit. Each run of dropped levels
+    shows as "…". Those kept levels are shown even if they don't fit.
+
+    22 characters fit on one line for the paths these screens show. A path made almost
+    entirely of digits can run slightly into the margins.
+    """
+    levels = bip32.path_to_str(derivation_path).replace("h", "'").split("/")
+    if len("/".join(levels)) <= max_chars:
+        return "/".join(levels)
+
+    # levels[0] is the root "m", so the offending level is one further along
+    first = max(offending_level_index, 1)
+    last = offending_level_index + 1
+
+    def join(first: int, last: int) -> str:
+        shown = ["m"] + (["…"] if first > 1 else []) + levels[first:last + 1]
+        if last < len(levels) - 1:
+            shown.append("…")
+        return "/".join(shown)
+
+    while last + 1 < len(levels) and len(join(first, last + 1)) <= max_chars:
+        last += 1
+    return join(first, last)
+
+
+
 def get_xpub(seed_bytes, derivation_path: str, embit_network: str = "main") -> HDKey:
     root = bip32.HDKey.from_seed(seed_bytes, version=NETWORKS[embit_network]["xprv"])
     xprv = root.derive(derivation_path)

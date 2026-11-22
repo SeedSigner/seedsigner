@@ -113,6 +113,38 @@ def test_get_policy_type():
     assert embit_utils.get_policy_type(script_type=SC.NATIVE_SEGWIT, sig_type="invalid") is None
 
 
+def test_get_display_derivation_path():
+    """
+    A path of up to 22 characters is shown whole, in the ' notation. A longer one keeps
+    "m", the level before the offending one, the offending level, and as many of the
+    levels after it as fit, with "…" for each run of dropped levels.
+    """
+    from embit import bip32
+
+    numbered_path = "m/84h/0h/0h/" + "/".join(str(level) for level in range(1000, 1200)) + "/0/5"
+
+    # (path, offending level index, what is shown)
+    vectors = [
+        ("m/84h/0h/0h/7777/0/5", 3, "m/84'/0'/0'/7777/0/5"),
+        ("m/48h/0h/0h/2h/1/12345", 3, "m/48'/0'/0'/2'/1/12345"),       # exactly 22 characters
+        ("m/48h/1h/0h/2h/7777/1/0", 4, "m/…/2'/7777/1/0"),             # 23 characters
+
+        # The offending level near the start, as on the network mismatch screen
+        ("m/84h/1h/2147483646h/1/12345", 1, "m/84'/1'/2147483646'/…"),
+
+        # A 200-level path, shortened around the offending level 1100 (at index 103, after
+        # 84h/0h/0h)
+        (numbered_path, 103, "m/…/1099/1100/1101/…"),
+
+        # The levels that always stay are shown even when they don't fit
+        ("m/2147483647h/2147483647h/2147483647h/0/5", 1, "m/2147483647'/2147483647'/…"),
+
+        ("m", 0, "m"),
+    ]
+    for derivation_path, offending_level_index, expected in vectors:
+        assert embit_utils.get_display_derivation_path(bip32.parse_path(derivation_path), offending_level_index) == expected, derivation_path
+
+
 def test_get_xpub():
     """
     tests seedsigner.helpers.embit_utils.get_xpub()
