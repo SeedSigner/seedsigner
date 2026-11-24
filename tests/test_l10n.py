@@ -1,4 +1,9 @@
+import os
+from collections import Counter
 from gettext import gettext as _
+from string import Formatter
+
+from babel.messages.pofile import read_po
 
 from base import BaseTest
 from seedsigner.gui.screens.screen import ButtonOption
@@ -102,3 +107,40 @@ class TestMarkForTranslation(BaseTest):
             home = _mft("Home")
 
         assert _(BarClass.home) != "Home"
+
+
+
+class TestTranslationPlaceholders:
+    """
+    Every translated string must keep the same str.format() placeholders as
+    the English source: same number of `{}` and the same `{named}` vars.
+    """
+    L10N_DIR = os.path.join(os.getcwd(), "src", "seedsigner", "resources", "seedsigner-translations", "l10n")
+
+    @staticmethod
+    def get_placeholders(text: str) -> Counter:
+        # Formatter().parse() gives "" for `{}` and the name for `{name}`
+        return Counter(field for _, field, _, _ in Formatter().parse(text) if field is not None)
+
+
+    def test_translations_keep_placeholders(self):
+        problems = []
+        for locale in sorted(os.listdir(self.L10N_DIR)):
+            po_file = os.path.join(self.L10N_DIR, locale, "LC_MESSAGES", "messages.po")
+            if not os.path.isfile(po_file):
+                continue
+
+            with open(po_file, "rb") as f:
+                catalog = read_po(f)
+
+            for message in catalog:
+                # Skip the header, untranslated strings, and plural entries
+                if not message.id or not message.string or isinstance(message.id, tuple):
+                    continue
+
+                expected = self.get_placeholders(message.id)
+                actual = self.get_placeholders(message.string)
+                if expected != actual:
+                    problems.append(f"{locale}: {message.id!r} expected {dict(expected)}, got {dict(actual)}")
+
+        assert not problems, "\n".join(problems)
