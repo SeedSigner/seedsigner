@@ -31,25 +31,6 @@ class PSBTOverviewScreen(ButtonListScreen):
     WARNING_MARK = " (!)"
     
 
-    @staticmethod
-    def op_return_row(op_return_amounts: list[int]) -> str:
-        """
-            Represent OP_RETURN outputs as a single row. Even if there is more than one
-            in the transaction, we have to prioritize conserving vertical space.
-
-            Note: an option to display a plural form ("OP_RETURNs") creates more
-            translation complications than it's worth.
-        """
-        # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
-        row = _("OP_RETURN")
-
-        for amount in op_return_amounts:
-            if amount > 0:
-                row += PSBTOverviewScreen.WARNING_MARK
-                break
-
-        return row
-
 
     def __post_init__(self):
         # Customize defaults
@@ -180,7 +161,14 @@ class PSBTOverviewScreen(ButtonListScreen):
             destination_column.append(fee_label)
 
             if self.op_return_amounts:
-                destination_column.append(PSBTOverviewScreen.op_return_row(self.op_return_amounts))
+                # A single row covers all the OP_RETURN outputs, to save vertical space
+                # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
+                op_return_label = _("OP_RETURN")
+                for amount in self.op_return_amounts:
+                    if amount > 0:
+                        op_return_label += PSBTOverviewScreen.WARNING_MARK
+                        break
+                destination_column.append(op_return_label)
 
             if self.num_change_outputs > 0:
                 for i in range(0, self.num_change_outputs):
@@ -525,7 +513,7 @@ class PSBTMathScreen(ButtonListScreen):
 
         # Only show the "burned" line when something was burned (most OP_RETURNs carry no
         # value). Decided before the amount is reformatted into a string below.
-        shows_burned_amount = self.burn_amount > 0
+        has_burned_amount = self.burn_amount > 0
 
         if self.input_amount > 1e6:
             denomination = _("btc")
@@ -621,7 +609,7 @@ class PSBTMathScreen(ButtonListScreen):
             )
 
         # Burned sats get their own line so the numbers on screen add up to the inputs
-        if shows_burned_amount:
+        if has_burned_amount:
             cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
             render_amount(
                 cur_y,
@@ -862,11 +850,11 @@ class PSBTOpReturnScreen(ButtonListScreen):
         if num_bytes_not_shown:
             # Without this line, a cut-short payload would look just like a complete one
             # TRANSLATOR_NOTE: How much of an OP_RETURN payload too large to show all of could not be displayed (e.g. "3,456 bytes not shown"). Keep it short: it must fit on one line.
-            lines.append((_("{num_bytes} bytes not shown").format(num_bytes=f"{num_bytes_not_shown:,}"), GUIConstants.WARNING_COLOR))
+            lines.append((_("{} bytes not shown").format(f"{num_bytes_not_shown:,}"), GUIConstants.WARNING_COLOR))
 
         if self.burn_amount > 0:
-            # TRANSLATOR_NOTE: An OP_RETURN output destroys any value sent to it. "amount" is in sats (e.g. "burns 10,000 sats"). Keep it short: it must fit on one line.
-            lines.append((_("burns {amount} sats").format(amount=f"{self.burn_amount:,}"), GUIConstants.DIRE_WARNING_COLOR))
+            # TRANSLATOR_NOTE: An OP_RETURN output destroys any sats sent to it (e.g. "burns 10,000 sats"). Keep it short: it must fit on one line.
+            lines.append((_("burns {} sats").format(f"{self.burn_amount:,}"), GUIConstants.DIRE_WARNING_COLOR))
 
         screen_y = self.top_nav.height
         for line, font_color in lines:

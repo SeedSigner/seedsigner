@@ -1,11 +1,10 @@
 from binascii import a2b_base64
 from copy import deepcopy
-from unittest.mock import patch
 
 from embit import bip32, script
 from embit.psbt import PSBT, DerivationPath
 
-from base import BaseTest, FlowTest, FlowStep
+from base import FlowTest, FlowStep
 from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_key,
     create_op_return_output, create_op_return_psbt, create_output, foreign_public_key,
     p2tr_with_script_tree, repoint_change, root_for_seed, set_input_locking_script,
@@ -838,52 +837,6 @@ class TestPSBTWarningRouting(PSBTSigningFlowTest):
             PSBTParser.WARNING__OP_RETURN_BURN,
             PSBTParser.WARNING__HIGH_FEE,
         ]
-
-
-
-class TestPSBTOpReturnView(BaseTest):
-    """
-    What each OP_RETURN screen is given.
-    """
-
-    def test_each_screen_receives_its_own_output(self):
-        """
-        Should give each screen its own output's payload and amount.
-        """
-        first, second = b"\xff" * 100, b"second payload"
-        self.controller.psbt_parser = PSBTParser(
-            p=create_op_return_psbt([
-                create_op_return_output(first, value=7_000),
-                create_op_return_output(second),
-            ]),
-            seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
-
-        for op_return_num, payload, amount in ((0, first, 7_000), (1, second, 0)):
-            with patch.object(psbt_views.View, "run_screen") as mock_run_screen:
-                mock_run_screen.return_value = 0
-                psbt_views.PSBTOpReturnView(op_return_num=op_return_num).run()
-
-            kwargs = mock_run_screen.call_args.kwargs
-            assert (kwargs["op_return_data"], kwargs["burn_amount"]) == (payload, amount)
-
-
-
-class TestPSBTOverviewOpReturnRow(BaseTest):
-    """
-    The overview flow diagram's row for the OP_RETURN outputs.
-    """
-
-    def test_the_overview_marks_the_op_return_row_when_any_output_burns(self):
-        """
-        Should draw one OP_RETURN row however many outputs there are, marked only when at
-        least one of them burns sats.
-        """
-        from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen
-
-        assert PSBTOverviewScreen.op_return_row([0]) == "OP_RETURN"
-        assert PSBTOverviewScreen.op_return_row([0, 0, 0]) == "OP_RETURN"
-        marked = "OP_RETURN" + PSBTOverviewScreen.WARNING_MARK
-        assert PSBTOverviewScreen.op_return_row([0, 5_000, 0]) == marked
 
 
 

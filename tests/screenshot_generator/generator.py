@@ -104,8 +104,8 @@ def add_op_return_to_psbt(psbt: PSBT, raw_payload_data: bytes, value: int = 0):
 
 def keep_only_last_output(psbt: PSBT) -> PSBT:
     """
-        Simplifies the output side down to its last output. The dropped outputs' value is
-        folded into the one kept, so the fee stays what the base psbt paid; dropping it
+        Reduces the outputs to just the last one. The other outputs' value is added to
+        that remaining output, so the fee stays what the base psbt paid; dropping it
         instead would turn several BTC into fee and trip the high fee warning on screens
         that have nothing to do with fees.
     """

@@ -282,8 +282,8 @@ class PSBTWarningView(View):
         if warning == PSBTParser.WARNING__OP_RETURN_BURN:
             Screen_cls = DireWarningScreen
             # TRANSLATOR_NOTE: Total sats destroyed by this transaction's OP_RETURN outputs (e.g. "10,000 sats")
-            status_headline = _("{amount} sats").format(amount=f"{psbt_parser.burn_amount:,}")
-            # TRANSLATOR_NOTE: Shown under the burned amount. "OP_RETURN" is a technical term, should probably NOT be translated in most languages
+            status_headline = _("{} sats").format(f"{psbt_parser.burn_amount:,}")
+            # TRANSLATOR_NOTE: "Burns" means the sats are destroyed: sent to OP_RETURN outputs, which can never be spent. "OP_RETURN" is a technical term, should probably NOT be translated in most languages
             text = _("This transaction burns these sats in OP_RETURN outputs. They can never be spent.")
 
         elif warning == PSBTParser.WARNING__HIGH_FEE:
@@ -1115,10 +1115,12 @@ class PSBTOpReturnView(View):
             # Should not be able to get here
             raise Exception("Routing error")
 
-        # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
-        title = _("OP_RETURN")
         if psbt_parser.num_op_returns > 1:
-            title += f" (#{self.op_return_num + 1})"
+            # TRANSLATOR_NOTE: Title for one of several OP_RETURN outputs (e.g. "OP_RETURN (#2)"). "OP_RETURN" is a technical term, should probably NOT be translated in most languages
+            title = _("OP_RETURN (#{})").format(self.op_return_num + 1)
+        else:
+            # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
+            title = _("OP_RETURN")
         button_data = [ButtonOption("Next")]
 
         selected_menu_num = self.run_screen(
