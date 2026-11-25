@@ -35,6 +35,7 @@ from seedsigner.gui.toast import DefaultToast, InfoToast, SuccessToast, WarningT
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.helpers import embit_utils
 from seedsigner.models.decode_qr import DecodeQR
+from seedsigner.models.derivation_path_validator import DerivationPathValidator
 from seedsigner.models.encode_qr import BaseQrEncoder
 from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 from seedsigner.models.qr_type import QRType
@@ -367,6 +368,24 @@ def generate_screenshots(locale):
                     yield
 
 
+        def input_path_refusal(derivation_path: str, policy_type: str) -> dict:
+            """
+            View args for PSBTUnexpectedInputDerivationPathView: the validator's real result
+            for an input path, checked on mainnet.
+            """
+            validation_result = DerivationPathValidator().validate(embit.bip32.parse_path(derivation_path), policy_type, SettingsConstants.MAINNET)
+            return dict(validation_result=validation_result)
+
+
+        def change_follows_nonstandard_input(derivation_path: str, policy_type: str) -> dict:
+            """
+            View args for PSBTUnexpectedChangeDerivationPathView when change follows an
+            input that isn't standard: the change's path, checked on mainnet.
+            """
+            validation_result = DerivationPathValidator().validate(embit.bip32.parse_path(derivation_path), policy_type, SettingsConstants.MAINNET)
+            return dict(derivation_path=validation_result.derivation_path, offending_level_index=validation_result.offending_level_index, failed_derivation_checks=True)
+
+
         screenshot_sections = {
             "Main Menu Views": [
                 ScreenshotConfig(OpeningSplashView, dict(force_partner_logos=True), mock_context_manager=mock_version_to_most_recent_release),
@@ -481,7 +500,17 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTExtraneousInputScriptView),
                 ScreenshotConfig(psbt_views.PSBTUnsupportedScriptPathView),
                 ScreenshotConfig(psbt_views.PSBTUnexpectedChangeDerivationPathView, dict(derivation_path=embit.bip32.parse_path("m/84h/1h/5h/1/0"))),
+                ScreenshotConfig(psbt_views.PSBTUnexpectedChangeDerivationPathView, dict(derivation_path=embit.bip32.parse_path("m/48h/1h/0h/2h/2/5000123")), screenshot_name="PSBTUnexpectedChangeDerivationPathView_two_lines"),
+                ScreenshotConfig(psbt_views.PSBTUnexpectedChangeDerivationPathView, change_follows_nonstandard_input("m/84h/0h/0h/7777/1/1", "p2wpkh"),       screenshot_name="PSBTUnexpectedChangeDerivationPathView_follows_nonstandard_input"),
+                ScreenshotConfig(psbt_views.PSBTUnexpectedChangeDerivationPathView, change_follows_nonstandard_input("m/84h/0h/0h/7777/1/5000124", "p2wpkh"), screenshot_name="PSBTUnexpectedChangeDerivationPathView_follows_nonstandard_input_two_lines"),
                 ScreenshotConfig(psbt_views.PSBTUnverifiableMixedInputBasePathsView),
+                ScreenshotConfig(psbt_views.PSBTUnexpectedInputDerivationPathView, input_path_refusal("m/84h/1h/0h/0/5", "p2wpkh"),              screenshot_name="PSBTUnexpectedInputDerivationPathView_network_mismatch"),
+                ScreenshotConfig(psbt_views.PSBTUnexpectedInputDerivationPathView, input_path_refusal("m/84h/1h/2147483646h/1/12345", "p2wpkh"), screenshot_name="PSBTUnexpectedInputDerivationPathView_network_mismatch_shortened"),
+                ScreenshotConfig(psbt_views.PSBTUnexpectedInputDerivationPathView, input_path_refusal("m/49h/0h/0h/0/5", "p2wpkh"),              screenshot_name="PSBTUnexpectedInputDerivationPathView_script_type_mismatch"),
+                ScreenshotConfig(psbt_views.PSBTUnexpectedInputDerivationPathView, input_path_refusal("m/84h/0h/0h/7777/0/5", "p2wpkh"),         screenshot_name="PSBTUnexpectedInputDerivationPathView_nonstandard"),
+                ScreenshotConfig(psbt_views.PSBTUnexpectedInputDerivationPathView, input_path_refusal("m/84h/0h/0h/7777/0/5000123", "p2wpkh"),   screenshot_name="PSBTUnexpectedInputDerivationPathView_nonstandard_two_lines"),
+                ScreenshotConfig(psbt_views.PSBTUnexpectedInputDerivationPathView, input_path_refusal("m/84h/0h/0h/" + "/".join(["7777"] * 200), "p2wpkh"), screenshot_name="PSBTUnexpectedInputDerivationPathView_nonstandard_hostile"),
+                ScreenshotConfig(psbt_views.PSBTMixedNetworkInputPathsView),
                 ScreenshotConfig(psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True),  screenshot_name="PSBTAddressVerificationFailedView_multisig_change"),
                 ScreenshotConfig(psbt_views.PSBTAddressVerificationFailedView, dict(is_change=False), screenshot_name="PSBTAddressVerificationFailedView_multisig_selftransfer"),
                 ScreenshotConfig(psbt_views.PSBTOutputOwnershipClaimFailedView),

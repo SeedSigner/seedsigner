@@ -2,16 +2,20 @@ import logging
 
 from gettext import gettext as _
 
+from seedsigner.models.derivation_path_validator import DerivationPathValidationResult, DerivationPathValidator
 from seedsigner.models.psbt_parser import (PSBTChangeDerivationPathError,
+    PSBTChangeFollowsNonstandardInputError, PSBTDerivationPathMixedNetworksError,
+    PSBTDerivationPathNetworkMismatchError, PSBTDerivationPathScriptTypeMismatchError,
     PSBTExtraneousInputScriptError, PSBTInputAmountVerificationError,
     PSBTInputOwnershipClaimError, PSBTInputOwnershipContradictionError,
     PSBTInputScriptMismatchError, PSBTMalformedOpReturnError, PSBTMissingInputScriptError,
     PSBTMissingInputUtxoError, PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError,
-    PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
-    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError,
-    PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError,
-    PSBTUnverifiableMixedInputBasePathsError)
+    PSBTNonstandardDerivationPathError, PSBTOutputOwnershipClaimError,
+    PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
+    PSBTSurplusDerivationPathsError, PSBTUnsupportedDerivationPathError,
+    PSBTUnsupportedScriptPathError, PSBTUnverifiableMixedInputBasePathsError)
 from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
 from seedsigner.views.view import BackStackView, MainMenuView, View, Destination
@@ -106,12 +110,19 @@ class PSBTOverviewView(View):
             from seedsigner.gui.screens.screen import LoadingScreenThread
             self.loading_screen = LoadingScreenThread(text=_("Parsing PSBT..."))
             self.loading_screen.start()
-                
+
+            # With the "Validate derivations" setting on, the parser also checks that every
+            # input this seed signs is at a standard derivation path
+            derivation_path_validator = None
+            if self.settings.get_value(SettingsConstants.SETTING__VALIDATE_DERIVATIONS) == SettingsConstants.OPTION__ENABLED:
+                derivation_path_validator = DerivationPathValidator()
+
             try:
                 self.controller.psbt_parser = PSBTParser(
                     self.controller.psbt,
                     seed=self.controller.psbt_seed,
-                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
+                    derivation_path_validator=derivation_path_validator,
                 )
 
             # Note that in almost every exception case, we set clear_history to disable
@@ -174,6 +185,19 @@ class PSBTOverviewView(View):
                 self.set_redirect(Destination(PSBTNegativeFeeView, clear_history=True))
                 return
 
+            except PSBTChangeFollowsNonstandardInputError as e:
+                # Caught ahead of PSBTChangeDerivationPathError, which it subclasses
+                self.set_redirect(Destination(
+                    PSBTUnexpectedChangeDerivationPathView,
+                    view_args=dict(
+                        derivation_path=e.derivation_path,
+                        offending_level_index=e.validation_result.offending_level_index,
+                        failed_derivation_checks=True,
+                    ),
+                    clear_history=True,
+                ))
+                return
+
             except PSBTChangeDerivationPathError as e:
                 self.set_redirect(Destination(
                     PSBTUnexpectedChangeDerivationPathView,
@@ -184,6 +208,18 @@ class PSBTOverviewView(View):
 
             except PSBTUnverifiableMixedInputBasePathsError:
                 self.set_redirect(Destination(PSBTUnverifiableMixedInputBasePathsView, clear_history=True))
+                return
+
+            except (PSBTDerivationPathNetworkMismatchError, PSBTDerivationPathScriptTypeMismatchError, PSBTNonstandardDerivationPathError) as e:
+                self.set_redirect(Destination(
+                    PSBTUnexpectedInputDerivationPathView,
+                    view_args=dict(validation_result=e.validation_result),
+                    clear_history=True,
+                ))
+                return
+
+            except PSBTDerivationPathMixedNetworksError:
+                self.set_redirect(Destination(PSBTMixedNetworkInputPathsView, clear_history=True))
                 return
 
             except PSBTSeedCannotSignError:
@@ -934,6 +970,13 @@ class PSBTUnexpectedChangeDerivationPathView(View):
     transaction spends from does not use (see PSBTChangeDerivationPathError). Single sig
     and multisig alike.
 
+    Also reached when the "Validate derivations" setting is on and change follows an
+    input that isn't at a standard path (see PSBTChangeFollowsNonstandardInputError). That
+    case says the path "failed derivation checks." rather than "failed our safety checks."
+    An honest spend can occasionally look like this, and the wording hints that the
+    derivation checks caught it, not a check that is always on. It still doesn't name the
+    setting or say how to turn it off.
+
     The coins still belong to the user's seed, but their coordinator software will never
     scan that path to find them. We view this as an attack. We do not allow the user to
     continue and give this the "Dire Warning" level. The path is displayed and named as a
@@ -941,20 +984,34 @@ class PSBTUnexpectedChangeDerivationPathView(View):
     """
     DISCARD = ButtonOption("Discard transaction")
 
-    def __init__(self, derivation_path: list[int]):
+    def __init__(self, derivation_path: list[int], offending_level_index: int = 0, failed_derivation_checks: bool = False):
         super().__init__()
         self.derivation_path = derivation_path
 
+        # Where the path stops being standard, if the derivation checks found it. A path
+        # too long for two lines keeps that level in view.
+        self.offending_level_index = offending_level_index
+        self.failed_derivation_checks = failed_derivation_checks
+
 
     def run(self):
-        from embit import bip32
+        from seedsigner.helpers import embit_utils
+
+        # The screen only wraps at spaces and a path has none, so the helper breaks a long
+        # path after a "/", onto at most two lines
+        derivation_path = embit_utils.get_display_derivation_path(self.derivation_path, self.offending_level_index, max_lines=2)
+        if self.failed_derivation_checks:
+            # TRANSLATOR_NOTE: Variable is a derivation path such as "m/84'/0'/0'/7777/1/1", shown on one or two lines, where this transaction sends funds back to the user's seed. "Derivation checks" are the checks that the coins being spent and the change are at the standard derivation paths.
+            text = _("{}\nfailed derivation checks.").format(derivation_path)
+        else:
+            # TRANSLATOR_NOTE: Variable is a derivation path such as "m/84'/0'/0'/5/0", shown on one or two lines, where this transaction sends funds back to the user's seed. "Our" refers to SeedSigner.
+            text = _("{}\nfailed our safety checks.").format(derivation_path)
 
         self.run_screen(
             DireWarningScreen,
             title=_("Suspicious Transaction"),
             status_headline=_("Unsafe Derivation Path"),
-            # TRANSLATOR_NOTE: Variable is a derivation path such as "m/84'/0'/0'/5/0", shown on its own line, where this transaction sends funds back to the user's seed. "Our" refers to SeedSigner.
-            text=_("{}\nfailed our safety checks.").format(bip32.path_to_str(self.derivation_path).replace("h", "'")),
+            text=text,
             button_data=[self.DISCARD],
             show_back_button=False,
         )
@@ -983,6 +1040,127 @@ class PSBTUnverifiableMixedInputBasePathsView(View):
             status_headline=None,
             # TRANSLATOR_NOTE: This transaction includes inputs from multiple wallets (accounts) controlled by this seed. This can be allowed for some script types, but not this one.
             text=_("Inputs from multiple wallets: cannot complete verification for this script type."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTUnexpectedInputDerivationPathView(View):
+    """
+    Reached when the "Validate derivations" setting is on and an input this seed signs
+    isn't at a standard derivation path (see PSBTParser._validate_input_derivation_paths).
+    Titled "Transaction Problem" like the other yellow refusals, with a headline naming
+    what is wrong with the input's path, and the path below it:
+      * Network Mismatch: a standard path for the other network. The user can open the
+        network setting from here, then scan the psbt again.
+      * Script Type Mismatch: a standard path for a different script type.
+      * Nonstandard Path: any other path that isn't standard.
+
+    These are policy refusals rather than attacks, so they only get the "Warning" level.
+    We do not allow the user to continue.
+
+    The screen doesn't mention the setting. A coordinator can make it appear whenever it
+    likes, so it must not coach the user into turning the protection off.
+    """
+    CHANGE_SETTING = ButtonOption("Change Setting")
+    DISCARD = ButtonOption("Discard transaction")
+
+    def __init__(self, validation_result: DerivationPathValidationResult):
+        super().__init__()
+        self.validation_result = validation_result
+
+
+    def run(self):
+        from seedsigner.helpers import embit_utils
+        validation_result = self.validation_result
+        button_data = [self.DISCARD]
+        explanation = None
+        max_lines = 1
+
+        if validation_result.status == DerivationPathValidator.STATUS__ANOTHER_NETWORK:
+            status_headline = _("Network Mismatch")
+            network = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__NETWORK).get_selection_option_display_name_by_value(validation_result.indicated_network)
+            # TRANSLATOR_NOTE: Says what the derivation path of a coin being spent is for: a network (e.g. "Path is for Testnet") or a script type (e.g. "Path is for Nested Segwit")
+            explanation = _("Path is for {}").format(_(network))
+            button_data = [self.CHANGE_SETTING, self.DISCARD]
+
+        elif validation_result.status == DerivationPathValidator.STATUS__ANOTHER_SCRIPT_TYPE:
+            # TRANSLATOR_NOTE: A coin being spent is at the standard derivation path for a different script type (e.g. a Native Segwit coin at a Nested Segwit path)
+            status_headline = _("Script Type Mismatch")
+            # Name the path's script type, even when only single sig vs multisig differs
+            script_type = embit_utils.POLICY_TYPE_SETTINGS[validation_result.indicated_policy_type][0]
+            script_type_name = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(script_type)
+            # TRANSLATOR_NOTE: Says what the derivation path of a coin being spent is for: a network (e.g. "Path is for Testnet") or a script type (e.g. "Path is for Nested Segwit")
+            explanation = _("Path is for {}").format(_(script_type_name))
+
+        else:
+            # TRANSLATOR_NOTE: A coin being spent is at a derivation path that wallets following the standard BIPs don't use
+            status_headline = _("Nonstandard Path")
+            # With no explanation line below it, a long path here can take two lines
+            max_lines = 2
+
+        text = embit_utils.get_display_derivation_path(validation_result.derivation_path, validation_result.offending_level_index, max_lines=max_lines)
+        if explanation:
+            text += f"\n{explanation}"
+
+        # Laid out like the other refusals: a category title, and the finding as the
+        # headline, as the red refusals name theirs
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=status_headline,
+            text=text,
+            button_data=button_data,
+            show_back_button=False,
+        )
+
+        if button_data[selected_menu_num] == self.CHANGE_SETTING:
+            # The psbt was parsed for the current network, so it has to be scanned again
+            # after the network changes
+            from seedsigner.views.settings_views import SettingsEntryUpdateSelectionView
+            self.controller.psbt = None
+            self.controller.psbt_parser = None
+            self.controller.psbt_seed = None
+            self.controller.resume_main_flow = None
+            return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=SettingsConstants.SETTING__NETWORK), clear_history=True)
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTMixedNetworkInputPathsView(View):
+    """
+    Reached when the "Validate derivations" setting is on and the inputs this seed signs
+    are at standard paths for both networks (see PSBTDerivationPathMixedNetworksError).
+
+    Unlike Network Mismatch, there's no button to change the network: after switching,
+    the other set of inputs would be at the wrong network's paths. A policy refusal
+    rather than an attack, so it only gets the "Warning" level. We do not allow the user
+    to continue.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        network_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__NETWORK)
+        mainnet = network_entry.get_selection_option_display_name_by_value(SettingsConstants.MAINNET)
+        testnet = network_entry.get_selection_option_display_name_by_value(SettingsConstants.TESTNET)
+
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            # TRANSLATOR_NOTE: The coins being spent are at derivation paths for two different networks (e.g. Mainnet and Testnet)
+            status_headline=_("Mixed Networks"),
+            # TRANSLATOR_NOTE: Variables are network names, e.g. "Inputs are at both Mainnet and Testnet paths." Inputs are the coins being spent; paths are their derivation paths.
+            text=_("Inputs are at both {} and {} paths.").format(_(mainnet), _(testnet)),
             button_data=[self.DISCARD],
             show_back_button=False,
         )

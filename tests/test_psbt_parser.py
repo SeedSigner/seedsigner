@@ -12,15 +12,18 @@ from embit.psbt import PSBT, DerivationPath, OutputScope
 from embit.descriptor import Descriptor
 from embit.script import Script
 
+from seedsigner.models.derivation_path_validator import DerivationPathValidator
 from seedsigner.models.psbt_parser import (OPCODES, PSBTChangeDerivationPathError,
+    PSBTChangeFollowsNonstandardInputError, PSBTDerivationPathMixedNetworksError,
+    PSBTDerivationPathNetworkMismatchError, PSBTDerivationPathScriptTypeMismatchError,
     PSBTExtraneousInputScriptError, PSBTInputAmountVerificationError,
     PSBTInputOwnershipClaimError, PSBTInputOwnershipContradictionError,
     PSBTInputScriptMismatchError, PSBTMalformedOpReturnError, PSBTMissingInputScriptError,
     PSBTMissingInputUtxoError, PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError,
-    PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
-    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError,
-    PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError,
-    PSBTUnverifiableMixedInputBasePathsError)
+    PSBTNonstandardDerivationPathError, PSBTOutputOwnershipClaimError,
+    PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
+    PSBTSurplusDerivationPathsError, PSBTUnsupportedDerivationPathError,
+    PSBTUnsupportedScriptPathError, PSBTUnverifiableMixedInputBasePathsError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
@@ -4451,3 +4454,765 @@ class TestPSBTParserCollaborativeSpends(PSBTParserOwnershipTestBase):
 
         with pytest.raises(PSBTChangeDerivationPathError):
             self._parse(psbt)
+
+
+
+class TestPSBTParserDerivationPathValidation(PSBTParserOwnershipTestBase):
+    """
+    With a DerivationPathValidator, which the views pass when the user's "Validate
+    derivations" setting is on, every derivation path this seed signs an input with must
+    be a standard full path, and change must not follow an input that isn't. The most
+    serious finding is reported, whatever the input order. The change address index
+    window is also measured across all of our wallets.
+
+    Every other test class parses without a validator, which covers the setting being off.
+
+    Most of these tests run on every supported single sig and multisig script type.
+    """
+    WALLETS = TestPSBTParserChangeDerivationPathRules.WALLETS
+    MULTISIG_WALLETS = TestPSBTParserChangeDerivationPathRules.MULTISIG_WALLETS
+
+    # The script types Unchained's vault layout is standard for
+    UNCHAINED_WALLETS = [
+        (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+    ]
+
+
+    def _parse(self, psbt: PSBT, validate_derivations: bool = True) -> PSBTParser:
+        """
+        Parses on regtest with a DerivationPathValidator, as when the "Validate
+        derivations" setting is on. With validate_derivations=False, parses without one.
+        """
+        derivation_path_validator = DerivationPathValidator() if validate_derivations else None
+        return PSBTParser(psbt, self.seed, network=SettingsConstants.REGTEST, derivation_path_validator=derivation_path_validator)
+
+
+    def _repoint_own_input(self, psbt: PSBT, derivation_path: str, include_non_witness_utxo: bool = False):
+        """
+        Moves the psbt's one input to derivation_path, still owned by this seed and with
+        the same script type. Built with _add_own_input, so a multisig input's cosigners
+        move with it.
+
+        The fixtures' global xpubs are for their original base paths, so they are dropped
+        rather than left stale.
+        """
+        self._add_own_input(psbt, derivation_path, include_non_witness_utxo=include_non_witness_utxo)
+        psbt.inputs.pop(0)
+        psbt.xpubs.clear()
+
+
+    def _base_path(self, input_base64: str) -> str:
+        """The base path of the fixture's input, such as m/84h/1h/0h"""
+        return "/".join(self._input_derivation_path(input_base64).split("/")[:-2])
+
+
+    def _account_base_path(self, input_base64: str, account: int) -> str:
+        """
+        The fixture wallet's base path at another standard account on regtest. Legacy
+        multisig uses Caravan's layout, since bare m/45h has no account level.
+        """
+        base_path_levels = self._base_path(input_base64).split("/")
+        if base_path_levels == ["m", "45h"]:
+            return f"m/45h/1h/{account}h"
+
+        # m / purpose / coin_type / account / ...
+        base_path_levels[3] = f"{account}h"
+        return "/".join(base_path_levels)
+
+
+    def test__parse__accepts_a_standard_spend_for_every_wallet(self):
+        """
+        A psbt whose inputs are all at standard paths parses the same with a validator as
+        without one.
+
+        Each psbt spends the fixture's input, which is at a standard path, first with
+        change and then as a payment with no change. The parse with a validator should
+        match the parse without one.
+        """
+        for input_base64, change_hex in self.WALLETS:
+            with_change = self._psbt_with_change(input_base64, change_hex)
+
+            without_change = PSBT.parse(a2b_base64(input_base64))
+            without_change.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 10_000))
+
+            for psbt in (with_change, without_change):
+                psbt_parser = self._parse(deepcopy(psbt))
+                unvalidated_psbt_parser = self._parse(deepcopy(psbt), validate_derivations=False)
+                TestPSBTParserOptimizations.assert_same_parse_result(self, psbt_parser, unvalidated_psbt_parser)
+                assert psbt_parser.warnings == unvalidated_psbt_parser.warnings
+
+            assert self._parse(with_change).change_amount == 10_000
+
+
+    def test__parse__accepts_the_whirlpool_accounts(self):
+        """
+        Sparrow's Whirlpool accounts are standard for native segwit single sig.
+
+        The psbt spends from Postmix, first alone and then together with a Premix input.
+        Both inputs have a non_witness_utxo, so the mixed base paths are allowed. Change
+        goes back to Postmix. The parse should accept both.
+        """
+        postmix_base_path = "m/84h/1h/2147483646h"
+        premix_base_path = "m/84h/1h/2147483645h"
+
+        psbt = self._psbt_with_change()
+        self._repoint_own_input(psbt, f"{postmix_base_path}/0/5", include_non_witness_utxo=True)
+        repoint_change(psbt, f"{postmix_base_path}/1/0")
+        assert self._parse(psbt).change_amount == 10_000
+
+        self._add_own_input(psbt, f"{premix_base_path}/0/7", include_non_witness_utxo=True)
+        psbt_parser = self._parse(psbt)
+        assert self._verified_input_derivation_paths(psbt_parser) == [
+            bip32.parse_path(f"{postmix_base_path}/0/5"),
+            bip32.parse_path(f"{premix_base_path}/0/7"),
+        ]
+        assert psbt_parser.change_amount == 10_000
+
+
+    def test__parse__accepts_inputs_from_several_standard_accounts(self):
+        """
+        A psbt may spend from more than one of the seed's standard accounts.
+
+        Each psbt spends from accounts 1 and 0 of the fixture's wallet, with change going
+        back to account 1. Both inputs have a non_witness_utxo, so single sig segwit v0
+        allows the mixed base paths too. The parse should accept each.
+
+        Without the non_witness_utxo, single sig segwit v0 should still be refused with
+        PSBTUnverifiableMixedInputBasePathsError, which comes before the validator.
+        """
+        for input_base64, change_hex in self.WALLETS:
+            account_0 = self._account_base_path(input_base64, 0)
+            account_1 = self._account_base_path(input_base64, 1)
+
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_own_input(psbt, f"{account_1}/0/5", include_non_witness_utxo=True)
+            self._add_own_input(psbt, f"{account_0}/0/7", include_non_witness_utxo=True)
+            repoint_change(psbt, f"{account_1}/1/0")
+
+            psbt_parser = self._parse(psbt)
+            assert self._verified_input_derivation_paths(psbt_parser) == [
+                bip32.parse_path(f"{account_1}/0/5"),
+                bip32.parse_path(f"{account_0}/0/7"),
+            ]
+            assert psbt_parser.change_amount == 10_000
+
+        for input_base64, change_hex in TestPSBTParserInputBasePaths.SEGWIT_V0_SINGLE_SIG_WALLETS:
+            account_0 = self._account_base_path(input_base64, 0)
+            account_1 = self._account_base_path(input_base64, 1)
+
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_own_input(psbt, f"{account_1}/0/5", include_non_witness_utxo=True)
+            self._add_own_input(psbt, f"{account_0}/0/7")
+            repoint_change(psbt, f"{account_1}/1/0")
+
+            with pytest.raises(PSBTUnverifiableMixedInputBasePathsError):
+                self._parse(psbt)
+
+
+    def test__parse__refuses_a_spend_from_a_nonstandard_path_even_without_change(self):
+        """
+        Every input this seed signs must be at a standard path, whether or not any change
+        comes back.
+
+        The psbt spends one of our coins at m/84h/1h/0h/7777/0/5 and pays it all to an
+        external address. The parse should refuse it with
+        PSBTNonstandardDerivationPathError, pointing at the /7777 level. Without a
+        validator, it parses.
+        """
+        nonstandard_derivation_path = "m/84h/1h/0h/7777/0/5"
+
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+        self._repoint_own_input(psbt, nonstandard_derivation_path)
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 10_000))
+
+        with pytest.raises(PSBTNonstandardDerivationPathError) as exc_info:
+            self._parse(psbt)
+        assert exc_info.value.validation_result.derivation_path == bip32.parse_path(nonstandard_derivation_path)
+        assert exc_info.value.validation_result.offending_level_index == 3
+
+        assert self._parse(psbt, validate_derivations=False).num_destinations == 1
+
+
+    def test__parse__refuses_change_that_follows_dust_to_a_nonstandard_path(self):
+        """
+        The change path rules accept change at any base path one of our inputs spends
+        from, so an input at a nonstandard path would let change follow it there. That's
+        the dust attack, and it's refused as one.
+
+        A coordinator holding the account xpub sends dust to [base path]/7777/1/0. The
+        psbt spends it together with the fixture's real coin and sends change to
+        [base path]/7777/1/1. The dust input has a non_witness_utxo, so single sig segwit
+        v0 allows the mixed base paths. Without a validator the change is accepted. With
+        one, the parse should refuse the psbt with PSBTChangeFollowsNonstandardInputError,
+        pointing at the /7777 level of the change.
+
+        The same should happen with the psbt scanned on mainnet, the wrong network for
+        these regtest fixtures. There the real coin is at the other network's paths, so the
+        change is judged on regtest's.
+        """
+        for input_base64, change_hex in self.WALLETS:
+            base_path = self._base_path(input_base64)
+            dust_derivation_path = f"{base_path}/7777/1/0"
+            change_derivation_path = f"{base_path}/7777/1/1"
+
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._add_own_input(psbt, dust_derivation_path, include_non_witness_utxo=True)
+            repoint_change(psbt, change_derivation_path)
+
+            # The fixture's global xpubs only resolve the real input's cosigners. Drop them
+            # so both inputs share one wallet policy.
+            psbt.xpubs.clear()
+
+            assert self._parse(psbt, validate_derivations=False).change_amount == 10_000
+
+            with pytest.raises(PSBTChangeFollowsNonstandardInputError) as exc_info:
+                self._parse(psbt)
+            assert exc_info.value.derivation_path == bip32.parse_path(change_derivation_path)
+            assert exc_info.value.validation_result.offending_level_index == len(bip32.parse_path(base_path))
+
+            with pytest.raises(PSBTChangeFollowsNonstandardInputError) as exc_info:
+                PSBTParser(psbt, self.seed, network=SettingsConstants.MAINNET, derivation_path_validator=DerivationPathValidator())
+            assert exc_info.value.derivation_path == bip32.parse_path(change_derivation_path)
+            assert exc_info.value.validation_result.offending_level_index == len(bip32.parse_path(base_path)), base_path
+
+
+    def test__parse__refuses_change_that_follows_any_input_that_isnt_standard(self):
+        """
+        Any path that isn't standard can hide the change, not just an extra level.
+
+        Each psbt spends the fixture's real coin, which is at a standard path, together
+        with a coin at a path that isn't, and sends change to that coin's base path:
+          * the mainnet coin type on regtest: a standard path for the other network.
+          * account 10.
+          * the nested segwit purpose for a native segwit input: a standard path for
+            another script type.
+        The output goes on the change branch, then on the receive branch as a
+        self-transfer. Each should be refused with PSBTChangeFollowsNonstandardInputError,
+        pointing at the output's offending level. Without a validator each parses.
+        """
+        # (the odd coin's base path, the output's offending level)
+        cases = [
+            ("m/84h/0h/0h", 1),
+            ("m/84h/1h/10h", 2),
+            ("m/49h/1h/0h", 0),
+        ]
+        for odd_base_path, offending_level_index in cases:
+            for branch in (1, 0):
+                change_derivation_path = f"{odd_base_path}/{branch}/1"
+
+                psbt = self._psbt_with_change()
+                self._add_own_input(psbt, f"{odd_base_path}/0/7", include_non_witness_utxo=True)
+                repoint_change(psbt, change_derivation_path)
+
+                assert self._parse(psbt, validate_derivations=False).change_amount == 10_000
+
+                with pytest.raises(PSBTChangeFollowsNonstandardInputError) as exc_info:
+                    self._parse(psbt)
+                assert exc_info.value.derivation_path == bip32.parse_path(change_derivation_path)
+                assert exc_info.value.validation_result.offending_level_index == offending_level_index, change_derivation_path
+
+
+    def test__parse__reports_mixed_networks_when_each_network_has_one_standard_coin(self):
+        """
+        When one of our coins is standard on each network, the device can't tell which is
+        real. On the network where the change is standard it's reported as mixed networks.
+
+        The psbt spends the fixture's regtest coin and one at the mainnet path
+        m/84h/0h/0h/0/7, with change at m/84h/0h/0h/1/1. On regtest the change follows a
+        coin that isn't standard there, so the parse should raise
+        PSBTChangeFollowsNonstandardInputError. On mainnet that coin and the change are
+        standard, so it should raise PSBTDerivationPathMixedNetworksError.
+        """
+        psbt = self._psbt_with_change()
+        self._add_own_input(psbt, "m/84h/0h/0h/0/7", include_non_witness_utxo=True)
+        repoint_change(psbt, "m/84h/0h/0h/1/1")
+
+        with pytest.raises(PSBTChangeFollowsNonstandardInputError):
+            self._parse(psbt)
+
+        with pytest.raises(PSBTDerivationPathMixedNetworksError):
+            PSBTParser(psbt, self.seed, network=SettingsConstants.MAINNET, derivation_path_validator=DerivationPathValidator())
+
+
+    def test__parse__refuses_a_wallet_with_no_standard_input_by_its_path(self):
+        """
+        A wallet that is off the standard paths as a whole sends its change to its own
+        base path too. With no standard input, that's no sign of the dust attack, so it's
+        refused for the input's path rather than as an attack.
+
+        Each psbt spends one coin from a nonstandard wallet, an extra level and then
+        account 10, with change back to that wallet. The parse should raise
+        PSBTNonstandardDerivationPathError for the input.
+        """
+        for base_path in ("m/84h/1h/0h/7777", "m/84h/1h/10h"):
+            psbt = self._psbt_with_change()
+            self._repoint_own_input(psbt, f"{base_path}/0/5")
+            repoint_change(psbt, f"{base_path}/1/0")
+
+            with pytest.raises(PSBTNonstandardDerivationPathError) as exc_info:
+                self._parse(psbt)
+            assert exc_info.value.validation_result.derivation_path == bip32.parse_path(f"{base_path}/0/5")
+
+
+    def test__parse__refuses_a_stray_nonstandard_coin_by_its_path(self):
+        """
+        A coin at a nonstandard path, spent beside standard ones with the change at a
+        standard path, sends nothing where the wallet won't look. It's refused for its
+        path rather than as an attack.
+
+        The psbt spends the fixture's real coin and one at m/84h/1h/0h/7777/0/7, with
+        change at the fixture's standard change path. The parse should raise
+        PSBTNonstandardDerivationPathError for the stray coin.
+        """
+        stray_derivation_path = "m/84h/1h/0h/7777/0/7"
+
+        psbt = self._psbt_with_change()
+        self._add_own_input(psbt, stray_derivation_path, include_non_witness_utxo=True)
+
+        with pytest.raises(PSBTNonstandardDerivationPathError) as exc_info:
+            self._parse(psbt)
+        assert exc_info.value.validation_result.derivation_path == bip32.parse_path(stray_derivation_path)
+
+
+    def test__parse__refuses_an_input_at_a_path_for_the_other_network(self):
+        """
+        On regtest, an input at a standard mainnet path is refused with
+        PSBTDerivationPathNetworkMismatchError, pointing at the coin type and naming
+        mainnet.
+
+        Each psbt's input and change are moved to the fixture wallet's base path with the
+        mainnet coin type, 0h. Legacy multisig uses Caravan's layout, the one under m/45h
+        with a coin type level.
+        """
+        for input_base64, change_hex in self.WALLETS:
+            base_path_levels = self._account_base_path(input_base64, 0).split("/")
+            base_path_levels[2] = "0h"
+            mainnet_base_path = "/".join(base_path_levels)
+
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_own_input(psbt, f"{mainnet_base_path}/0/5")
+            repoint_change(psbt, f"{mainnet_base_path}/1/0")
+
+            with pytest.raises(PSBTDerivationPathNetworkMismatchError) as exc_info:
+                self._parse(psbt)
+            validation_result = exc_info.value.validation_result
+            assert validation_result.derivation_path == bip32.parse_path(f"{mainnet_base_path}/0/5")
+            assert validation_result.offending_level_index == 1
+            assert validation_result.indicated_network == SettingsConstants.MAINNET
+
+
+    def test__parse__refuses_inputs_at_both_coin_types_as_mixed_networks(self):
+        """
+        Switching networks can't get a psbt signed when it spends coins at both coin
+        types, so it's refused as mixed networks rather than offering that fix.
+
+        The taproot psbt spends the fixture's coin at its regtest path and another of our
+        coins at the mainnet path m/86h/0h/0h/0/5, and pays it all to an external address.
+        On regtest and on mainnet alike, the parse should raise
+        PSBTDerivationPathMixedNetworksError.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 10_000))
+        self._add_own_input(psbt, "m/86h/0h/0h/0/5")
+
+        with pytest.raises(PSBTDerivationPathMixedNetworksError):
+            self._parse(psbt)
+
+        with pytest.raises(PSBTDerivationPathMixedNetworksError):
+            PSBTParser(psbt, self.seed, network=SettingsConstants.MAINNET, derivation_path_validator=DerivationPathValidator())
+
+
+    def test__parse__refuses_the_other_coin_type_as_a_network_mismatch_beside_a_path_with_none(self):
+        """
+        A path with no coin type level is standard on both networks, so it doesn't make
+        the inputs mixed. Switching networks would get the psbt signed.
+
+        The legacy multisig psbt spends the fixture's coin at bare m/45h, which has no coin
+        type level, and another at Caravan's mainnet path m/45h/0h/0h/0/5, with change back
+        to bare m/45h. On regtest the parse should raise
+        PSBTDerivationPathNetworkMismatchError for the Caravan input. On mainnet it should
+        parse.
+        """
+        caravan_mainnet_derivation_path = "m/45h/0h/0h/0/5"
+
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE)
+        assert self._base_path(PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT) == "m/45h"
+        self._add_own_input(psbt, caravan_mainnet_derivation_path)
+
+        # The fixture's global xpubs only resolve the bare m/45h input's cosigners. Drop
+        # them so both inputs share one wallet policy.
+        psbt.xpubs.clear()
+
+        with pytest.raises(PSBTDerivationPathNetworkMismatchError) as exc_info:
+            self._parse(psbt)
+        assert exc_info.value.validation_result.derivation_path == bip32.parse_path(caravan_mainnet_derivation_path)
+
+        psbt_parser = PSBTParser(psbt, self.seed, network=SettingsConstants.MAINNET, derivation_path_validator=DerivationPathValidator())
+        assert psbt_parser.change_amount == 10_000
+
+
+    def test__parse__refuses_an_input_at_a_path_for_another_script_type(self):
+        """
+        An input at a standard path for a different script type is refused with
+        PSBTDerivationPathScriptTypeMismatchError, naming the script type the path is for.
+
+        Two psbts are tested:
+          * a native segwit single sig input at the nested segwit path m/49h/1h/0h/0/5.
+            The purpose is the first level that differs.
+          * a native segwit multisig input at the nested segwit multisig path
+            m/48h/1h/0h/1h/0/5. BIP-48's script type level is the first that differs.
+        """
+        # (fixture, its change output, the other script type's base path, the input's
+        # policy type, the policy type the path is for, offending level)
+        cases = [
+            (PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE, "m/49h/1h/0h", "p2wpkh", "p2sh-p2wpkh", 0),
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, "m/48h/1h/0h/1h", "p2wsh", "p2sh-p2wsh", 3),
+        ]
+        for input_base64, change_hex, other_base_path, policy_type, indicated_policy_type, offending_level_index in cases:
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_own_input(psbt, f"{other_base_path}/0/5")
+            repoint_change(psbt, f"{other_base_path}/1/0")
+
+            with pytest.raises(PSBTDerivationPathScriptTypeMismatchError) as exc_info:
+                self._parse(psbt)
+            validation_result = exc_info.value.validation_result
+            assert validation_result.policy_type == policy_type
+            assert validation_result.indicated_policy_type == indicated_policy_type
+            assert validation_result.offending_level_index == offending_level_index
+
+
+    def test__parse__judges_only_this_seeds_path_on_a_multisig_input(self):
+        """
+        On a multisig input, only this seed's own path is judged. The other cosigners'
+        paths are theirs to keep.
+
+        Each psbt's input lists the other cosigners at a nonstandard path, under their own
+        fingerprints. The parse should accept it. Once our own path on the input is
+        nonstandard, the parse should refuse it with PSBTNonstandardDerivationPathError.
+        """
+        for input_base64, change_hex in self.MULTISIG_WALLETS:
+            base_path = self._base_path(input_base64)
+            nonstandard_derivation_path = f"{base_path}/7777/0/0"
+
+            # The global xpubs can't resolve cosigners listed at the rewritten paths. Drop
+            # them so the input and change share one wallet policy.
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            psbt.xpubs.clear()
+
+            inp = psbt.inputs[0]
+            for public_key, derivation_path_obj in list(inp.bip32_derivations.items()):
+                if derivation_path_obj.fingerprint != self._root().my_fingerprint:
+                    inp.bip32_derivations[public_key] = DerivationPath(derivation_path_obj.fingerprint, bip32.parse_path(nonstandard_derivation_path))
+            assert self._parse(psbt).change_amount == 10_000
+
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_own_input(psbt, nonstandard_derivation_path)
+            repoint_change(psbt, f"{base_path}/7777/1/0")
+
+            with pytest.raises(PSBTNonstandardDerivationPathError) as exc_info:
+                self._parse(psbt)
+            assert exc_info.value.validation_result.derivation_path == bip32.parse_path(nonstandard_derivation_path)
+
+
+    def test__parse__ignores_the_paths_of_other_parties_inputs(self):
+        """
+        Only this seed's own input paths are judged. Another party's input in a payjoin or
+        coinjoin is in their wallet, so its path is neither checked nor counted in the
+        change address index window.
+
+        Two variants are tested:
+          * Another party's input, listed under their own fingerprint at a nonstandard
+            path. The parse should accept it.
+          * Another party's input at "address_index" 0 of a different account. Counting it
+            would mean two base paths, with the window measured from index 0. Change at
+            exactly CHANGE_ADDRESS_INDEX_WINDOW past our own input's "address_index" should
+            be left unflagged.
+        """
+        fixture_input_derivation_path = self._input_derivation_path()
+        fixture_address_index = int(fixture_input_derivation_path.split("/")[-1])
+        assert fixture_address_index > 0
+
+        psbt = self._psbt_with_change()
+        TestPSBTParserCollaborativeSpends._add_foreign_input(self, psbt, derivation_path="m/84h/1h/0h/7777/0/0", annotated=True)
+        assert self._parse(psbt).change_amount == 10_000
+
+        psbt = self._psbt_with_change()
+        TestPSBTParserCollaborativeSpends._add_foreign_input(self, psbt, derivation_path="m/84h/1h/1h/0/0", annotated=True)
+        repoint_change(psbt, self._sibling_path(fixture_input_derivation_path, branch=1, address_index=fixture_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW))
+        assert self._parse(psbt).change_data[0]["address_index_beyond_window"] is False
+
+
+    def test__parse__flags_change_past_the_window_of_every_wallet_being_spent(self):
+        """
+        When our inputs are at more than one base path, the change address index window
+        is measured from the smallest "address_index" among all of them.
+
+        A coordinator holding the account 0 xpub sends dust to account 0 at
+        "address_index" 999,999. The psbt spends it together with the user's real coin at
+        account 1, "address_index" 5, and sends change to account 0 at "address_index"
+        1,000,000. The change path rules measure account 0's window from the dust, so
+        without a validator the change is not flagged. With a validator the window is
+        measured from index 5: the change should be flagged, and the parse should still
+        succeed with the window warning for the user to judge.
+        """
+        for input_base64, change_hex in self.WALLETS:
+            account_0 = self._account_base_path(input_base64, 0)
+            account_1 = self._account_base_path(input_base64, 1)
+
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_own_input(psbt, f"{account_1}/0/5", include_non_witness_utxo=True)
+            self._add_own_input(psbt, f"{account_0}/0/999999", include_non_witness_utxo=True)
+            repoint_change(psbt, f"{account_0}/1/1000000")
+
+            unvalidated_psbt_parser = self._parse(psbt, validate_derivations=False)
+            assert unvalidated_psbt_parser.change_data[0]["address_index_beyond_window"] is False
+            assert PSBTParser.WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW not in unvalidated_psbt_parser.warnings
+
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 10_000
+            assert psbt_parser.change_data[0]["address_index_beyond_window"] is True
+            assert PSBTParser.WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW in psbt_parser.warnings
+
+
+    def test__parse__measures_the_window_across_wallets_from_the_smallest_input_index(self):
+        """
+        Across wallets, change may come back up to CHANGE_ADDRESS_INDEX_WINDOW past the
+        smallest "address_index" among all of our inputs, whatever order the psbt lists
+        them in.
+
+        The psbt spends account 1 at "address_index" 5 and account 0 at 999,999. Change to
+        account 0 at exactly 5 + CHANGE_ADDRESS_INDEX_WINDOW should be left unflagged, and
+        one index further should be flagged.
+        """
+        account_0 = self._account_base_path(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, 0)
+        account_1 = self._account_base_path(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, 1)
+        last_index_within_window = 5 + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW
+
+        for reverse_inputs in (False, True):
+            psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+            self._repoint_own_input(psbt, f"{account_1}/0/5")
+            self._add_own_input(psbt, f"{account_0}/0/999999")
+            if reverse_inputs:
+                psbt.inputs.reverse()
+
+            repoint_change(psbt, f"{account_0}/1/{last_index_within_window}")
+            assert self._parse(psbt).change_data[0]["address_index_beyond_window"] is False
+
+            repoint_change(psbt, f"{account_0}/1/{last_index_within_window + 1}")
+            assert self._parse(psbt).change_data[0]["address_index_beyond_window"] is True
+
+
+    def test__parse__measures_a_single_wallet_window_as_before(self):
+        """
+        With all of our inputs at one base path, the change path rules' window already
+        covers every input, so the validator adds no flags.
+
+        The psbt spends two coins from one account, at the fixture's "address_index" and at
+        50,000. The parse with a validator should match the parse without one, for change
+        within the window and for change past it.
+        """
+        fixture_input_derivation_path = self._input_derivation_path()
+        fixture_address_index = int(fixture_input_derivation_path.split("/")[-1])
+
+        psbt = self._psbt_with_change()
+        self._add_own_input(psbt, self._sibling_path(fixture_input_derivation_path, branch=0, address_index=50_000))
+
+        for change_address_index in (fixture_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW, 20_000):
+            repoint_change(psbt, self._sibling_path(fixture_input_derivation_path, branch=1, address_index=change_address_index))
+            psbt_parser = self._parse(deepcopy(psbt))
+            unvalidated_psbt_parser = self._parse(deepcopy(psbt), validate_derivations=False)
+            TestPSBTParserOptimizations.assert_same_parse_result(self, psbt_parser, unvalidated_psbt_parser)
+            assert psbt_parser.warnings == unvalidated_psbt_parser.warnings
+
+
+    def test__parse__reports_a_seed_that_owns_no_input_first(self):
+        """
+        The wrong seed is reported as PSBTSeedCannotSignError, whatever paths the psbt's
+        inputs use. Those paths belong to another seed, so they aren't judged.
+
+        The psbt's input is at a nonstandard path. Parsing it with a seed that owns none of
+        its inputs should raise PSBTSeedCannotSignError.
+        """
+        psbt = self._psbt_with_change()
+        self._repoint_own_input(psbt, "m/84h/1h/0h/7777/0/5")
+        repoint_change(psbt, "m/84h/1h/0h/7777/1/0")
+
+        with pytest.raises(PSBTSeedCannotSignError):
+            PSBTParser(psbt, PSBTTestData.recipient_seed, network=SettingsConstants.REGTEST, derivation_path_validator=DerivationPathValidator())
+
+
+    def test__parse__reports_a_change_path_error_before_a_nonstandard_input(self):
+        """
+        PSBTChangeDerivationPathError is an attack, so it outranks a nonstandard input.
+
+        The psbt's input is at the nonstandard path m/84h/1h/0h/7777/0/5, and its change
+        goes to m/84h/1h/0h/1/0, a base path no input spends from. The parse should raise
+        PSBTChangeDerivationPathError.
+        """
+        psbt = self._psbt_with_change()
+        self._repoint_own_input(psbt, "m/84h/1h/0h/7777/0/5")
+        repoint_change(psbt, "m/84h/1h/0h/1/0")
+
+        with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
+            self._parse(psbt)
+
+        # The change path rules' own refusal, not the validator's
+        assert type(exc_info.value) is PSBTChangeDerivationPathError
+
+
+    def test__parse__reports_a_held_output_finding_before_a_nonstandard_input(self):
+        """
+        The validator runs after the held findings are raised, so it never hides one.
+
+        The psbt's input is at a nonstandard path, with honest change at the same base
+        path. A second output claims two of our keys, a finding the parse holds. The parse
+        should raise the held PSBTSurplusDerivationPathsError.
+        """
+        nonstandard_base_path = "m/84h/1h/0h/7777"
+
+        psbt = self._psbt_with_change()
+        self._repoint_own_input(psbt, f"{nonstandard_base_path}/0/5")
+        repoint_change(psbt, f"{nonstandard_base_path}/1/0")
+
+        # A second output claiming two of our keys
+        surplus_output = create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 5_000)
+        for derivation_path in (f"{nonstandard_base_path}/0/0", f"{nonstandard_base_path}/0/1"):
+            claim_seed_owns_key(surplus_output, derivation_path, self._root().derive(derivation_path).get_public_key())
+        psbt.outputs.append(surplus_output)
+
+        with pytest.raises(PSBTSurplusDerivationPathsError):
+            self._parse(psbt)
+
+
+    def test__parse__reports_the_most_serious_path_in_any_input_order(self):
+        """
+        Every path is checked before anything is reported, and the most serious finding
+        wins whatever order the psbt lists the inputs in. The coordinator sets that order.
+
+        The taproot psbt spends one input at the native segwit path m/84h/1h/0h/0/5 and
+        another at the nonstandard path m/86h/1h/0h/7777/0/5, with change following the
+        second. Neither input is standard, so this isn't the dust attack. In both orders,
+        the parse should raise PSBTNonstandardDerivationPathError for the second path.
+        """
+        other_script_type_derivation_path = "m/84h/1h/0h/0/5"
+        nonstandard_derivation_path = "m/86h/1h/0h/7777/0/5"
+
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+        self._repoint_own_input(psbt, other_script_type_derivation_path)
+        self._add_own_input(psbt, nonstandard_derivation_path)
+        repoint_change(psbt, "m/86h/1h/0h/7777/1/0")
+
+        for reverse_inputs in (False, True):
+            if reverse_inputs:
+                psbt.inputs.reverse()
+            with pytest.raises(PSBTNonstandardDerivationPathError) as exc_info:
+                self._parse(psbt)
+            assert exc_info.value.validation_result.derivation_path == bip32.parse_path(nonstandard_derivation_path)
+
+
+    def test__parse__reports_a_script_type_mismatch_before_a_network_mismatch(self):
+        """
+        Another script type's path outranks the other network's path, in any input order.
+
+        On regtest, the taproot psbt spends one input at the native segwit path
+        m/84h/1h/0h/0/5 and another at the mainnet path m/86h/0h/0h/0/5, with change
+        following the second. Neither is standard, so this isn't the dust attack. In both
+        orders, the parse should raise PSBTDerivationPathScriptTypeMismatchError.
+        """
+        other_script_type_derivation_path = "m/84h/1h/0h/0/5"
+
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+        self._repoint_own_input(psbt, other_script_type_derivation_path)
+        self._add_own_input(psbt, "m/86h/0h/0h/0/5")
+        repoint_change(psbt, "m/86h/0h/0h/1/0")
+
+        for reverse_inputs in (False, True):
+            if reverse_inputs:
+                psbt.inputs.reverse()
+            with pytest.raises(PSBTDerivationPathScriptTypeMismatchError) as exc_info:
+                self._parse(psbt)
+            assert exc_info.value.validation_result.derivation_path == bip32.parse_path(other_script_type_derivation_path)
+
+
+    def test__parse__reports_the_first_of_two_nonstandard_paths(self):
+        """
+        Within one kind of finding, the first path in input order is reported, so the
+        result is the same on every parse.
+
+        The taproot psbt spends inputs at m/86h/1h/0h/7777/0/5 and m/86h/1h/0h/8888/0/5,
+        with change following the first. The parse should report whichever is listed
+        first.
+        """
+        first_derivation_path = "m/86h/1h/0h/7777/0/5"
+        second_derivation_path = "m/86h/1h/0h/8888/0/5"
+
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+        self._repoint_own_input(psbt, first_derivation_path)
+        self._add_own_input(psbt, second_derivation_path)
+        repoint_change(psbt, "m/86h/1h/0h/7777/1/0")
+
+        with pytest.raises(PSBTNonstandardDerivationPathError) as exc_info:
+            self._parse(psbt)
+        assert exc_info.value.validation_result.derivation_path == bip32.parse_path(first_derivation_path)
+
+        psbt.inputs.reverse()
+        with pytest.raises(PSBTNonstandardDerivationPathError) as exc_info:
+            self._parse(psbt)
+        assert exc_info.value.validation_result.derivation_path == bip32.parse_path(second_derivation_path)
+
+
+    def test__parse__accepts_a_caravan_legacy_multisig_spend(self):
+        """
+        Caravan's legacy multisig layout, m/45h/coin_type/account, is standard.
+
+        The psbt spends from m/45h/1h/0h/0/5 with change back to m/45h/1h/0h/1/0. The
+        parse should accept it.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE)
+        self._repoint_own_input(psbt, "m/45h/1h/0h/0/5")
+        repoint_change(psbt, "m/45h/1h/0h/1/0")
+
+        psbt_parser = self._parse(psbt)
+        assert self._verified_input_derivation_paths(psbt_parser) == [bip32.parse_path("m/45h/1h/0h/0/5")]
+        assert psbt_parser.change_amount == 10_000
+
+
+    def test__parse__accepts_unchained_vault_spends_and_keeps_each_vault_separate(self):
+        """
+        Unchained's vault layout, m/45h/0/0/N, is standard for legacy and native segwit
+        multisig, and each vault is its own wallet.
+
+        Each psbt spends from vault 3 at m/45h/0/0/3/0/12 with change back to vault 3. The
+        parse should accept it. Change sent to vault 7 instead should still be refused
+        with PSBTChangeDerivationPathError.
+        """
+        for input_base64, change_hex in self.UNCHAINED_WALLETS:
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_own_input(psbt, "m/45h/0/0/3/0/12")
+
+            repoint_change(psbt, "m/45h/0/0/3/1/4")
+            assert self._parse(psbt).change_amount == 10_000
+
+            repoint_change(psbt, "m/45h/0/0/7/1/0")
+            with pytest.raises(PSBTChangeDerivationPathError):
+                self._parse(psbt)
+
+
+    def test__parse__measures_the_window_across_unchained_vaults(self):
+        """
+        Each Unchained vault is its own base path, so a psbt spending from two vaults has
+        its change address index window measured across both.
+
+        The psbt spends vault 0 at "address_index" 5 and vault 1 at 999,999, with change
+        to vault 1 at 1,000,000. Without a validator the change is not flagged. With one,
+        it should be.
+        """
+        for input_base64, change_hex in self.UNCHAINED_WALLETS:
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_own_input(psbt, "m/45h/0/0/0/0/5")
+            self._add_own_input(psbt, "m/45h/0/0/1/0/999999")
+            repoint_change(psbt, "m/45h/0/0/1/1/1000000")
+
+            assert self._parse(psbt, validate_derivations=False).change_data[0]["address_index_beyond_window"] is False
+            assert self._parse(psbt).change_data[0]["address_index_beyond_window"] is True

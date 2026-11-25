@@ -10,6 +10,7 @@ from embit.networks import NETWORKS
 from embit.util import secp256k1
 
 
+from seedsigner.models.derivation_path_validator import DerivationPathValidator
 from seedsigner.models.settings_definition import SettingsConstants
 
 
@@ -19,42 +20,109 @@ from seedsigner.models.settings_definition import SettingsConstants
 # TODO: PR these directly into `embit`? Or replace with new/existing methods already in `embit`?
 
 
+# Each embit policy type as SeedSigner's script type and sig type settings. There is one
+# Legacy script type setting, so legacy multisig (p2sh) uses LEGACY_P2PKH too.
+POLICY_TYPE_SETTINGS = {
+    "p2pkh":       (SettingsConstants.LEGACY_P2PKH,  SettingsConstants.SINGLE_SIG),
+    "p2sh-p2wpkh": (SettingsConstants.NESTED_SEGWIT, SettingsConstants.SINGLE_SIG),
+    "p2wpkh":      (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.SINGLE_SIG),
+    "p2tr":        (SettingsConstants.TAPROOT,       SettingsConstants.SINGLE_SIG),
+    "p2sh":        (SettingsConstants.LEGACY_P2PKH,  SettingsConstants.MULTISIG),
+    "p2sh-p2wsh":  (SettingsConstants.NESTED_SEGWIT, SettingsConstants.MULTISIG),
+    "p2wsh":       (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.MULTISIG),
+}
+
+
+
+def get_policy_type(script_type: str, sig_type: str) -> str | None:
+    """
+    Returns the embit policy type for a script type and sig type setting, or None if
+    there isn't one (taproot multisig, for example).
+    """
+    for policy_type, settings in POLICY_TYPE_SETTINGS.items():
+        if settings == (script_type, sig_type):
+            return policy_type
+    return None
+
+
+
 # TODO: Refactor `wallet_type` to conform to our `sig_type` naming convention
 def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, script_type: str = SettingsConstants.NATIVE_SEGWIT) -> str:
-    if network == SettingsConstants.MAINNET:
-        network_path = "0'"
-    elif network == SettingsConstants.TESTNET:
-        network_path = "1'"
-    elif network == SettingsConstants.REGTEST:
-        network_path = "1'"
-    else:
+    """
+    Returns the standard base path for the network, wallet type, and script type, at
+    account 0.
+
+    The path comes from DerivationPathValidator's registry, so the base paths SeedSigner
+    exports and the ones the validator accepts as standard are defined in one place.
+    """
+    if network not in (SettingsConstants.MAINNET, SettingsConstants.TESTNET, SettingsConstants.REGTEST):
         raise Exception("Unexpected network")
 
-    if wallet_type == SettingsConstants.SINGLE_SIG:
-        if script_type == SettingsConstants.LEGACY_P2PKH:
-            return f"m/44'/{network_path}/0'"
-        elif script_type == SettingsConstants.NESTED_SEGWIT:
-            return f"m/49'/{network_path}/0'"
-        elif script_type == SettingsConstants.NATIVE_SEGWIT:
-            return f"m/84'/{network_path}/0'"
-        elif script_type == SettingsConstants.TAPROOT:
-            return f"m/86'/{network_path}/0'"
-        else:
-            raise Exception("Unexpected script type")
+    if wallet_type not in (SettingsConstants.SINGLE_SIG, SettingsConstants.MULTISIG):
+        raise Exception("Unexpected wallet type")
 
-    elif wallet_type == SettingsConstants.MULTISIG:
-        if script_type == SettingsConstants.LEGACY_P2PKH:
-            return f"m/45'" #BIP-45
-        elif script_type == SettingsConstants.NESTED_SEGWIT:
-            return f"m/48'/{network_path}/0'/1'"
-        elif script_type == SettingsConstants.NATIVE_SEGWIT:
-            return f"m/48'/{network_path}/0'/2'"
-        elif script_type == SettingsConstants.TAPROOT:
-            raise Exception("Taproot multisig not yet supported")
-        else:
-            raise Exception("Unexpected script type")
-    else:
-        raise Exception("Unexpected wallet type")    # checks that all inputs are from the same wallet
+    if wallet_type == SettingsConstants.MULTISIG and script_type == SettingsConstants.TAPROOT:
+        raise Exception("Taproot multisig not yet supported")
+
+    policy_type = get_policy_type(script_type=script_type, sig_type=wallet_type)
+    if policy_type is None:
+        raise Exception("Unexpected script type")
+
+    base_path = DerivationPathValidator().build_base_path(policy_type, network, account=0)
+    return bip32.path_to_str(base_path).replace("h", "'")
+
+
+
+def get_display_derivation_path(derivation_path: list[int], offending_level_index: int = 0, max_chars: int = 21, max_lines: int = 1) -> str:
+    """
+    Returns derivation_path in the ' notation shown on screen (m/84'/0'/0'/0/5),
+    shortened if needed to fit a warning screen's body text: at most max_lines lines of
+    max_chars characters each.
+
+    The warning screen only breaks lines at spaces, and a path has none, so a path on two
+    lines is broken here. Each break comes after a "/", never inside a level.
+
+    A path that doesn't fit keeps "m", the level before the offending one, the offending
+    level, and as many of the levels after it as fit. Each run of dropped levels shows as
+    "…". Those kept levels are shown even if they don't fit.
+
+    21 characters keep every standard path on one line in every locale's font, which the
+    network mismatch screen needs to fit beside its two buttons. A nonstandard path made
+    mostly of digits can still be too wide. It then runs into the margins, or wraps in
+    Chinese, Japanese, and Korean, which those one-button screens have room for.
+    """
+    levels = bip32.path_to_str(derivation_path).replace("h", "'").split("/")
+
+    def lay_out(shown: list[str]) -> list[str]:
+        # Fill each line in turn. The last line takes whatever is left, even if it's too
+        # long, which fits() then reports.
+        lines = [""]
+        for index, level in enumerate(shown):
+            piece = level if index == len(shown) - 1 else level + "/"
+            if lines[-1] and len(lines[-1]) + len(piece) > max_chars and len(lines) < max_lines:
+                lines.append("")
+            lines[-1] += piece
+        return lines
+
+    def fits(shown: list[str]) -> bool:
+        return all(len(line) <= max_chars for line in lay_out(shown))
+
+    if fits(levels):
+        return "\n".join(lay_out(levels))
+
+    # levels[0] is the root "m", so the offending level is one further along
+    first = max(offending_level_index, 1)
+    last = offending_level_index + 1
+
+    def shorten(first: int, last: int) -> list[str]:
+        shown = ["m"] + (["…"] if first > 1 else []) + levels[first:last + 1]
+        if last < len(levels) - 1:
+            shown.append("…")
+        return shown
+
+    while last + 1 < len(levels) and fits(shorten(first, last + 1)):
+        last += 1
+    return "\n".join(lay_out(shorten(first, last)))
 
 
 

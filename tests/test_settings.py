@@ -100,6 +100,60 @@ class TestSettings(BaseTest):
         _verify_defaults_loaded(SettingsConstants.SETTING__SIG_TYPES)
 
 
+    def test_validate_derivations_is_an_advanced_setting_enabled_by_default(self):
+        """ "Validate derivations" is an Advanced setting that is on unless the user turns it off """
+        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__VALIDATE_DERIVATIONS)
+        assert settings_entry.visibility == SettingsConstants.VISIBILITY__ADVANCED
+        assert settings_entry.default_value == SettingsConstants.OPTION__ENABLED
+
+        BaseTest.reset_settings()
+        assert Settings.get_instance().get_value(SettingsConstants.SETTING__VALIDATE_DERIVATIONS) == SettingsConstants.OPTION__ENABLED
+
+
+    def test_validate_derivations_is_enabled_after_an_upgrade(self):
+        """
+        A settings file saved before "Validate derivations" existed has no entry for it.
+        Loading that file should leave the setting at its default, Enabled.
+        """
+        # Enable persistent settings to write settings.json to disk
+        settings = Settings.get_instance()
+        settings.set_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS, SettingsConstants.OPTION__ENABLED)
+
+        with open(Settings.SETTINGS_FILENAME) as settings_file:
+            settings_json = json.loads(settings_file.read())
+
+        # Make the file look like one saved before the setting existed
+        del settings_json[SettingsConstants.SETTING__VALIDATE_DERIVATIONS]
+
+        # Wiping out the Settings singleton also deletes settings.json, so recreate it
+        BaseTest.reset_settings()
+        with open(Settings.SETTINGS_FILENAME, "w") as settings_file:
+            settings_file.write(json.dumps(settings_json))
+
+        # The Settings singleton loads the older file from disk
+        settings = Settings.get_instance()
+        assert settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS) == SettingsConstants.OPTION__ENABLED
+        assert settings.get_value(SettingsConstants.SETTING__VALIDATE_DERIVATIONS) == SettingsConstants.OPTION__ENABLED
+
+
+    def test_validate_derivations_stays_disabled_after_a_restart(self):
+        """ With persistent settings on, a disabled "Validate derivations" survives a restart """
+        settings = Settings.get_instance()
+        settings.set_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS, SettingsConstants.OPTION__ENABLED)
+        settings.set_value(SettingsConstants.SETTING__VALIDATE_DERIVATIONS, SettingsConstants.OPTION__DISABLED)
+
+        with open(Settings.SETTINGS_FILENAME) as settings_file:
+            settings_json = json.loads(settings_file.read())
+
+        # Wiping out the Settings singleton also deletes settings.json, so recreate it
+        BaseTest.reset_settings()
+        with open(Settings.SETTINGS_FILENAME, "w") as settings_file:
+            settings_file.write(json.dumps(settings_json))
+
+        settings = Settings.get_instance()
+        assert settings.get_value(SettingsConstants.SETTING__VALIDATE_DERIVATIONS) == SettingsConstants.OPTION__DISABLED
+
+
 
 class SettingsQRBase(BaseTest):
     """
@@ -215,3 +269,13 @@ class TestSettingsQRParser(SettingsQRBase):
 
         # Accepts update with no Exceptions
         self.settings.update(new_settings=settings_update_dict)
+
+
+    def test_settingsqr_can_disable_validate_derivations(self):
+        """ A SettingsQR can turn "Validate derivations" off by its abbreviated name, val_deriv """
+        settingsqr_data = f"{self.settingsqr_prefix} val_deriv=D"
+        config_name, settings_update_dict = Settings.parse_settingsqr(settingsqr_data)
+        assert settings_update_dict[SettingsConstants.SETTING__VALIDATE_DERIVATIONS] == SettingsConstants.OPTION__DISABLED
+
+        self.settings.update(new_settings=settings_update_dict)
+        assert self.settings.get_value(SettingsConstants.SETTING__VALIDATE_DERIVATIONS) == SettingsConstants.OPTION__DISABLED

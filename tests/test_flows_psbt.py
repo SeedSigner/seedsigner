@@ -11,13 +11,22 @@ from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_
 
 from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView, View
-from seedsigner.views import scan_views, seed_views, psbt_views
+from seedsigner.views import scan_views, seed_views, psbt_views, settings_views
+from seedsigner.models.derivation_path_validator import DerivationPathValidator
 from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
 
 class TestPSBTFlows(FlowTest):
+
+    def setup_method(self):
+        super().setup_method()
+
+        # These flows scan test network psbts. With "Validate derivations" on, mainnet
+        # would refuse them as a network mismatch.
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+
 
     def test_scan_psbt_first_then_correct_seedqr_flow(self):
         """
@@ -104,6 +113,10 @@ class TestPSBTFlows(FlowTest):
             view.decoder.add_data("cHNidP8BAHECAAAAAX9/d6VyI7nvVTyhLBfqu05za2AJ2Z0dKMC0cUX+S2U7AQAAAAD9////AgeHAAAAAAAAFgAUOnNPuZMD1sQudt3+7LvHBUvGhyd//gAAAAAAABYAFGO9QLvu4V9/hz6ZjbIGMrqsEiIYAjQTAAABAR+ghgEAAAAAABYAFKawrgcT62jmIVQwyHPCV0thmJWbAQDBAQAAAAABAYeHL9UQlz/jEKUuNNY3LTeQRjudjBinsP2L0ppvgRt0AAAAAAD/////AnbP3rsPAAAAIlEgtgmCioGjfKwp6f8rOoI4OPb+ZV8db581J9IizZPskl2ghgEAAAAAABYAFKawrgcT62jmIVQwyHPCV0thmJWbAUDCBlMh9VjZN2NdU9Wabi0o3Ct1q9YHTsJRLAkLfUuIHB+BE+ucR4bdGAJG5nBhCWOmCXbpRwKP1INRYvkuQ2fHAAAAACIGA2+PEYHyVy6nhYwAx5SJKBIWXjsWgjhhf/2FEWqXgxnoEKNOC3gAAACAAAAAAAAAAAAAACICA0SBeeHxfHdny6rUnQJuteAnQ7shSydexjJCkSJarn3mEKNOC3gAAACAAQAAAAEAAAAA")
 
         self.settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
+
+        # Electrum seeds derive at m/0h, which "Validate derivations" refuses. Spending from
+        # one means turning the setting off.
+        self.settings.set_value(SettingsConstants.SETTING__VALIDATE_DERIVATIONS, SettingsConstants.OPTION__DISABLED)
 
         sequence = [
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
@@ -806,3 +819,354 @@ class TestPSBTWarningRouting(PSBTSigningFlowTest):
             PSBTParser.WARNING__HIGH_FEE,
             PSBTParser.WARNING__NO_CHANGE,
         ]
+
+
+
+class TestPSBTDerivationPathValidationRouting(PSBTSigningFlowTest):
+    """
+    With the "Validate derivations" setting on, which is the default, a psbt is refused
+    during parsing if an input this seed signs isn't at a standard derivation path. The
+    refusal screen is titled "Transaction Problem", with a headline naming what is wrong
+    and the input's path below it. For a network mismatch, it also offers the network
+    setting. Change that follows an input that isn't standard is refused as an attack.
+    """
+    def _psbt_with_input_at(self, derivation_path: str) -> PSBT:
+        """
+        A native segwit psbt spending one of our coins at derivation_path, with change
+        coming back to the same base path.
+        """
+        psbt = self._psbt_with_change()
+        inp = psbt.inputs[0]
+        public_key = root_for_seed(PSBTTestData.seed).derive(derivation_path).get_public_key()
+        inp.bip32_derivations.clear()
+        set_input_locking_script(inp, script.p2wpkh(public_key))
+        claim_seed_owns_key(inp, derivation_path, public_key)
+
+        base_path = "/".join(derivation_path.split("/")[:-2])
+        repoint_change(psbt, f"{base_path}/1/0")
+        return psbt
+
+
+    def _add_own_input_at(self, psbt: PSBT, derivation_path: str):
+        """
+        Adds another of our native segwit coins, at derivation_path. It carries its
+        previous transaction, so single sig segwit v0 allows the mixed base paths. That
+        transaction is made up, which the parse can't tell.
+        """
+        own_input = deepcopy(psbt.inputs[0])
+        public_key = root_for_seed(PSBTTestData.seed).derive(derivation_path).get_public_key()
+        own_input.bip32_derivations.clear()
+        claim_seed_owns_key(own_input, derivation_path, public_key)
+
+        locking_script = script.p2wpkh(public_key)
+        own_input.non_witness_utxo.vout[own_input.vout].script_pubkey = locking_script
+        own_input.txid = own_input.non_witness_utxo.txid()
+        own_input.witness_utxo.script_pubkey = locking_script
+        psbt.inputs.append(own_input)
+
+
+    def _capture_screen_kwargs(self, screen_kwargs: dict):
+        """
+        Returns a before_run that records what the View hands its Screen. run_sequence has
+        already mocked View.run_screen, so the wrapper records the arguments and then calls
+        that mock.
+        """
+        def before_run(view: View):
+            def wrapper(ScreenClass, **kwargs):
+                screen_kwargs.update(kwargs)
+                return View.run_screen(view, ScreenClass, **kwargs)
+            view.run_screen = wrapper
+        return before_run
+
+
+    def test_the_setting_on_checks_input_paths(self):
+        """
+        With the setting on, the parser is given a DerivationPathValidator. A psbt whose
+        input is at a standard path goes on to the transaction details as usual.
+        """
+        self._load_psbt_for_signing(self._psbt_with_change())
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+        ])
+
+        assert isinstance(self.controller.psbt_parser.derivation_path_validator, DerivationPathValidator)
+
+
+    def test_the_setting_off_leaves_input_paths_unchecked(self):
+        """
+        With the setting off, the parser is given no validator. A psbt spending from a
+        nonstandard path goes on to the transaction details, as it did before the setting
+        existed.
+        """
+        self._load_psbt_for_signing(self._psbt_with_input_at("m/84h/1h/0h/7777/0/5"))
+        self.settings.set_value(SettingsConstants.SETTING__VALIDATE_DERIVATIONS, SettingsConstants.OPTION__DISABLED)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+        ])
+
+        assert self.controller.psbt_parser.derivation_path_validator is None
+
+
+    def test_nonstandard_input_path_terminates_signing_flow(self):
+        """
+        The psbt spends one of our coins at m/84h/1h/0h/7777/0/5.
+
+        The flow should stop at PSBTUnexpectedInputDerivationPathView, titled "Transaction
+        Problem" with the headline "Nonstandard Path", showing the path with no explanation
+        line. Discarding should return to the Main Menu.
+        """
+        self._load_psbt_for_signing(self._psbt_with_input_at("m/84h/1h/0h/7777/0/5"))
+
+        screen_kwargs = {}
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnexpectedInputDerivationPathView, before_run=self._capture_screen_kwargs(screen_kwargs), button_data_selection=psbt_views.PSBTUnexpectedInputDerivationPathView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+        assert screen_kwargs["title"] == "Transaction Problem"
+        assert screen_kwargs["status_headline"] == "Nonstandard Path"
+        assert screen_kwargs["text"] == "m/84'/1'/0'/7777/0/5"
+        assert screen_kwargs["button_data"] == [psbt_views.PSBTUnexpectedInputDerivationPathView.DISCARD]
+
+
+    def test_script_type_mismatch_terminates_signing_flow(self):
+        """
+        The native segwit psbt spends one of our coins at the nested segwit path
+        m/49h/1h/0h/0/5.
+
+        The flow should stop at PSBTUnexpectedInputDerivationPathView, titled "Transaction
+        Problem" with the headline "Script Type Mismatch", and the path's script type named
+        below the path. Discarding should return to the Main Menu.
+        """
+        self._load_psbt_for_signing(self._psbt_with_input_at("m/49h/1h/0h/0/5"))
+
+        screen_kwargs = {}
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnexpectedInputDerivationPathView, before_run=self._capture_screen_kwargs(screen_kwargs), button_data_selection=psbt_views.PSBTUnexpectedInputDerivationPathView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+        assert screen_kwargs["title"] == "Transaction Problem"
+        assert screen_kwargs["status_headline"] == "Script Type Mismatch"
+        assert screen_kwargs["text"] == "m/49'/1'/0'/0/5\nPath is for Nested Segwit"
+        assert screen_kwargs["button_data"] == [psbt_views.PSBTUnexpectedInputDerivationPathView.DISCARD]
+
+
+    def test_network_mismatch_opens_the_network_setting_and_signs_after_the_switch(self):
+        """
+        A regtest psbt is scanned on a device set to mainnet.
+
+        The flow should stop at PSBTUnexpectedInputDerivationPathView, titled "Transaction
+        Problem" with the headline "Network Mismatch", naming Testnet below the path, with a
+        button to change the setting.
+        Choosing it should drop the psbt, which was parsed for the old network, and open
+        the network setting. After the user picks Regtest and scans the psbt again, it
+        should go on to the transaction details.
+        """
+        psbt = self._psbt_with_change()
+        self._load_psbt_for_signing(psbt)
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+
+        screen_kwargs = {}
+        settings_entry_attr_names = []
+
+        def record_settings_entry(view: settings_views.SettingsEntryUpdateSelectionView):
+            settings_entry_attr_names.append(view.settings_entry.attr_name)
+
+        regtest_option_index = [value for value, display_name in SettingsConstants.ALL_NETWORKS].index(SettingsConstants.REGTEST)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnexpectedInputDerivationPathView, before_run=self._capture_screen_kwargs(screen_kwargs), button_data_selection=psbt_views.PSBTUnexpectedInputDerivationPathView.CHANGE_SETTING),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, before_run=record_settings_entry, screen_return_value=regtest_option_index),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView),
+        ])
+
+        assert screen_kwargs["title"] == "Transaction Problem"
+        assert screen_kwargs["status_headline"] == "Network Mismatch"
+        assert screen_kwargs["text"] == "m/84'/1'/0'/0/3\nPath is for Testnet"
+        assert screen_kwargs["button_data"] == [
+            psbt_views.PSBTUnexpectedInputDerivationPathView.CHANGE_SETTING,
+            psbt_views.PSBTUnexpectedInputDerivationPathView.DISCARD,
+        ]
+
+        # The psbt was dropped and the network setting opened
+        assert self.controller.psbt is None
+        assert self.controller.psbt_parser is None
+        assert self.controller.psbt_seed is None
+        assert settings_entry_attr_names == [SettingsConstants.SETTING__NETWORK]
+        assert self.settings.get_value(SettingsConstants.SETTING__NETWORK) == SettingsConstants.REGTEST
+
+        # Scan the psbt again
+        self.controller.psbt = psbt
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+        ])
+
+
+    def test_the_explanation_names_what_the_path_is_for(self):
+        """
+        Below the path, a network mismatch names the network the path's coin type is for.
+        A script type mismatch names the path's script type, even when only single sig vs
+        multisig differs. Each purpose in the registry is checked.
+        """
+        validator = DerivationPathValidator()
+
+        # (input's policy type, path, network, line below the path)
+        cases = [
+            ("p2wpkh", "m/84h/0h/0h/0/5", SettingsConstants.REGTEST, "Path is for Mainnet"),
+            ("p2wpkh", "m/84h/1h/0h/0/5", SettingsConstants.MAINNET, "Path is for Testnet"),
+            ("p2wpkh", "m/44h/1h/0h/0/5", SettingsConstants.REGTEST, "Path is for Legacy"),
+            ("p2wpkh", "m/49h/1h/0h/0/5", SettingsConstants.REGTEST, "Path is for Nested Segwit"),
+            ("p2wsh", "m/84h/1h/0h/0/5", SettingsConstants.REGTEST, "Path is for Native Segwit"),
+            ("p2wpkh", "m/86h/1h/0h/0/5", SettingsConstants.REGTEST, "Path is for Taproot"),
+            ("p2wpkh", "m/45h/0/5", SettingsConstants.REGTEST, "Path is for Legacy"),
+            ("p2wsh", "m/48h/1h/0h/1h/0/5", SettingsConstants.REGTEST, "Path is for Nested Segwit"),
+            ("p2sh-p2wsh", "m/48h/1h/0h/2h/0/5", SettingsConstants.REGTEST, "Path is for Native Segwit"),
+        ]
+        for policy_type, derivation_path, network, expected_line in cases:
+            validation_result = validator.validate(bip32.parse_path(derivation_path), policy_type, network)
+
+            screen_kwargs = {}
+            self.run_sequence([
+                FlowStep(psbt_views.PSBTUnexpectedInputDerivationPathView, before_run=self._capture_screen_kwargs(screen_kwargs), button_data_selection=psbt_views.PSBTUnexpectedInputDerivationPathView.DISCARD),
+                FlowStep(MainMenuView),
+            ], initial_destination_view_args=dict(validation_result=validation_result))
+
+            assert screen_kwargs["text"].split("\n")[1] == expected_line, derivation_path
+
+
+    def test_only_a_nonstandard_path_takes_two_lines(self):
+        """
+        A nonstandard path too long for one line continues on a second line, broken after
+        a "/". Network Mismatch and Script Type Mismatch keep the path to one line, with
+        the line explaining it below.
+        """
+        validator = DerivationPathValidator()
+
+        # (input's policy type, path, network, text on the screen)
+        cases = [
+            ("p2wpkh", "m/84h/1h/0h/7777/7777/7777/0/5", SettingsConstants.REGTEST, "m/84'/1'/0'/7777/\n7777/7777/0/5"),
+            ("p2wpkh", "m/84h/1h/2147483646h/1/12345", SettingsConstants.MAINNET, "m/84'/1'/…\nPath is for Testnet"),
+            ("p2tr", "m/84h/1h/2147483646h/1/12345", SettingsConstants.REGTEST, "m/84'/1'/…\nPath is for Native Segwit"),
+        ]
+        for policy_type, derivation_path, network, expected_text in cases:
+            validation_result = validator.validate(bip32.parse_path(derivation_path), policy_type, network)
+
+            screen_kwargs = {}
+            self.run_sequence([
+                FlowStep(psbt_views.PSBTUnexpectedInputDerivationPathView, before_run=self._capture_screen_kwargs(screen_kwargs), button_data_selection=psbt_views.PSBTUnexpectedInputDerivationPathView.DISCARD),
+                FlowStep(MainMenuView),
+            ], initial_destination_view_args=dict(validation_result=validation_result))
+
+            assert screen_kwargs["text"] == expected_text, derivation_path
+
+
+    def test_mixed_networks_terminates_signing_flow(self):
+        """
+        The psbt spends one of our coins at a standard regtest path and another at the
+        standard mainnet path m/84h/0h/0h/0/5. Switching networks can't help.
+
+        The flow should stop at PSBTMixedNetworkInputPathsView, titled "Transaction
+        Problem" with the headline "Mixed Networks", with no button to change the network.
+        Discarding should return to the Main Menu.
+        """
+        psbt = self._psbt_with_change()
+        self._add_own_input_at(psbt, "m/84h/0h/0h/0/5")
+        self._load_psbt_for_signing(psbt)
+
+        screen_kwargs = {}
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMixedNetworkInputPathsView, before_run=self._capture_screen_kwargs(screen_kwargs), button_data_selection=psbt_views.PSBTMixedNetworkInputPathsView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+        assert screen_kwargs["title"] == "Transaction Problem"
+        assert screen_kwargs["status_headline"] == "Mixed Networks"
+        assert screen_kwargs["text"] == "Inputs are at both Mainnet and Testnet paths."
+        assert screen_kwargs["button_data"] == [psbt_views.PSBTMixedNetworkInputPathsView.DISCARD]
+
+
+    def test_change_that_follows_a_nonstandard_input_is_refused_as_an_attack(self):
+        """
+        The psbt spends one of our coins at a standard path together with dust at
+        m/84h/1h/0h/7777/0/5000123, and sends change after the dust to
+        m/84h/1h/0h/7777/1/5000124.
+
+        The flow should stop at PSBTUnexpectedChangeDerivationPathView, titled "Suspicious
+        Transaction" with the headline "Unsafe Derivation Path". The change's path should
+        take two lines, then say it "failed derivation checks." Discarding should return
+        to the Main Menu.
+        """
+        psbt = self._psbt_with_change()
+        self._add_own_input_at(psbt, "m/84h/1h/0h/7777/0/5000123")
+        repoint_change(psbt, "m/84h/1h/0h/7777/1/5000124")
+        self._load_psbt_for_signing(psbt)
+
+        screen_kwargs = {}
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnexpectedChangeDerivationPathView, before_run=self._capture_screen_kwargs(screen_kwargs), button_data_selection=psbt_views.PSBTUnexpectedChangeDerivationPathView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+        assert screen_kwargs["title"] == "Suspicious Transaction"
+        assert screen_kwargs["status_headline"] == "Unsafe Derivation Path"
+        assert screen_kwargs["text"] == "m/84'/1'/0'/7777/1/\n5000124\nfailed derivation checks."
+
+
+    def test_change_that_follows_a_nonstandard_input_is_refused_on_the_wrong_network_too(self):
+        """
+        The same dust attack, a regtest psbt, scanned on a device set to mainnet. The real
+        coin is at the other network's path, so the change is judged on that network.
+
+        The flow should stop at PSBTUnexpectedChangeDerivationPathView with the same path
+        and sentence as on regtest, not at a yellow refusal.
+        """
+        psbt = self._psbt_with_change()
+        self._add_own_input_at(psbt, "m/84h/1h/0h/7777/0/5000123")
+        repoint_change(psbt, "m/84h/1h/0h/7777/1/5000124")
+        self._load_psbt_for_signing(psbt)
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+
+        screen_kwargs = {}
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTUnexpectedChangeDerivationPathView, before_run=self._capture_screen_kwargs(screen_kwargs), button_data_selection=psbt_views.PSBTUnexpectedChangeDerivationPathView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+        assert screen_kwargs["title"] == "Suspicious Transaction"
+        assert screen_kwargs["text"] == "m/84'/1'/0'/7777/1/\n5000124\nfailed derivation checks."
+
+
+    def test_the_change_path_rules_refusal_keeps_its_own_sentence(self):
+        """
+        The change path rules' own refusal is always on, so it keeps saying the path
+        "failed our safety checks." Its path takes two lines too, rather than running off
+        the screen.
+        """
+        screen_kwargs = {}
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTUnexpectedChangeDerivationPathView, before_run=self._capture_screen_kwargs(screen_kwargs), button_data_selection=psbt_views.PSBTUnexpectedChangeDerivationPathView.DISCARD),
+            FlowStep(MainMenuView),
+        ], initial_destination_view_args=dict(derivation_path=bip32.parse_path("m/48h/1h/0h/2h/2/5000123")))
+
+        assert screen_kwargs["text"] == "m/48'/1'/0'/2'/2/\n5000123\nfailed our safety checks."

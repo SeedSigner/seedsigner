@@ -8,6 +8,7 @@ from embit.ec import PublicKey
 from io import BytesIO
 from typing import List
 
+from seedsigner.models.derivation_path_validator import DerivationPathValidationResult, DerivationPathValidator
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
@@ -250,6 +251,93 @@ class PSBTUnverifiableMixedInputBasePathsError(PSBTVerificationError):
     pass
 
 
+class PSBTDerivationPathNetworkMismatchError(PSBTVerificationError):
+    """
+    An input this seed signs is at a standard derivation path for the other network: a
+    mainnet coin type on a test network, or a test network coin type on mainnet.
+
+    Only raised when the parser is given a DerivationPathValidator, which the caller does
+    when the user's "Validate derivations" setting is on. This is a mismatch rather than
+    an attack: the usual cause is SeedSigner being set to a different network than the
+    coordinator software.
+    """
+    def __init__(self, validation_result: DerivationPathValidationResult):
+        super().__init__(f"Input is at {bip32.path_to_str(validation_result.derivation_path)}, a standard path for another network")
+        self.validation_result = validation_result
+
+
+class PSBTDerivationPathScriptTypeMismatchError(PSBTVerificationError):
+    """
+    An input this seed signs is at a standard derivation path for a different script type
+    or sig type than its own, such as a native segwit input at a BIP-49 nested segwit
+    path. A wallet restored from the seed looks for each script type at its own paths, so
+    it would not find these coins.
+
+    Only raised when the parser is given a DerivationPathValidator. This is a policy
+    refusal rather than an attack.
+    """
+    def __init__(self, validation_result: DerivationPathValidationResult):
+        super().__init__(f"Input is at {bip32.path_to_str(validation_result.derivation_path)}, a standard path for {validation_result.indicated_policy_type} rather than {validation_result.policy_type}")
+        self.validation_result = validation_result
+
+
+class PSBTNonstandardDerivationPathError(PSBTVerificationError):
+    """
+    An input this seed signs is at a derivation path that wallets following the standard
+    derivation BIPs don't use, such as one with an extra level or an account above 9. See
+    DerivationPathValidator for what counts as standard.
+
+    Only raised when the parser is given a DerivationPathValidator. This is a policy
+    refusal rather than an attack. When change follows a nonstandard input,
+    PSBTChangeFollowsNonstandardInputError is raised instead.
+    """
+    def __init__(self, validation_result: DerivationPathValidationResult):
+        super().__init__(f"Input is at {bip32.path_to_str(validation_result.derivation_path)}, a nonstandard derivation path")
+        self.validation_result = validation_result
+
+
+class PSBTDerivationPathMixedNetworksError(PSBTVerificationError):
+    """
+    The inputs this seed signs are at standard derivation paths for both networks: some
+    at mainnet's coin type, some at the test networks'. Switching SeedSigner's network
+    setting can't help, because one set of inputs would still be at the other network's
+    paths.
+
+    Only raised when the parser is given a DerivationPathValidator. Honest wallets don't
+    mix coin types, but nothing here goes where the wallet won't look, so this is a policy
+    refusal rather than an attack. If change goes to the other coin type's paths,
+    PSBTChangeFollowsNonstandardInputError is raised instead.
+    """
+    pass
+
+
+class PSBTChangeFollowsNonstandardInputError(PSBTChangeDerivationPathError):
+    """
+    A change or self-transfer output goes to a base path that isn't standard, while at
+    least one input this seed signs is at a standard path. When none is standard on this
+    network but some are on the other one, as when a psbt is scanned on the wrong
+    network, the change is judged on that other network.
+
+    This is the dust input attack. A coordinator holding the account xpub sends dust to a
+    path the user's wallet never scans, such as m/84h/0h/0h/7777/0/0, and spends it
+    alongside the user's real coin. The change path rules accept change at the dust's
+    base path, so the change can follow it to .../7777/1/1, where the wallet won't find
+    it. Any path that isn't standard can serve as cover: an extra level, an account above
+    9, the other network's coin type, or another script type's purpose.
+
+    Only raised when the parser is given a DerivationPathValidator. An honest wallet could
+    build this too, such as one that spends a coin from a custom path beside its standard
+    ones and sends the change to the custom path. We still treat it as an attack, as the
+    change path rules do, because the change would land where the user's wallet won't
+    look.
+
+    It's a PSBTChangeDerivationPathError, so code that catches those catches this too.
+    """
+    def __init__(self, validation_result: DerivationPathValidationResult):
+        super().__init__(derivation_path=validation_result.derivation_path)
+        self.validation_result = validation_result
+
+
 class PSBTSeedCannotSignError(PSBTVerificationError):
     """
     The selected seed holds no key that could sign any input.
@@ -333,10 +421,16 @@ class PSBTParser():
     WARNING__CHANGE_ADDRESS_INDEX_BEYOND_WINDOW = "change_address_index_beyond_window"
 
 
-    def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET):
+    def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET, derivation_path_validator: DerivationPathValidator = None):
         self.psbt: PSBT = p
         self.seed = seed
         self.network = network
+
+        # The caller passes one when the user's "Validate derivations" setting is on; the
+        # parser never reads Settings itself. With None, input derivation paths are not
+        # checked against the standard paths and the parse is the same as before the
+        # setting existed.
+        self.derivation_path_validator = derivation_path_validator
 
         self.policy = None
         self.spend_amount = 0
@@ -464,6 +558,13 @@ class PSBTParser():
              from a single wallet, unless each of those inputs supplies a
              non_witness_utxo. No-op for other script types.
 
+          9. _validate_input_derivation_paths: only with a DerivationPathValidator.
+             Verifies that every input this seed signs is at a standard derivation path,
+             and that change doesn't follow one that isn't. Checks every path, then
+             reports the most serious finding. Also measures the change address index
+             window across all of our wallets. Runs after the held findings are raised, so
+             it can never hide one.
+
         Held findings:
         The parse reports the most serious problem it finds. A finding we treat as an
         attack stops the parse at the step that finds it, since nothing found later can
@@ -537,6 +638,8 @@ class PSBTParser():
             # A milder output finding that was held from earlier in the parse can now be
             # raised, rejecting the psbt.
             raise self.held_output_findings[0]
+
+        self._validate_input_derivation_paths()
 
         # Every total is known now, so settle this once rather than per view.
         self.is_high_fee = self.has_high_fee()
@@ -2099,6 +2202,139 @@ class PSBTParser():
             # Our inputs are at more than one base path and at least one input could be
             # faked. By rule we reject the psbt.
             raise PSBTUnverifiableMixedInputBasePathsError(f"Inputs are at {len(input_base_paths)} base paths and at least one has no non_witness_utxo")
+
+
+    def _validate_input_derivation_paths(self):
+        """
+        Only runs when the parser is given a DerivationPathValidator, which the caller does
+        when the user's "Validate derivations" setting is on.
+
+        Every derivation path this seed signs an input with must be a standard full path
+        for the psbt's policy type on this network (see DerivationPathValidator). Why:
+          * Funds stay recoverable. A wallet restored from the seed scans the standard
+            paths, so that's where it will find these coins and their change.
+          * The search stays small. Every coin this device spends is at one of a short,
+            known list of paths.
+          * It closes a gap in the change path rules. Those rules accept change at any
+            base path that one of our inputs spends from. A coordinator holding the
+            account xpub can send dust to a nonstandard path such as
+            m/84h/0h/0h/7777/0/0, spend it alongside a real input, and send the change to
+            .../7777/1/1. The change path rules alone would accept that change.
+
+        Every path is checked before anything is raised, and the most serious finding
+        wins. The coordinator decides the order of the inputs, so it must not be able to
+        pick which screen the user sees by listing a milder finding first. From most to
+        least serious:
+          1. Change follows an input that isn't standard: at least one of our inputs is
+             at a standard path, and a change or self-transfer output goes to a base path
+             that isn't standard. That's the dust attack above, so it's raised as an
+             attack. When none of our inputs is standard on this network but some are on
+             the other one, as when a psbt is scanned on the wrong network, the change is
+             judged on that other network, so the attack is still caught there.
+          2. An input at a nonstandard path.
+          3. An input at a standard path for another script type.
+          4. Inputs at standard paths for both networks. Switching networks wouldn't make
+             every path standard, so the user isn't offered that fix.
+          5. Inputs at standard paths for the other network.
+        Within one kind, the first path in input order is reported.
+
+        Change needs no other check here. The change path rules already hold it to one of
+        our inputs' base paths, a "branch" of 0 or 1, and a non-hardened "address_index".
+        So when every input is standard, the change is too.
+
+        This step also measures the change address index window across wallets. When our
+        inputs are at more than one base path, change is flagged if its "address_index" is
+        more than CHANGE_ADDRESS_INDEX_WINDOW past the smallest "address_index" among ALL
+        of our inputs. Otherwise dust sent to a distant index in one account would move
+        that account's window out with it. This only adds flags; it never clears one that
+        _evaluate_change_derivation_paths set. It lives in this step because it judges
+        derivation paths too: which account the change goes to, and how deep. Keeping it
+        here leaves the parse with the setting off the same as before the setting existed.
+
+        The step runs after every other check and held finding, so it can never hide a more
+        serious problem. A coordinator can add a nonstandard input to any psbt it builds.
+
+        Only this seed's own paths are judged. Other cosigners' paths on a multisig input
+        and other parties' inputs in a collaborative spend are left alone.
+
+        Raises, from most to least serious:
+          * PSBTChangeFollowsNonstandardInputError: a change or self-transfer output
+            follows an input that isn't standard.
+          * PSBTNonstandardDerivationPathError: an input is at a path that isn't standard
+            and isn't one of the mismatches below.
+          * PSBTDerivationPathScriptTypeMismatchError: an input is at a standard path for a
+            different script type or sig type.
+          * PSBTDerivationPathMixedNetworksError: inputs are at standard paths for both
+            networks.
+          * PSBTDerivationPathNetworkMismatchError: an input is at a standard path for the
+            other network.
+        """
+        if self.derivation_path_validator is None:
+            return
+
+        validator = self.derivation_path_validator
+        policy_type = self.policy["type"]
+
+        standard_results: List[DerivationPathValidationResult] = []
+        first_result_by_status = {}
+        for verified_derivation_paths in self.verified_input_derivation_paths:
+            # Another party's input, in a collaborative spend for example, has no paths of
+            # ours to check
+            for verified_derivation_path in verified_derivation_paths:
+                validation_result = validator.validate(verified_derivation_path.derivation, policy_type, self.network)
+                if validation_result.is_standard:
+                    standard_results.append(validation_result)
+                else:
+                    # Keep the first path of each kind, in input order
+                    first_result_by_status.setdefault(validation_result.status, validation_result)
+
+        other_network = SettingsConstants.TESTNET if self.network == SettingsConstants.MAINNET else SettingsConstants.MAINNET
+
+        # Change is judged on the network our standard inputs belong to: this one, or the
+        # other one when none is standard here. A dust attack scanned on the wrong network
+        # has the real coins at the other network's paths, and its change still has to be
+        # caught following the dust.
+        change_network = None
+        if standard_results:
+            change_network = self.network
+        elif DerivationPathValidator.STATUS__ANOTHER_NETWORK in first_result_by_status:
+            change_network = other_network
+
+        if change_network is not None:
+            # When every input is standard, the change path rules already keep change
+            # standard. So this only catches change that follows an input that isn't.
+            for change_data in self.change_data:
+                change_validation_result = validator.validate(change_data["verified_derivation_path"], policy_type, change_network)
+                if not change_validation_result.is_standard:
+                    raise PSBTChangeFollowsNonstandardInputError(change_validation_result)
+
+        if DerivationPathValidator.STATUS__NONSTANDARD in first_result_by_status:
+            raise PSBTNonstandardDerivationPathError(first_result_by_status[DerivationPathValidator.STATUS__NONSTANDARD])
+
+        if DerivationPathValidator.STATUS__ANOTHER_SCRIPT_TYPE in first_result_by_status:
+            raise PSBTDerivationPathScriptTypeMismatchError(first_result_by_status[DerivationPathValidator.STATUS__ANOTHER_SCRIPT_TYPE])
+
+        if DerivationPathValidator.STATUS__ANOTHER_NETWORK in first_result_by_status:
+            # Mixed when switching networks would leave one of our standard paths at the
+            # wrong coin type. A path with no coin type level, such as bare m/45h, is
+            # standard on both networks, so it never makes the inputs mixed.
+            if any(not validator.validate(result.derivation_path, policy_type, other_network).is_standard for result in standard_results):
+                raise PSBTDerivationPathMixedNetworksError("Inputs are at standard paths for both networks")
+
+            raise PSBTDerivationPathNetworkMismatchError(first_result_by_status[DerivationPathValidator.STATUS__ANOTHER_NETWORK])
+
+        # Every path is standard. The set needs a hashable type.
+        input_base_paths = {tuple(result.base_path) for result in standard_results}
+        if len(input_base_paths) < 2:
+            # A single wallet, so _evaluate_change_derivation_paths already measured the
+            # window from all of our inputs
+            return
+
+        smallest_input_address_index = min(result.address_index for result in standard_results)
+        for change_data in self.change_data:
+            change_address_index = change_data["verified_derivation_path"][-1]
+            if change_address_index > smallest_input_address_index + PSBTParser.CHANGE_ADDRESS_INDEX_WINDOW:
+                change_data["address_index_beyond_window"] = True
 
 
     @staticmethod
