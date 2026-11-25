@@ -165,6 +165,21 @@ class TestDerivationPathValidator:
                     assert result.offending_level_index == offending_level_index, derivation_path
 
 
+    def test__validate__refuses_a_negative_address_index(self):
+        """
+        A psbt stores each level as an unsigned number, so it can't hold a negative index,
+        but a path parsed from a string can. A negative "address_index" is nonstandard,
+        pointing at that level.
+        """
+        validator = DerivationPathValidator()
+        for network, coin_type, other_coin_type in NETWORKS:
+            for policy_type in BASE_PATHS:
+                derivation_path = parse_path(base_path(policy_type, coin_type)) + [0, -5]
+                result = validator.validate(derivation_path, policy_type, network)
+                assert result.status == NONSTANDARD, (policy_type, network)
+                assert result.offending_level_index == len(derivation_path) - 1, (policy_type, network)
+
+
     def test__validate__refuses_extra_and_missing_levels(self):
         """
         A standard full path has exactly two levels after the base path. The offending
@@ -618,3 +633,17 @@ class TestDerivationPathValidator:
         # The network is checked even for a base path that has no coin type level
         with pytest.raises(ValueError):
             validator.build_base_path("p2sh", "X")
+
+
+    def test__build_base_path__raises_for_an_account_that_cant_be_hardened(self):
+        """
+        An account has to be 0 through 2^31 - 1 to make a hardened level. Anything else
+        raises ValueError, even for a base path with no account level.
+        """
+        validator = DerivationPathValidator()
+        assert validator.build_base_path("p2wpkh", SettingsConstants.MAINNET, account=2**31 - 1)[ACCOUNT_LEVEL_INDEX] == 2**32 - 1
+
+        for account in (-1, 2**31):
+            for policy_type in ("p2wpkh", "p2sh"):
+                with pytest.raises(ValueError):
+                    validator.build_base_path(policy_type, SettingsConstants.MAINNET, account=account)

@@ -105,7 +105,10 @@ class DerivationPathValidator:
 
         "p2sh": [
             # Bare m/45h, as SeedSigner, Sparrow, and Coldcard use it. A true BIP-45 path
-            # adds a cosigner index level, so it is nonstandard here.
+            # adds a cosigner index level (m/45h/cosigner/branch/address_index), and it is
+            # left out on purpose. Almost no wallet uses it, and the coordinator picks the
+            # cosigner index, so accepting it would let change hide at a path such as
+            # m/45h/7777/1/1 that the user's wallet never scans.
             (45 + HARDENED_INDEX,),
 
             # Caravan
@@ -192,10 +195,15 @@ class DerivationPathValidator:
         Returns policy_type's primary base path on network, at the given account number
         (not hardened). A base path with no account level, such as legacy multisig's
         m/45h, ignores account.
+
+        Raises ValueError for an unrecognized network, or for an account outside 0 to
+        2^31 - 1, which can't be a hardened index.
         """
-        # Checked even when the base path has no coin type level, so an unrecognized
-        # network is never silently accepted.
+        # Both are checked even when the base path has no coin type or account level, so
+        # a bad value is never silently accepted.
         coin_type = DerivationPathValidator.get_coin_type(network)
+        if not 0 <= account < HARDENED_INDEX:
+            raise ValueError(f"Unexpected account: {account}")
 
         base_path = []
         for level in self.registry[policy_type][0]:
@@ -335,6 +343,11 @@ class DerivationPathValidator:
             standard length.
           * if every level matches but the path ends early: its last level.
 
+        This one walk does two jobs. It decides whether the path matches (it returns
+        None), and if not, where it stops matching. Keeping both in one function means
+        they can't disagree: a path that matches never has an offending level, and the
+        level the screen points at is always the one where matching failed.
+
         Expects a path with at least one level.
         """
         branch_index = len(base_path_levels)
@@ -362,7 +375,8 @@ class DerivationPathValidator:
                 is_match = level in (0, 1)
 
             elif index == address_index_index:
-                is_match = level < HARDENED_INDEX
+                # A psbt can't hold a negative index, but a parsed path string can
+                is_match = 0 <= level < HARDENED_INDEX
 
             else:
                 # Every level up to here matched, but the path keeps going
