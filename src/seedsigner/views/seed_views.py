@@ -2095,12 +2095,35 @@ class MultisigWalletDescriptorView(View):
             return Destination(PSBTChangeDetailsView, view_args=dict(change_address_num=0))
 
         elif button_data[selected_menu_num].button_label.startswith(_(self.VERIFY_ADDR.button_label)):
+            from embit import bip32
+            from embit.networks import NETWORKS
+
             network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-            loaded_fingerprints = [
-                seed.get_fingerprint(network=network)
-                for seed in self.controller.storage.seeds
-            ]
-            has_matching_seed = any(fp in loaded_fingerprints for fp in fingerprints if fp != "????????")
+            embit_network = SettingsConstants.map_network_to_embit(network)
+
+            has_matching_seed = False
+            for seed in self.controller.storage.seeds:
+                seed_fp = seed.get_fingerprint(network=network)
+                root = None
+                for key in descriptor.keys:
+                    if key.origin and key.origin.fingerprint:
+                        if hexlify(key.origin.fingerprint).decode() == seed_fp:
+                            if root is None:
+                                root = bip32.HDKey.from_seed(seed.seed_bytes, version=NETWORKS[embit_network]["xprv"])
+                            try:
+                                derived_key = root.derive(key.origin.derivation) if key.origin.derivation else root
+                                if key.is_extended:
+                                    if derived_key.to_public() == key.key:
+                                        has_matching_seed = True
+                                        break
+                                else:
+                                    if derived_key.sec() == key.sec():
+                                        has_matching_seed = True
+                                        break
+                            except Exception:
+                                pass
+                if has_matching_seed:
+                    break
 
             if not has_matching_seed:
                 return Destination(MultisigNoMatchingSeedWarningView)
