@@ -215,3 +215,39 @@ class TestSettingsQRParser(SettingsQRBase):
 
         # Accepts update with no Exceptions
         self.settings.update(new_settings=settings_update_dict)
+
+
+    def test_settingsqr_minimal_empty_payload(self):
+        """ SettingsQR parser should accept a minimal payload with no settings """
+        config_name, settings_update_dict = Settings.parse_settingsqr("settings::v1")
+        assert config_name is None
+        assert settings_update_dict == {}
+
+        config_name, settings_update_dict = Settings.parse_settingsqr("settings::v1 name=Minimal_Config")
+        assert config_name == "Minimal Config"
+        assert settings_update_dict == {}
+
+
+    def test_settingsqr_empty_name(self):
+        """ SettingsQR parser should fail if the optional name attribute has an empty value """
+        with pytest.raises(InvalidSettingsQRData) as e:
+            Settings.parse_settingsqr("settings::v1 name=")
+        assert "Config name cannot be empty" in str(e.value)
+
+
+    def test_settingsqr_malformed_entries(self):
+        """ SettingsQR parser should reject entries lacking or having multiple '=' delimiters """
+        # Entry without '='
+        with pytest.raises(InvalidSettingsQRData) as e:
+            Settings.parse_settingsqr("settings::v1 malformed_entry")
+        assert "Malformed SettingsQR entry" in str(e.value)
+
+        # Entry with multiple '='
+        with pytest.raises(InvalidSettingsQRData) as e:
+            Settings.parse_settingsqr("settings::v1 foo=bar=baz")
+        assert "Malformed SettingsQR entry" in str(e.value)
+
+        # Entry with empty key '=value'
+        with pytest.raises(InvalidSettingsQRData) as e:
+            Settings.parse_settingsqr("settings::v1 =value")
+        assert "Malformed SettingsQR entry" in str(e.value)
