@@ -824,4 +824,84 @@ class TestMessageSigningFlows(FlowTest):
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
         expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
 
+    def test_seed_options_add_and_edit_passphrase_flow(self):
+        """
+        Users should be able to add, edit, or remove a passphrase directly
+        from the SeedOptionsView on an active loaded seed without discarding it.
+        """
+        seed = Seed(mnemonic="blush twice taste dawn feed second opinion lazy thumb play neglect impact".split())
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+
+        initial_fingerprint = seed.get_fingerprint(network=SettingsConstants.MAINNET)
+        assert not seed.has_passphrase
+
+        # Ensure passphrase setting is enabled
+        self.settings.set_value(SettingsConstants.SETTING__PASSPHRASE, SettingsConstants.OPTION__ENABLED)
+
+        # 1. Add a passphrase from SeedOptionsView
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.PASSPHRASE),
+                FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="mysecretpassphrase")),
+                FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
+                FlowStep(seed_views.SeedOptionsView),
+            ]
+        )
+
+        assert seed.passphrase == "mysecretpassphrase"
+        assert seed.has_passphrase is True
+        passphrase_fingerprint = seed.get_fingerprint(network=SettingsConstants.MAINNET)
+        assert passphrase_fingerprint != initial_fingerprint
+
+        # 2. Start editing passphrase but hit Back and DISCARD; should revert to original passphrase
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.PASSPHRASE),
+                FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="abortedit", is_back_button=True)),
+                FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.DISCARD),
+                FlowStep(seed_views.SeedOptionsView),
+            ]
+        )
+
+        assert seed.passphrase == "mysecretpassphrase"
+        assert seed.get_fingerprint(network=SettingsConstants.MAINNET) == passphrase_fingerprint
+
+        # 3. Remove passphrase by submitting empty and choosing SKIP
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.PASSPHRASE),
+                FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="")),
+                FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.SKIP),
+                FlowStep(seed_views.SeedOptionsView),
+            ]
+        )
+
+        assert seed.passphrase == ""
+        assert seed.has_passphrase is False
+        assert seed.get_fingerprint(network=SettingsConstants.MAINNET) == initial_fingerprint
+
+
+    def test_seed_options_passphrase_button_hidden_when_disabled(self):
+        """
+        When the passphrase feature is set to Disabled in Settings,
+        the Passphrase button should not be present in SeedOptionsView.
+        """
+        seed = Seed(mnemonic="blush twice taste dawn feed second opinion lazy thumb play neglect impact".split())
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+
+        self.settings.set_value(SettingsConstants.SETTING__PASSPHRASE, SettingsConstants.OPTION__DISABLED)
+
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException):
+            self.run_sequence(
+                initial_destination_view_args=dict(seed=seed),
+                sequence=[
+                    FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.PASSPHRASE),
+                ]
+            )
+
 
