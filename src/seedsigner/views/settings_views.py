@@ -254,7 +254,7 @@ class SettingsEntryUpdateSelectionView(View):
             self.renderer.initialize_display()
 
         elif self.settings_entry.attr_name == SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED:
-            self.renderer.disp.invert(enabled=updated_value == SettingsConstants.OPTION__ENABLED)
+            self.renderer.disp.set_color_inversion(updated_value == SettingsConstants.OPTION__ENABLED)
 
         if destination:
             return destination
