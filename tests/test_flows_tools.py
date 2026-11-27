@@ -34,6 +34,44 @@ class TestToolsFlows(FlowTest):
         ])
 
 
+    def test__address_explorer__account_index__flow(self):
+        """
+            With account index selection enabled, the AddressExplorer derives addrs
+            from the selected account.
+        """
+        from seedsigner.helpers import embit_utils
+        controller = Controller.get_instance()
+        seed = Seed(mnemonic=["abandon "* 11 + "about"])
+        controller.storage.set_pending_seed(seed)
+        controller.storage.finalize_pending_seed()
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_INDEX, SettingsConstants.OPTION__ENABLED)
+
+        def check_account_1(view: tools_views.ToolsAddressExplorerAddressListView):
+            data = controller.address_explorer_data
+            assert data["derivation_path"] == "m/84'/0'/1'"
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, screen_return_value=0),
+            FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=ButtonOption(SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(SettingsConstants.NATIVE_SEGWIT), return_data=SettingsConstants.NATIVE_SEGWIT)),
+            FlowStep(seed_views.SeedExportXpubAccountIndexView, screen_return_value="1"),
+            FlowStep(tools_views.ToolsAddressExplorerAddressTypeView, button_data_selection=tools_views.ToolsAddressExplorerAddressTypeView.RECEIVE),
+            FlowStep(tools_views.ToolsAddressExplorerAddressListView, before_run=check_account_1, screen_return_value=0),
+            FlowStep(tools_views.ToolsAddressExplorerAddressView),
+        ])
+
+        # BIP-84 test vector for "abandon ... about", account 1, first receive addr
+        addrs = controller.address_explorer_data["receive_addrs"]
+        expected = embit_utils.get_single_sig_address(
+            xpub=seed.get_xpub("m/84'/0'/1'"), script_type=SettingsConstants.NATIVE_SEGWIT, index=0
+        )
+        assert addrs[0] == expected
+        assert addrs[0] != embit_utils.get_single_sig_address(
+            xpub=seed.get_xpub("m/84'/0'/0'"), script_type=SettingsConstants.NATIVE_SEGWIT, index=0
+        )
+
+
     def test__address_explorer__loadseed__sideflow(self):
         """
             Finalizing a seed during the Address Explorer flow should return to the next
