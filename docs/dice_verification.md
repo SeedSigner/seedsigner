@@ -211,19 +211,16 @@ _(for more advanced/python-savvy users)_
 
 Run the exact same SeedSigner mnemonic generation code from the command line to quickly test and externally verify the results.
 
-Create a python virtualenv (out of the scope of this doc) and install dependencies:
+Install the project environment with [uv](https://docs.astral.sh/uv/getting-started/installation/); this installs `embit` and makes the main project code importable:
 ```bash
-pip3 install embit
-
-# Install the main project code to make it importable
-pip3 install -e .
+uv sync
 ```
 
 
 Then run the utility script with `-h` to view the usage instructions:
 ```bash
 cd tools
-python3 mnemonic.py -h
+uv run python mnemonic.py -h
 ```
 
 ```
