@@ -68,10 +68,18 @@ class Renderer(ConfigurableSingleton):
         self.lock.release()
 
 
+    @staticmethod
+    def _turned(image):
+        # The whole picture turned 180° just before it reaches the screen, when
+        # the device is held the other way round (helpers/orientation.py).
+        from seedsigner.helpers.orientation import is_turned
+        return image.transpose(Image.Transpose.ROTATE_180) if is_turned() else image
+
+
     def show_image(self, image=None, alpha_overlay=None, show_direct=False):
         if show_direct:
             # Use the incoming image as the canvas and immediately render
-            self.disp.show_image(image, 0, 0)
+            self.disp.show_image(self._turned(image), 0, 0)
             return
 
         if alpha_overlay:
@@ -83,7 +91,7 @@ class Renderer(ConfigurableSingleton):
             # Always write to the current canvas, rather than trying to replace it
             self.canvas.paste(image)
 
-        self.disp.show_image(self.canvas, 0, 0)
+        self.disp.show_image(self._turned(self.canvas), 0, 0)
 
 
     def show_image_pan(self, image, start_x, start_y, end_x, end_y, rate, alpha_overlay=None):
@@ -117,7 +125,7 @@ class Renderer(ConfigurableSingleton):
             # Always keep a copy of the current display in the canvas
             self.canvas.paste(crop)
 
-            self.disp.show_image(crop, 0, 0)
+            self.disp.show_image(self._turned(crop), 0, 0)
 
 
 

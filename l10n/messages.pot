@@ -809,6 +809,12 @@ msgstr ""
 msgid "Invert colors"
 msgstr ""
 
+#. Hardware settings option to turn the whole screen upside down, so the
+#. joystick is on the right.
+#: src/seedsigner/models/settings_definition.py
+msgid "Display rotation"
+msgstr ""
+
 #: src/seedsigner/models/settings_definition.py
 msgid "QR background color"
 msgstr ""

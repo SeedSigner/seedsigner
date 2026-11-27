@@ -27,6 +27,16 @@ class Camera(Singleton):
         return cls._instance
 
 
+    @staticmethod
+    def _display_turn() -> int:
+        # When the whole screen is turned 180° (helpers/orientation.py), the
+        # camera turned with the device, so its picture needs the same extra
+        # 180° to stay upright. The camera rotation setting keeps meaning "how
+        # the camera is mounted" and doesn't need changing.
+        from seedsigner.helpers.orientation import display_rotation
+        return display_rotation()
+
+
     def start_video_stream_mode(self, resolution=(512, 384), framerate=12, format="bgr"):
         from picamera import PiCameraError
         from seedsigner.hardware.pivideostream import PiVideoStream
@@ -49,7 +59,7 @@ class Camera(Singleton):
             return frame
         else:
             if frame is not None:
-                return Image.fromarray(frame.astype('uint8'), 'RGB').convert('RGBA').rotate(90 + self._camera_rotation)
+                return Image.fromarray(frame.astype('uint8'), 'RGB').convert('RGBA').rotate(90 + self._camera_rotation + self._display_turn())
         return None
 
 
@@ -90,7 +100,7 @@ class Camera(Singleton):
 
         # "Rewind" the stream to the beginning so we can read its content
         stream.seek(0)
-        return Image.open(stream).rotate(90 + self._camera_rotation)
+        return Image.open(stream).rotate(90 + self._camera_rotation + self._display_turn())
 
 
     def stop_single_frame_mode(self):

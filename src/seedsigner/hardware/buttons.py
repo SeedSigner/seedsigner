@@ -64,12 +64,32 @@ class HardwareButtons(Singleton):
         return cls._instance
 
 
+    @staticmethod
+    def _wiring() -> dict:
+        """
+        Which pin to read for each key. With the screen turned 180°
+        (helpers/orientation.py) the user sees the picture upright, but every
+        control has moved round with the board: pushing the joystick towards
+        the top of the screen closes the switch the board calls DOWN, and the
+        side button now at the top is the one the board calls KEY3. So UP/DOWN,
+        LEFT/RIGHT and KEY1/KEY3 are swapped; KEY2 (the middle one) and the
+        joystick press stay as they are.
+        """
+        from seedsigner.helpers.orientation import is_turned
+        if not is_turned():
+            return {}
+        c = HardwareButtonsConstants
+        return {c.KEY_UP: c.KEY_DOWN, c.KEY_DOWN: c.KEY_UP, c.KEY_LEFT: c.KEY_RIGHT, c.KEY_RIGHT: c.KEY_LEFT,
+                c.KEY1: c.KEY3, c.KEY3: c.KEY1}
+
+
     def wait_for(self, keys=[]) -> int:
         """
         Block execution until one of the target keys is pressed.
 
         Optionally override the wait by calling `trigger_override()`.
         """
+        wiring = self._wiring()
         # TODO: Refactor to keep control in the Controller and not here
         from seedsigner.controller import Controller
         controller = Controller.get_instance()
@@ -98,7 +118,7 @@ class HardwareButtons(Singleton):
 
             # Check each candidate key to see if it was pressed
             for key in keys:
-                if self.GPIO.input(key) == GPIO.LOW:
+                if self.GPIO.input(wiring.get(key, key)) == GPIO.LOW:
                     if self.cur_input != key:
                         self.cur_input = key
                         self.cur_input_started = int(time.time() * 1000)  # in milliseconds
@@ -149,8 +169,9 @@ class HardwareButtons(Singleton):
         """ Returns True if one of the target keys/key is pressed """
         if key:
             keys = [key]
+        wiring = self._wiring()
         for key in keys:
-            if self.GPIO.input(key) == self.GPIO.LOW:
+            if self.GPIO.input(wiring.get(key, key)) == self.GPIO.LOW:
                 self.update_last_input_time()
                 return True
         else:
