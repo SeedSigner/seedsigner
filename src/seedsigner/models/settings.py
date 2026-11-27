@@ -64,22 +64,30 @@ class Settings(Singleton):
         if not data.startswith("settings::"):
             raise InvalidSettingsQRData()
 
-        version = data.split()[0].split("::")[1]
+        tokens = data.split()
+        version = tokens[0].split("::")[1]
         if version != "v1":
             raise InvalidSettingsQRData(f"Unsupported SettingsQR version: {version}")
+        if len(tokens) < 2:
+            raise InvalidSettingsQRData("SettingsQR has no settings")
         
         # Start parsing key/value settings at the nth split() index
         split_index = 1
 
         # handle optional "name" attr
         config_name = None
-        if "name=" in data.split()[1]:
-            config_name = data.split("name=")[1].split()[0].replace("_", " ")
+        if len(tokens) > 1 and "name=" in tokens[1]:
+            name_value = tokens[1].split("name=", 1)[1]
+            if name_value == "":
+                raise InvalidSettingsQRData("name cannot be empty")
+            config_name = name_value.replace("_", " ")
             split_index += 1
 
         updated_settings = {}
-        for entry in data.split()[split_index:]:
-            abbreviated_name, value = entry.split("=")
+        for entry in tokens[split_index:]:
+            if "=" not in entry:
+                raise InvalidSettingsQRData(f"Invalid settings entry: {entry}")
+            abbreviated_name, value = entry.split("=", 1)
 
             # Empty values ("some_setting= other_setting=E") are invalid
             if value == "":
