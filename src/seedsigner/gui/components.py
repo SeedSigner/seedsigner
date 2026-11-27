@@ -2,14 +2,13 @@ import logging
 import math
 import os
 import pathlib
-import re
 import time
 
 from dataclasses import dataclass
 from decimal import Decimal
 from gettext import gettext as _
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from typing import Any, List, Tuple
+from typing import List, Tuple
 
 from seedsigner.gui.renderer import Renderer
 from seedsigner.models.settings import Settings
@@ -483,7 +482,6 @@ class TextArea(BaseComponent):
         #     self.supersampling_factor = 2
         if self.font_size >= 20 and self.supersampling_factor != 1:
             self.supersampling_factor = 1
-            logger.warning(f"Supersampling disabled for large font size: {self.font_size}")
 
         if self.height_ignores_below_baseline:
             # Even though we're ignoring the pixels below the baseline for spacing
@@ -501,9 +499,7 @@ class TextArea(BaseComponent):
             image_width = self.width - self.edge_padding
         
         if self.supersampling_factor > 1:
-            start = time.time()
             supersampled_font = Fonts.get_font(self.font_name, int(self.supersampling_factor * self.font_size))
-            print(f"Supersampled font load time: {time.time() - start:.04}")
         else:
             supersampled_font = font
 
