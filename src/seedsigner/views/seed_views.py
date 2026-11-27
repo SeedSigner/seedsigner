@@ -2055,7 +2055,8 @@ class MultisigWalletDescriptorView(View):
 
         fingerprints = []
         for key in descriptor.keys:
-            fingerprint = hexlify(key.fingerprint).decode()
+            # A plain public key has no origin or master fingerprint.
+            fingerprint = hexlify(key.fingerprint).decode() if key.fingerprint is not None else _("No origin")
             fingerprints.append(fingerprint)
         
         from seedsigner.helpers.embit_utils import get_multisig_policy
