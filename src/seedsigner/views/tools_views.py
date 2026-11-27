@@ -12,7 +12,7 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
 
-from .view import View, Destination, BackStackView
+from .view import View, Destination, BackStackView, NotYetImplementedView
 
 logger = logging.getLogger(__name__)
 
@@ -708,8 +708,8 @@ class ToolsAddressExplorerAddressListView(View):
                             addresses.append(address)
                             data[addr_storage_key].append(address)
                     else:
-                        # TODO: Custom derivation path
-                        raise Exception(_("Custom Derivation address explorer not yet implemented"))
+                        # Custom derivation path address explorer not yet implemented
+                        return Destination(NotYetImplementedView, view_args=dict(text=_("Custom Derivation address explorer not yet implemented")))
 
                 elif "wallet_descriptor" in data:
                     from embit.descriptor import Descriptor
@@ -721,7 +721,7 @@ class ToolsAddressExplorerAddressListView(View):
                             data[addr_storage_key].append(address)
 
                     else:
-                        raise Exception(_("Single sig descriptors not yet supported"))
+                        return Destination(NotYetImplementedView, view_args=dict(text=_("Single sig descriptors not yet supported")))
             finally:
                 # Everything is set. Stop the loading screen
                 self.loading_screen.stop()

@@ -5,7 +5,7 @@ from seedsigner.controller import Controller
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
-from seedsigner.views.view import ErrorView, MainMenuView
+from seedsigner.views.view import ErrorView, MainMenuView, NotYetImplementedView
 from seedsigner.views import scan_views, seed_views, tools_views
 
 
@@ -340,3 +340,50 @@ class TestToolsImageEntropyFlows(FlowTest):
             FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[Mock()] * ToolsImageEntropyLivePreviewScreen.PREVIEW_POOL_SIZE),
             FlowStep(tools_views.ToolsImageEntropyFinalImageView),
         ])
+
+
+    def test__address_explorer__custom_derivation__redirects_to_not_yet_implemented(self):
+        """
+            Selecting Custom Derivation in Address Explorer should gracefully redirect
+            to NotYetImplementedView rather than raising an unhandled exception.
+        """
+        from seedsigner.models.settings import Settings
+        settings = Settings.get_instance()
+        settings.set_value(
+            SettingsConstants.SETTING__SCRIPT_TYPES,
+            [SettingsConstants.NATIVE_SEGWIT, SettingsConstants.CUSTOM_DERIVATION]
+        )
+
+        controller = Controller.get_instance()
+        seed = Seed(mnemonic=["abandon " * 11 + "about"])
+        controller.storage.set_pending_seed(seed)
+        controller.storage.finalize_pending_seed()
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, screen_return_value=0),  # ret 1st onboard seed
+            FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=ButtonOption(SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(SettingsConstants.CUSTOM_DERIVATION), return_data=SettingsConstants.CUSTOM_DERIVATION)),
+            FlowStep(seed_views.SeedExportXpubCustomDerivationView, screen_return_value="m/84h/0h/0h"),
+            FlowStep(tools_views.ToolsAddressExplorerAddressTypeView, button_data_selection=tools_views.ToolsAddressExplorerAddressTypeView.RECEIVE),
+            FlowStep(tools_views.ToolsAddressExplorerAddressListView, is_redirect=True),
+            FlowStep(NotYetImplementedView),
+        ])
+
+
+    def test__address_explorer_address_list_view__unsupported_descriptor_redirect(self):
+        """
+            A single-sig wallet descriptor should gracefully redirect to NotYetImplementedView.
+        """
+        from unittest.mock import MagicMock
+        controller = Controller.get_instance()
+        desc = MagicMock()
+        desc.is_basic_multisig = False
+        controller.address_explorer_data = {
+            "wallet_descriptor": desc,
+            "embit_network": "main",
+        }
+        view = tools_views.ToolsAddressExplorerAddressListView()
+        dest = view.run()
+        assert dest.View_cls == NotYetImplementedView
+        assert "Single sig descriptors not yet supported" in dest.view_args.get("text", "")
