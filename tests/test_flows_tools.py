@@ -281,6 +281,31 @@ class TestToolsFlows(FlowTest):
             ])
 
 
+
+    def test_verify_address_cancel_from_verification_returns_to_previous_view(self):
+        """
+        Choosing Cancel from address verification should return to the previous view.
+        """
+        controller = Controller.get_instance()
+        controller.storage.set_pending_seed(Seed(mnemonic=["abandon " * 11 + "about"]))
+        controller.storage.finalize_pending_seed()
+        controller.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # Native segwit regtest receive address at index 6 for the test seed.
+            view.decoder.add_data("bcrt1q4e9q5taxnsvc6m0uxv6h75mkzvnkxeqk6l90u2")
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),  # simulate reading an address QR
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, screen_return_value=0),
+            FlowStep(seed_views.SeedAddressVerificationView, button_data_selection=seed_views.SeedAddressVerificationView.CANCEL),
+            FlowStep(seed_views.SeedSelectSeedView),
+        ])
+
+
 class TestToolsImageEntropyFlows(FlowTest):
 
     def test__image_entropy__incorrect_preview_frame_count_aborts(self):
