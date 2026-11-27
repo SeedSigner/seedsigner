@@ -6,8 +6,9 @@ from embit.psbt import PSBT, DerivationPath
 
 from base import FlowTest, FlowStep
 from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_key,
-    create_op_return_output, create_output, foreign_public_key, p2tr_with_script_tree,
-    repoint_change, root_for_seed, set_input_locking_script, tapleaf_hash)
+    create_op_return_output, create_op_return_psbt, create_output, foreign_public_key,
+    p2tr_with_script_tree, repoint_change, root_for_seed, set_input_locking_script,
+    tapleaf_hash)
 
 from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView, View
@@ -806,3 +807,111 @@ class TestPSBTWarningRouting(PSBTSigningFlowTest):
             PSBTParser.WARNING__HIGH_FEE,
             PSBTParser.WARNING__NO_CHANGE,
         ]
+
+
+    def test_op_return_burn_warning_continues_to_the_high_fee_warning(self):
+        """
+        The psbt pays a 50,000 sat recipient and burns 10,000 sats in an OP_RETURN output
+        out of a 1 BTC input, with its change at an ordinary address index, so nearly all
+        of the input goes to the fee.
+
+        The user should see the burn warning, then the high fee warning, and then the
+        transaction details.
+        """
+        psbt = self._psbt_with_change()
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 50_000))
+        psbt.outputs.append(create_op_return_output(b"burn", value=10_000))
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+        ])
+
+        assert self.controller.psbt_parser.warnings == [
+            PSBTParser.WARNING__OP_RETURN_BURN,
+            PSBTParser.WARNING__HIGH_FEE,
+        ]
+
+
+
+class TestPSBTOpReturnFlows(PSBTSigningFlowTest):
+    """
+    Routing through every OP_RETURN output.
+    """
+
+    def test_next_walks_every_output(self):
+        """
+        Should show each OP_RETURN output on one screen, in order, however large its
+        payload.
+        """
+        self._load_psbt_for_signing(create_op_return_psbt([
+            create_op_return_output(b"a" * 1_000),
+            create_op_return_output(b"b" * 1_000),
+        ]))
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_a_bare_op_return_still_gets_a_screen(self):
+        """
+        Should give a bare OP_RETURN its own screen.
+        """
+        self._load_psbt_for_signing(create_op_return_psbt([
+            create_op_return_output(b"", script_pubkey=script.Script(bytes([OPCODES.OP_RETURN])))
+        ]))
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_a_transaction_with_only_op_return_outputs_reaches_them(self):
+        """
+        The psbt spends its whole input, less the fee, into a single OP_RETURN output, so
+        there is no recipient and no change.
+
+        The flow should go from the transaction math straight to the OP_RETURN screen,
+        rather than to a change screen with no change to show.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+        input_amount = psbt.inputs[0].utxo.value
+        psbt.outputs.clear()
+        psbt.outputs.append(create_op_return_output(b"proof of burn", value=input_amount - 10_000))
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, button_data_selection=psbt_views.PSBTWarningView.CONTINUE),
+            FlowStep(psbt_views.PSBTWarningView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+            FlowStep(MainMenuView),
+        ])
