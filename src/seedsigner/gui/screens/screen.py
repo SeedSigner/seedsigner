@@ -1115,6 +1115,7 @@ class KeyboardScreen(BaseTopNavScreen):
         * key_height: Specify `None` to maximize key height to available space.
         * keys_charset: Specify the chars displayed on the keys of the keyboard.
         * keys_to_values: Optional mapping from key_charset to input value (e.g. dice icon to digit).
+        * key_confirm_inputs: Hardware inputs that lock in the currently highlighted key.
         * return_after_n_chars: exits and returns the user's input after n characters.
         * show_save_button: Render a KEY3 soft button for save & exit
         * initial_value: initialize the TextEntryDisplay with an existing string
@@ -1126,6 +1127,7 @@ class KeyboardScreen(BaseTopNavScreen):
     key_height: int = None
     keys_charset: str = None
     keys_to_values: dict = None
+    key_confirm_inputs: list = field(default_factory=lambda: [HardwareButtonsConstants.KEY_PRESS])
     return_after_n_chars: int = None
     show_save_button: bool = False
     initial_value: str = ""
@@ -1221,17 +1223,25 @@ class KeyboardScreen(BaseTopNavScreen):
     def _run(self):
         self.cursor_position = len(self.user_input)
 
+        # The hardware inputs that "lock in" the currently highlighted key.
+        # Defaults to the joystick center press; a screen can opt in to any of
+        # the side buttons (e.g. `HardwareButtonsConstants.KEYS__ANYCLICK`).
+        confirm_inputs = list(self.key_confirm_inputs or [HardwareButtonsConstants.KEY_PRESS])
+
+        wait_keys = HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + confirm_inputs
+        if self.show_save_button and HardwareButtonsConstants.KEY3 not in wait_keys:
+            # KEY3 is the "save & exit" soft button when the screen renders one.
+            wait_keys.append(HardwareButtonsConstants.KEY3)
+
         # Start the interactive update loop
         while True:
-            input = self.hw_inputs.wait_for(
-                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3]
-            )
+            input = self.hw_inputs.wait_for(wait_keys)
 
             with self.renderer.lock:
                 # Track if we need to update the title after input changes
                 title_needs_update = False
                 # Check possible exit conditions   
-                if self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
+                if self.top_nav.is_selected and input in confirm_inputs:
                     return RET_CODE__BACK_BUTTON
 
                 elif self.show_save_button and input == HardwareButtonsConstants.KEY3:
@@ -1270,14 +1280,14 @@ class KeyboardScreen(BaseTopNavScreen):
                     self.top_nav.is_selected = True
                     self.top_nav.render_buttons()
 
-                elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
+                elif ret_val in Keyboard.ADDITIONAL_KEYS and input in confirm_inputs:
                     if ret_val == Keyboard.KEY_BACKSPACE["code"]:
                         if len(self.user_input) > 0:
                             self.user_input = self.user_input[:-1]
                             self.cursor_position -= 1
                             title_needs_update = True
                             
-                elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
+                elif input in confirm_inputs and ret_val not in Keyboard.ADDITIONAL_KEYS:
                     # User has locked in the current letter
                     if self.keys_to_values:
                         # Map the Key display char to its output value (e.g. dice icon to digit)
@@ -1302,7 +1312,7 @@ class KeyboardScreen(BaseTopNavScreen):
                 elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
                     # Live joystick movement; haven't locked this new letter in yet.
                     # Leave current spot blank for now. Only update the active keyboard keys
-                    # when a selection has been locked in (KEY_PRESS) or removed ("del").
+                    # when a selection has been locked in or removed ("del").
                     pass
 
                 # Render the text entry display and cursor block
