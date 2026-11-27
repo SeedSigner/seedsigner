@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconTextLine, SeedSignerIconConstants, TextArea
+from seedsigner.helpers.bitsquiggle import fingerprint_to_image
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, ButtonOption, KeyboardScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
@@ -575,6 +576,41 @@ class ToolsCalcFinalWordDoneScreen(ButtonListScreen):
             screen_y=self.components[-1].screen_y + self.components[-1].height + 3*GUIConstants.COMPONENT_PADDING,
         ))
 
+        # BitSquiggle: a compact visual encoding of the fingerprint (see
+        # https://github.com/maggo83/BitSquiggles) so it can be quickly compared
+        # by eye against the same fingerprint shown in a companion wallet app.
+        icontl = self.components[-1]
+        icontl_text_width = max(icontl.label_textarea.text_width, icontl.value_textarea.text_width)
+        icontl_width = icontl_text_width + icontl.icon.width + icontl.icon_horizontal_spacer
+        squiggle_gap = GUIConstants.COMPONENT_PADDING
+
+        icontl_center_y = icontl.screen_y + int(icontl.height / 2)
+        available_top = self.components[-2].screen_y + self.components[-2].height + GUIConstants.COMPONENT_PADDING
+        available_bottom = self.buttons[0].screen_y - GUIConstants.COMPONENT_PADDING
+        max_half_height = min(icontl_center_y - available_top, available_bottom - icontl_center_y)
+
+        # Unlike SeedFinalizeScreen, this row sits right below the quoted final
+        # word with generous slack on both sides, which let the squiggle grow
+        # past the icon/text row's own height and visually dominate it. Cap it
+        # to the row's own height so it stays proportionate to its neighbors.
+        squiggle_image = fingerprint_to_image(
+            self.fingerprint,
+            max_width=self.canvas_width - 2 * GUIConstants.EDGE_PADDING - icontl_width - squiggle_gap,
+            max_height=min(2 * max_half_height, icontl.height),
+        )
+
+        group_width = icontl_width + squiggle_gap + squiggle_image.width
+        group_x = max(GUIConstants.EDGE_PADDING, int((self.canvas_width - group_width) / 2))
+
+        icontl.icon.screen_x = group_x
+        text_x = group_x + icontl.icon.width + icontl.icon_horizontal_spacer
+        icontl.label_textarea.screen_x = text_x
+        icontl.value_textarea.screen_x = text_x
+
+        squiggle_x = group_x + icontl_width + squiggle_gap
+        squiggle_y = icontl_center_y - int(squiggle_image.height / 2)
+        self.paste_images.append((squiggle_image, (squiggle_x, squiggle_y)))
+
 
 
 @dataclass
@@ -600,6 +636,30 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
             ))
+
+            # BitSquiggle: a compact visual encoding of the fingerprint (see
+            # https://github.com/maggo83/BitSquiggles) so it can be quickly
+            # compared by eye against the same fingerprint shown elsewhere.
+            # Left-aligned row, so just appended after the text, capped so it
+            # can't grow down into the derivation-path row below.
+            fp_line = self.components[-1]
+            fp_text_width = max(fp_line.label_textarea.text_width, fp_line.value_textarea.text_width)
+            fp_row_end_x = fp_line.screen_x + fp_line.icon.width + fp_line.icon_horizontal_spacer + fp_text_width
+            squiggle_gap = GUIConstants.COMPONENT_PADDING
+
+            next_row_y = fp_line.screen_y + fp_line.height + 2 * GUIConstants.COMPONENT_PADDING
+            squiggle_image = fingerprint_to_image(
+                self.fingerprint,
+                max_width=self.canvas_width - GUIConstants.EDGE_PADDING - fp_row_end_x - squiggle_gap,
+                max_height=next_row_y - GUIConstants.COMPONENT_PADDING - fp_line.screen_y,
+            )
+            squiggle_x = fp_row_end_x + squiggle_gap
+            # Center on the hex value line itself (not the whole label+value
+            # block), so the glyph optically lines up with the fingerprint
+            # text it's meant to be compared against, not the label above it.
+            value_ta = fp_line.value_textarea
+            squiggle_y = value_ta.screen_y + int((value_ta.height - squiggle_image.height) / 2)
+            self.paste_images.append((squiggle_image, (squiggle_x, squiggle_y)))
 
             if self.script_type != SettingsConstants.CUSTOM_DERIVATION:
                 self.components.append(IconTextLine(
