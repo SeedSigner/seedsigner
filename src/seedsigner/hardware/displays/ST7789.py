@@ -3,6 +3,8 @@ import RPi.GPIO as GPIO
 import time
 import array
 from dataclasses import dataclass
+from PIL import Image as PILImage
+from seedsigner.hardware.buttons import IS_GAMEPI13
 
 from seedsigner.hardware.displays.display_driver import BaseDisplayDriver
 
@@ -156,6 +158,8 @@ class ST7789(BaseDisplayDriver):
     def show_image(self,Image,Xstart,Ystart):
         """Set buffer to value of Python Imaging Library image."""
         """Write display buffer to physical display"""
+        if IS_GAMEPI13:
+            Image = Image.transpose(PILImage.Transpose.ROTATE_90)
         imwidth, imheight = Image.size
         if imwidth != self.width or imheight != self.height:
             raise ValueError('Image must be same dimensions as display \

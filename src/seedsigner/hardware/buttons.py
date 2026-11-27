@@ -7,19 +7,49 @@ from seedsigner.models.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
+def _detect_gamepi13():
+    """BOARD 18 is the 1.3\" LCD HAT backlight (pulled low) and unused on the GamePi13.
+    Must run before that pin is driven as an output.
+    """
+    if GPIO.RPI_INFO['P1_REVISION'] != 3:
+        return False
+    try:
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setwarnings(False)
+        GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        time.sleep(0.01)
+        return GPIO.input(18) == GPIO.HIGH
+    except Exception:
+        logger.exception("GamePi13 probe failed; assuming 1.3\" LCD HAT")
+        return False
+
+
+IS_GAMEPI13 = _detect_gamepi13()
 
 class HardwareButtons(Singleton):
     if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
         logger.info("Detected 40pin GPIO (Raspberry Pi 2 and above)")
-        KEY_UP_PIN = 31
-        KEY_DOWN_PIN = 35
-        KEY_LEFT_PIN = 29
-        KEY_RIGHT_PIN = 37
-        KEY_PRESS_PIN = 33
+        if IS_GAMEPI13:
+            logger.info("Detected Waveshare GamePi13")
+            KEY_UP_PIN = 29       # Up
+            KEY_DOWN_PIN = 31     # Down
+            KEY_LEFT_PIN = 36     # Left
+            KEY_RIGHT_PIN = 33    # Right
+            KEY_PRESS_PIN = 40    # A
+            KEY1_PIN = 10         # X
+            KEY2_PIN = 32         # Y
+            KEY3_PIN = 38         # B
+        else:
+            logger.info("Use default 1.3\" LCD HAT 40pin GPIO layout")
+            KEY_UP_PIN = 31
+            KEY_DOWN_PIN = 35
+            KEY_LEFT_PIN = 29
+            KEY_RIGHT_PIN = 37
+            KEY_PRESS_PIN = 33
 
-        KEY1_PIN = 40
-        KEY2_PIN = 38
-        KEY3_PIN = 36
+            KEY1_PIN = 40
+            KEY2_PIN = 38
+            KEY3_PIN = 36
 
     else:
         logger.info("Assuming 26 Pin GPIO (Raspberry Pi 1)")
@@ -167,26 +197,14 @@ class HardwareButtons(Singleton):
 
 # class used as short hand for static button/channel lookup values
 class HardwareButtonsConstants:
-    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
-        KEY_UP = 31
-        KEY_DOWN = 35
-        KEY_LEFT = 29
-        KEY_RIGHT = 37
-        KEY_PRESS = 33
-
-        KEY1 = 40
-        KEY2 = 38
-        KEY3 = 36
-    else:
-        KEY_UP = 5
-        KEY_DOWN = 11
-        KEY_LEFT = 3
-        KEY_RIGHT = 15
-        KEY_PRESS = 7
-
-        KEY1 = 16
-        KEY2 = 12
-        KEY3 = 8
+    KEY_UP = HardwareButtons.KEY_UP_PIN
+    KEY_DOWN = HardwareButtons.KEY_DOWN_PIN
+    KEY_LEFT = HardwareButtons.KEY_LEFT_PIN
+    KEY_RIGHT = HardwareButtons.KEY_RIGHT_PIN
+    KEY_PRESS = HardwareButtons.KEY_PRESS_PIN
+    KEY1 = HardwareButtons.KEY1_PIN
+    KEY2 = HardwareButtons.KEY2_PIN
+    KEY3 = HardwareButtons.KEY3_PIN
 
     OVERRIDE = 1000
 
