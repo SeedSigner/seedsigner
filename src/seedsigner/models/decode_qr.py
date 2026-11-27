@@ -299,7 +299,7 @@ class DecodeQR:
 
     @property
     def is_wallet_descriptor(self):
-        check = self.qr_type in [QRType.WALLET__SPECTER, QRType.WALLET__UR, QRType.WALLET__CONFIGFILE, QRType.WALLET__GENERIC, QRType.OUTPUT__UR]
+        check = self.qr_type in [QRType.WALLET__SPECTER, QRType.WALLET__UR, QRType.WALLET__CONFIGFILE, QRType.WALLET__GENERIC, QRType.OUTPUT__UR, QRType.ACCOUNT__UR]
         
         if self.qr_type in [QRType.BYTES__UR]:
             cbor = self.decoder.result_message().cbor
