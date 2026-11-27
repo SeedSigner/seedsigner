@@ -102,8 +102,11 @@ class ScanView(View):
                 return Destination(SettingsIngestSettingsQRView, view_args=dict(data=data))
             
             elif self.decoder.is_wallet_descriptor:
+                # TODO: Move the descriptor's parsing and checks below into
+                # VerifyMultisigWalletDescriptorView, so that this branch only hands off
+                # the scanned descriptor.
                 from embit.descriptor import Descriptor
-                from seedsigner.views.seed_views import MultisigWalletDescriptorView
+                from seedsigner.views.seed_views import VerifyMultisigWalletDescriptorView
                 descriptor_str = self.decoder.get_wallet_descriptor()
 
                 try:
@@ -128,7 +131,7 @@ class ScanView(View):
                     return Destination(NotYetImplementedView)
 
                 self.controller.multisig_wallet_descriptor = descriptor
-                return Destination(MultisigWalletDescriptorView, skip_current_view=True)
+                return Destination(VerifyMultisigWalletDescriptorView, skip_current_view=True)
             
             elif self.decoder.is_address:
                 from seedsigner.views.seed_views import AddressVerificationStartView

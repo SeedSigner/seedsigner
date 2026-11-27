@@ -2044,6 +2044,77 @@ class LoadMultisigWalletDescriptorView(View):
 
 
 
+class UnsupportedMultisigDescriptorView(View):
+    """
+    Reached when the user loads an unsupported multisig descriptor (e.g. one that uses
+    multi() instead of sortedmulti()). It might come from an honest wallet or it could be
+    malicious, but we can't tell which. Either way, SeedSigner won't verify addresses
+    with it.
+    """
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Caution"),
+            status_headline=_("Unsupported Descriptor"),
+            text=_("SeedSigner can't verify addresses with this descriptor."),
+            button_data=[ButtonOption("OK")],
+        )
+
+        return Destination(BackStackView)
+
+
+
+class VerifyMultisigWalletDescriptorView(View):
+    """
+    Reached when the user loads a multisig descriptor. If we're in the middle of the psbt
+    review flow, we check the descriptor against the psbt and report any problem with it.
+    If there is no psbt, we only check that the descriptor is in a supported form. If it
+    passes, we move on to present the descriptor details.
+    """
+    def run(self):
+        psbt_parser = self.controller.psbt_parser
+        if psbt_parser is not None:
+            from seedsigner.models.psbt_parser import (PSBTChangeDescriptorMismatchError,
+                PSBTInputDescriptorMismatchError, PSBTParser,
+                PSBTUnsupportedMultisigDescriptorError)
+            from seedsigner.views.psbt_views import PSBTAddressVerificationFailedView, PSBTInputDescriptorMismatchView
+            try:
+                psbt_parser.verify_multisig_descriptor(self.controller.multisig_wallet_descriptor)
+
+            except PSBTUnsupportedMultisigDescriptorError:
+                # Drop the refused descriptor
+                self.controller.multisig_wallet_descriptor = None
+                return Destination(UnsupportedMultisigDescriptorView, skip_current_view=True)
+
+            except PSBTInputDescriptorMismatchError:
+                # The descriptor is for a different wallet than the one this psbt spends
+                # from. Drop it and skip this view so that BACK returns to the prompt to
+                # load a descriptor, where the user can try another one.
+                self.controller.multisig_wallet_descriptor = None
+                return Destination(PSBTInputDescriptorMismatchView, skip_current_view=True)
+
+            except PSBTChangeDescriptorMismatchError as e:
+                # The descriptor matches the inputs, but one of the change outputs pays to
+                # an unknown wallet.
+                change_data = psbt_parser.get_change_data(e.change_num)
+                is_change = PSBTParser.is_change_branch(change_data["verified_derivation_path"])
+                # This psbt is done. Set clear_history to disable returning via BACK
+                # button.
+                return Destination(PSBTAddressVerificationFailedView, view_args=dict(is_change=is_change), clear_history=True)
+
+        else:
+            # There's no psbt to check the descriptor against, as in the address
+            # verification and address explorer flows. So we only check its form.
+            from seedsigner.helpers import embit_utils
+            if not embit_utils.is_supported_multisig_descriptor(self.controller.multisig_wallet_descriptor):
+                # Drop the refused descriptor
+                self.controller.multisig_wallet_descriptor = None
+                return Destination(UnsupportedMultisigDescriptorView, skip_current_view=True)
+
+        return Destination(MultisigWalletDescriptorView, skip_current_view=True)
+
+
+
 class MultisigWalletDescriptorView(View):
     RETURN = ButtonOption("Return to transaction")
     VERIFY_ADDR = ButtonOption("Verify addr")
@@ -2052,6 +2123,7 @@ class MultisigWalletDescriptorView(View):
 
     def run(self):
         descriptor = self.controller.multisig_wallet_descriptor
+        psbt_parser = self.controller.psbt_parser
 
         fingerprints = []
         for key in descriptor.keys:
@@ -2083,8 +2155,12 @@ class MultisigWalletDescriptorView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             self.controller.multisig_wallet_descriptor = None
+            if psbt_parser is not None:
+                # The user has backed out of this descriptor, so drop its verification
+                # too.
+                psbt_parser.verified_multisig_descriptor = None
             return Destination(BackStackView)
-        
+
         elif button_data[selected_menu_num] == self.RETURN:
             # Jump straight back to PSBT change verification
             from seedsigner.views.psbt_views import PSBTChangeDetailsView

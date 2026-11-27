@@ -374,6 +374,63 @@ def test_get_multisig_policy():
         ))
 
 
+def test_is_supported_multisig_descriptor():
+    """
+    A multisig descriptor is only accepted when it is sortedmulti() and every key ends in
+    /{0,1}/*.
+
+    The wallet's own descriptor should pass, written with either {0,1} or <0;1>. The same
+    keys in multi() should fail. So should descriptors that break the /{0,1}/* rule,
+    whether on every key or on just one.
+    """
+    from embit.bip32 import HDKey
+    from embit.descriptor import Descriptor
+
+    # A native segwit 2-of-3 whose keys all carry /{0,1}/*
+    descriptor_str = "wsh(sortedmulti(2,[8d55ff0d/48h/1h/0h/2h]tpubDDxNVWk924RTUhdkVB2uLHw1hGMPNMGufpZefhkkswjbZppVZcuMdjYKQN4ewUog9vbL6RBLFPRWcgTGT7kYP79N6thyJ43ELUs4N2szXMg/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*,[0be174ee/48h/1h/0h/2h]tpubDEsePyLPkbxbrDiZSTTWdsviiNtiQjrvvzZnkLtG72QYLBygEsXePRsTdXi8DeMA7taCuuvoEBjUAfFrsNZeQJqfvG9fFoujYWbFPYUn7ux/{0,1}/*))"
+    last_key = "[0be174ee/48h/1h/0h/2h]tpubDEsePyLPkbxbrDiZSTTWdsviiNtiQjrvvzZnkLtG72QYLBygEsXePRsTdXi8DeMA7taCuuvoEBjUAfFrsNZeQJqfvG9fFoujYWbFPYUn7ux/{0,1}/*"
+    last_xpub = HDKey.from_base58("tpubDEsePyLPkbxbrDiZSTTWdsviiNtiQjrvvzZnkLtG72QYLBygEsXePRsTdXi8DeMA7taCuuvoEBjUAfFrsNZeQJqfvG9fFoujYWbFPYUn7ux")
+
+    # The wallet's own descriptor
+    assert embit_utils.is_supported_multisig_descriptor(Descriptor.from_string(descriptor_str)) is True
+    assert embit_utils.is_supported_multisig_descriptor(Descriptor.from_string(descriptor_str.replace("{0,1}", "<0;1>"))) is True
+
+    # The same keys in multi(), which keeps them in one fixed order
+    assert embit_utils.is_supported_multisig_descriptor(Descriptor.from_string(descriptor_str.replace("sortedmulti(", "multi("))) is False
+
+    # The same xpubs, every key written as a bare /*
+    assert embit_utils.is_supported_multisig_descriptor(Descriptor.from_string(descriptor_str.replace("/{0,1}/*", "/*"))) is False
+
+    # The same xpubs, every key written with /1/*
+    assert embit_utils.is_supported_multisig_descriptor(Descriptor.from_string(descriptor_str.replace("/{0,1}/*", "/1/*"))) is False
+
+    # The same xpubs, every key given the branch pair <0;2>
+    assert embit_utils.is_supported_multisig_descriptor(Descriptor.from_string(descriptor_str.replace("{0,1}", "<0;2>"))) is False
+
+    # Every key replaced with its receive branch xpub, written as a bare /*
+    receive_branch_descriptor_str = descriptor_str
+    for key in Descriptor.from_string(descriptor_str).keys:
+        receive_branch_xpub = key.key.derive([0]).to_base58()
+        receive_branch_descriptor_str = receive_branch_descriptor_str.replace(
+            f"2h]{key.key.to_base58()}/{{0,1}}/*",
+            f"2h/0]{receive_branch_xpub}/*",
+        )
+    assert embit_utils.is_supported_multisig_descriptor(Descriptor.from_string(receive_branch_descriptor_str)) is False
+
+    # Descriptors that break the rule on just one key, the last
+    one_bare_key = descriptor_str.replace(last_key, last_key.replace("/{0,1}/*", "/*"))
+    assert embit_utils.is_supported_multisig_descriptor(Descriptor.from_string(one_bare_key)) is False
+
+    one_other_branch_pair = descriptor_str.replace(last_key, last_key.replace("{0,1}", "{0,2}"))
+    assert embit_utils.is_supported_multisig_descriptor(Descriptor.from_string(one_other_branch_pair)) is False
+
+    one_fixed_child = descriptor_str.replace(last_key, last_key.replace("/{0,1}/*", "/0/3"))
+    assert embit_utils.is_supported_multisig_descriptor(Descriptor.from_string(one_fixed_child)) is False
+
+    one_plain_public_key = descriptor_str.replace(last_key, last_xpub.derive([0, 3]).key.sec().hex())
+    assert embit_utils.is_supported_multisig_descriptor(Descriptor.from_string(one_plain_public_key)) is False
+
+
 def test_parse_derivation_path():
     # Shouldn't care if input uses "'" or "h"
     derivation_path = "m/84'/0'/0'/0/0"

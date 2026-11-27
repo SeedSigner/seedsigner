@@ -2,6 +2,7 @@ import logging
 from binascii import hexlify
 from embit import psbt, script, ec, bip32
 from embit.descriptor import Descriptor
+from embit.descriptor.errors import ArgumentError
 from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope, PSBTError
 from embit.ec import PublicKey
@@ -235,9 +236,24 @@ class PSBTChangeDerivationPathError(PSBTVerificationError):
         self.derivation_path = derivation_path
 
 
+class PSBTUnsortedMultisigKeysError(PSBTVerificationError):
+    """
+    A multisig output that holds this seed's key, with the inputs' script type and m-of-n,
+    lists its keys out of sorted (BIP-67) order.
+
+    We only support sortedmulti() wallets, which sort the keys in every script they
+    derive. The ordering affects the resulting address derived for this output, and the
+    user's coordinator might not find coins sent to it.
+
+    An honest multi() wallet, which keeps its keys in one fixed order, can also produce
+    this. So we don't try to decide whether this is an attack or a mistake.
+    """
+    pass
+
+
 class PSBTUnverifiableMixedInputBasePathsError(PSBTVerificationError):
     """
-    The inputs of a single sig segwit v0 psbt that this seed signs are at different
+    The inputs of a single sig segwit v0 psbt that this seed owns are at different
     base paths and non_witness_utxo data was not provided.
 
     The change path rules require change to go back to the same wallet (base path) that
@@ -271,6 +287,67 @@ class PSBTNegativeFeeError(PSBTVerificationError):
     pass
 
 
+class PSBTUnsupportedMultisigDescriptorError(PSBTVerificationError):
+    """
+    The user's multisig descriptor is in an unsupported form. We only verify a psbt
+    against a sortedmulti() descriptor whose keys all end in "/{0,1}/*".
+
+    An honest wallet can produce an unsupported descriptor (e.g. a multi() wallet). So we
+    don't try to decide whether this is an attack or a mistake.
+    """
+    pass
+
+
+class PSBTInputDescriptorMismatchError(PSBTVerificationError):
+    """
+    One of this seed's inputs doesn't belong to the wallet that the user's descriptor
+    defines.
+
+    The user may have loaded the wrong descriptor. So we don't try to decide whether this
+    is an attack or a mistake.
+    """
+    pass
+
+
+class PSBTChangeDescriptorMismatchError(PSBTVerificationError):
+    """
+    A multisig change output doesn't come back to the wallet that the user's descriptor
+    defines.
+
+    The user may have another multisig wallet that also holds this seed's key. An honest
+    transfer into that wallet looks the same. So we don't try to decide whether this is an
+    attack or a mistake.
+    """
+    def __init__(self, change_num: int):
+        super().__init__()
+        self.change_num = change_num
+
+
+class PSBTUnresolvedCosigners(Exception):
+    """
+    We could not resolve a multisig script's cosigners.
+
+    Resolving them means tracing every key in the script back to one of the psbt's global
+    xpubs.
+
+    The global xpubs and the derivation paths are optional psbt fields. A psbt that leaves
+    them out can't resolve its cosigners either. So unresolved cosigners are never grounds
+    to reject the psbt.
+    """
+    pass
+
+
+class PSBTMixedPathScript(Exception):
+    """
+    A multisig script's keys are at different branches or address indices (a mixed-path
+    script).
+
+    Standard wallets don't generate a mixed-path script: they derive every key in an
+    address at the same branch and address index. So we withhold the script's cosigners.
+    """
+    pass
+
+
 class PSBTParser():
     """
     Reads a psbt on behalf of one seed and works out everything the signing flow shows the
@@ -289,9 +366,11 @@ class PSBTParser():
 
     A psbt is written by an untrusted coordinator. The metadata it carries about keys
     (fingerprints, derivation paths, xpubs) is a claim, not a fact. The onus is on us to
-    verify by re-deriving from the signing seed. For multisig, verification depends on the
-    user providing a "known good" descriptor (i.e. can be trusted) from which we can
-    verify the outputs by deriving from the cosigners' xpubs.
+    verify by re-deriving from the signing seed.
+
+    For multisig, re-deriving from the signing seed only proves our own key. The other
+    keys are verified through the cosigners' xpubs, taken from the psbt or from the user's
+    descriptor (see parse()).
 
     This class makes the difference visible in its own names:
 
@@ -302,8 +381,7 @@ class PSBTParser():
                     derivation.
 
     Invariant: no verified_ value is ever assigned from a claimed_ value without an
-    intervening re-derivation from self.root or from a user-supplied "known good"
-    descriptor.
+    intervening re-derivation from self.root or from the user's known-good descriptor.
     """
 
     # Upper bound on how many levels of derivation a single parse will cache. 1000 is
@@ -381,9 +459,14 @@ class PSBTParser():
         self.held_output_indices: List[int] = []
 
         # The verified derivation paths of multisig outputs that pay a multisig our seed
-        # is part of, but that we count as spends because their cosigners differ from the
-        # inputs' cosigners (or fail to resolve).
-        self.verified_cosigner_mismatch_output_derivation_paths: List[DerivationPath] = []
+        # is part of, but that we count as spends. Either their cosigners differ from the
+        # inputs' cosigners (or the output's policy has none), or their script's keys are
+        # unsorted.
+        self.verified_spend_output_derivation_paths: List[DerivationPath] = []
+
+        # The user's multisig descriptor, once it has been verified against the psbt's
+        # inputs and change.
+        self.verified_multisig_descriptor: Descriptor | None = None
 
         self.root = None
 
@@ -407,6 +490,15 @@ class PSBTParser():
             Multisig psbts will have "m" and "n" defined in policy
         """
         return "m" in self.policy
+
+
+    @property
+    def are_cosigners_resolved(self):
+        """
+            Multisig psbts whose input keys all trace back to the global xpubs will have
+            "cosigners" defined in policy
+        """
+        return "cosigners" in self.policy
 
 
     @property
@@ -447,12 +539,9 @@ class PSBTParser():
              A policy is one of:
                - single-sig: the script type alone. Says nothing about keys.
                - multisig, cosigners resolved: script type, m-of-n, and the cosigner
-                 xpubs that every key in the script was traced back to.
+                 xpubs that the script's keys trace back to. The keys all share one
+                 branch and address index.
                - multisig, cosigners unresolved: script type and m-of-n only.
-                 _get_policy doesn't propagate cosigner errors, so two such policies match
-                 without anything having tied them to the same keys. TODO: don't let a
-                 policy with no cosigner information pass as a match between inputs.
-                 Outputs deliberately compare shape alone; see _is_change_candidate.
 
           5. _reject_if_seed_cannot_sign: rejects the psbt if none of the inputs can be
              signed by the seed. A mismatch rather than an attack, caught here so the flow
@@ -673,8 +762,8 @@ class PSBTParser():
     def _parse_inputs(self, child_key_derivation_cache: dict):
         """
         Verifies each input's claims on this seed and determines the wallet policy.
-        Perceived attacks are raised immediately. Milder errors are held, and processing
-        of the inputs continues uninterrupted. Every input must resolve to the same policy,
+        Perceived attacks are raised immediately. Milder errors are held; processing of
+        the inputs continues uninterrupted. Every input must resolve to the same policy,
         otherwise a RuntimeError is raised.
 
         First we re-derive each key the input claims for our seed, which confirms that the
@@ -684,6 +773,11 @@ class PSBTParser():
 
         We need to be certain which inputs are ours because they determine what a valid
         change output should look like.
+
+        Note: when the cosigners can't be determined, the wallet policy only consists of
+        the script type and m-of-n. So inputs from two multisig wallets with the same
+        script type and m-of-n would be considered the same wallet. Only a user-provided
+        descriptor can disambiguate the inputs.
 
         Holds:
           * PSBTInputOwnershipClaimError: An input carries a false claim on this seed.
@@ -926,6 +1020,8 @@ class PSBTParser():
         Holds:
           * PSBTSurplusDerivationPathsError: An output claims more derivation path entries
             than it can use.
+          * PSBTUnsortedMultisigKeysError: A multisig output that holds this seed's key,
+            with the inputs' script type and m-of-n, lists its keys out of sorted order.
         """
 
         """********************* How output ownership is determined *********************
@@ -974,7 +1070,7 @@ class PSBTParser():
         self.spend_amount = 0
         self.change_amount = 0
         self.change_data = []
-        self.verified_cosigner_mismatch_output_derivation_paths = []
+        self.verified_spend_output_derivation_paths = []
         self.fee_amount = 0
         self.destination_addresses = []
         self.destination_amounts = []
@@ -1161,26 +1257,47 @@ class PSBTParser():
                                 # of. But note that we do not know yet if this is truly
                                 # change coming back to our wallet or if it is paying out
                                 # to a different multisig that happens to include our
-                                # seed. Final change verification can only happen if and
-                                # when the user loads their "known-good" multisig
-                                # descriptor.
+                                # seed. When the inputs' cosigners resolve, the checks
+                                # below and the change path rules later in the parse
+                                # settle whether this output is our change. Otherwise,
+                                # final change verification can only happen if and when
+                                # the user loads their "known-good" multisig descriptor.
                                 is_presumed_change = True
 
                                 # One thing we can rule out now: if the psbt supplied
-                                # global xpubs (see _get_cosigners), we can compare this
-                                # output's cosigners to the inputs' cosigners. Real change
-                                # should have the same cosigners; if this output's
-                                # cosigners differ or fail to resolve at all, we classify
+                                # global xpubs (see _get_valid_cosigners), we can compare
+                                # this output's cosigners to the inputs' cosigners. Real
+                                # change should have the same cosigners; if this output's
+                                # cosigners differ or its policy has none, we classify
                                 # this output as NOT change.
                                 input_cosigners = self.policy.get("cosigners")
                                 output_cosigners = out_policy.get("cosigners")
                                 if input_cosigners is not None and input_cosigners != output_cosigners:
                                     is_presumed_change = False
 
+                                if not PSBTParser._multisig_script_has_sorted_keys(multisig_script):
+                                    # We refuse a script with unsorted keys, whether or
+                                    # not its cosigners match the inputs'. We only support
+                                    # sortedmulti() wallets, which sort the keys (per
+                                    # BIP-67) in every script they derive. The finding is
+                                    # held. In the meantime, the output is counted as a
+                                    # spend.
+                                    is_presumed_change = False
+                                    self._hold_output_finding(i, PSBTUnsortedMultisigKeysError("Multisig output lists its keys out of sorted order"))
+
+                                if not is_presumed_change:
                                     # The output still pays our key, so we record where
                                     # that key is for the change path rules to check later
                                     # in the parse.
-                                    self.verified_cosigner_mismatch_output_derivation_paths.append(verified_derivation_paths[0])
+                                    self.verified_spend_output_derivation_paths.append(verified_derivation_paths[0])
+
+                                elif input_cosigners is not None:
+                                    # The descriptor check is now unnecessary for this
+                                    # output; scanning the user's descriptor will not
+                                    # provide any further guarantees. Whether the UX still
+                                    # encourages loading the descriptor is out of scope
+                                    # for the parser.
+                                    pass
 
                 elif verified_derivation_paths != [] and self.policy["type"] != "p2tr":
                     # The psbt claims one of this seed's keys on this output, yet the
@@ -1378,13 +1495,11 @@ class PSBTParser():
 
                 # check pubkeys are derived from cosigners
                 try:
-                    cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs, child_key_derivation_cache)
+                    cosigners = PSBTParser._get_valid_cosigners(pubkeys, scope.bip32_derivations, xpubs, child_key_derivation_cache)
                     policy.update({"m": m, "n": n, "cosigners": cosigners})
-                except:
-                    # TODO: stop swallowing everything here. This also catches bugs in the
-                    # cosigner check itself, and cannot tell those apart from the psbt
-                    # simply not supplying xpubs to check against, which is valid and must
-                    # not be rejected outright.
+                except (PSBTUnresolvedCosigners, PSBTMixedPathScript):
+                    # We either could not resolve the cosigners or withheld them, so the
+                    # policy carries only the m-of-n that the script itself provides.
                     policy.update({"m": m, "n": n})
 
         return policy
@@ -1498,6 +1613,17 @@ class PSBTParser():
 
 
     @staticmethod
+    def _multisig_script_has_sorted_keys(multisig_script: script.Script) -> bool:
+        """
+        Returns True if multisig_script's keys are in BIP-67 order: sorted by their
+        compressed serialization, the order a sortedmulti() descriptor derives.
+        """
+        m, n, pubkeys = PSBTParser._parse_multisig(multisig_script)
+        secs = [pubkey.sec() for pubkey in pubkeys]
+        return secs == sorted(secs)
+
+
+    @staticmethod
     def _derive_with_cache_via_indices(parent_key: bip32.HDKey, derivation_path: List[int], child_key_derivation_cache: dict | None = None) -> bip32.HDKey:
         """
         Derives the key that sits at the given derivation path below parent_key, reusing
@@ -1562,15 +1688,18 @@ class PSBTParser():
 
 
     @staticmethod
-    def _get_cosigners(pubkeys, derivations, xpubs, child_key_derivation_cache: dict | None):
+    def _get_valid_cosigners(pubkeys, derivations, xpubs, child_key_derivation_cache: dict | None):
         """
-        Traces every key in a multisig script back to the global xpub it was derived
-        from, then returns the xpubs it found as a sorted list of base58 strings.
+        Validates the cosigners for a multisig input or output, then returns their xpubs
+        as a sorted list of base58 strings. The cosigners are considered valid when every
+        key that defines the input or output traces back to one of the psbt's global xpubs
+        and all of those keys are at the same branch and address index (e.g. .../1/5 for
+        each key).
 
         Args:
-          * pubkeys: The keys that actually appear in the script (the witness script for
-            segwit; the redeem script for legacy p2sh). Extracted by _get_policy(). One
-            per cosigner.
+          * pubkeys: The keys that actually appear in an input's or output's script (the
+            witness script for segwit; the redeem script for legacy p2sh). Extracted by
+            _get_policy(). One per cosigner.
 
           * derivations: (embit's bip32_derivations) Each pubkey's associated fingerprint
             and full derivation path (e.g. m/48'/0'/0'/2'/1/5). A dict keyed on each
@@ -1591,25 +1720,49 @@ class PSBTParser():
         The list is sorted so that two scripts holding the same wallet's keys in a
         different order resolve to the same cosigners.
 
-        Note that the bip32_derivations and the global xpubs are both optional psbt
-        fields. If either is omitted or incomplete, this function raises rather than
-        return a partial list.
-        """
-        # TODO: Improve error handling by providing custom exceptions.
+        Raises one of the following two exceptions when it can't return valid cosigners.
+        Neither is an error (so their names omit the "Error" suffix); the exceptions are
+        just to ensure that the caller explicitly handles these cases.
+          * PSBTUnresolvedCosigners: raised when a key can't be traced back to one of the
+            global xpubs. The bip32_derivations and the global xpubs are both optional
+            psbt fields, so either may be omitted or incomplete.
 
+          * PSBTMixedPathScript: raised when the keys are at different branches or address
+            indices (a mixed-path script), even if each key traces back to one of the
+            xpubs. BIP-383 requires the shared address index. The shared branch follows
+            BIP-45. A standard wallet doesn't generate a mixed-path script. If we returned
+            such a script's cosigners, an output paying to one would match the inputs'
+            cosigners and pass as change, even though a standard wallet wouldn't find
+            those funds. So we withhold a mixed-path script's cosigners.
+        """
         # Early-out if the optional data is omitted. Not actually an error: raising is
         # how this function reports that a complete cosigner list can't be built.
         if not xpubs:
-            raise ValueError("No global xpubs supplied")
+            raise PSBTUnresolvedCosigners("No global xpubs supplied")
         if not derivations:
-            raise ValueError("No derivation paths supplied")
+            raise PSBTUnresolvedCosigners("No derivation paths supplied")
 
         cosigners = []
+        shared_branch_and_address_index = None
         for i, pubkey in enumerate(pubkeys):
             # For each pubkey, get the claimed fingerprint and full derivation path
             if pubkey not in derivations:
-                raise ValueError("Missing derivation")
+                raise PSBTUnresolvedCosigners("Missing derivation path")
             der = derivations[pubkey]
+
+            # The last two indices are the branch and address index; must be the same for
+            # every key.
+            branch_and_address_index = der.derivation[-2:]
+            if shared_branch_and_address_index is None:
+                shared_branch_and_address_index = branch_and_address_index
+            elif branch_and_address_index != shared_branch_and_address_index:
+                raise PSBTMixedPathScript("Keys at different branches or address indices")
+
+            # An xpub can only derive non-hardened children
+            for index in branch_and_address_index:
+                if index >= bip32.HARDENED_INDEX:
+                    # It's inherently impossible to resolve this cosigner from an xpub
+                    raise PSBTUnresolvedCosigners("Key at a hardened branch or address index")
 
             # Scan the xpubs for one whose derivation path matches the claim.
             for xpub in xpubs:
@@ -1630,7 +1783,7 @@ class PSBTParser():
         # Every key in the script has to trace back to an xpub for the result to mean
         # anything.
         if len(cosigners) != len(pubkeys):
-            raise RuntimeError("Can't get all cosigners")
+            raise PSBTUnresolvedCosigners("Could not resolve every cosigner")
         return sorted(cosigners)
 
 
@@ -2019,19 +2172,19 @@ class PSBTParser():
             if not self._is_change_address_index_within_window(change_derivation_path):
                 change_data["address_index_beyond_window"] = True
 
-        # Check the multisig outputs that pay our key but were counted as SPENDS
-        # because their cosigners differ from the inputs'. They must pass the same rules.
-        # (the address index window check only applies to change, already checked above)
-        for verified_derivation_path in self.verified_cosigner_mismatch_output_derivation_paths:
+        # Check the multisig outputs that pay our key but were counted as SPENDS (see
+        # _parse_outputs). They must pass the same rules. (the address index window check
+        # only applies to change, already checked above)
+        for verified_derivation_path in self.verified_spend_output_derivation_paths:
             if not self._is_wallet_change_derivation_path(verified_derivation_path.derivation):
                 raise PSBTChangeDerivationPathError(derivation_path=verified_derivation_path.derivation)
 
 
     def _evaluate_input_base_paths(self):
         """
-        A check for single sig segwit v0 inputs that this seed signs. The inputs must
+        A check for single sig segwit v0 inputs that this seed owns. The inputs must
         either:
-          * Only spend from a single wallet (every input this seed signs must be at the
+          * Only spend from a single wallet (every input this seed owns must be at the
             same base path).
           * Or each input must supply a non_witness_utxo.
 
@@ -2132,12 +2285,94 @@ class PSBTParser():
 
 
     def verify_multisig_output(self, descriptor: Descriptor, change_num: int) -> bool:
+        """
+        Returns True if the descriptor derives the address of the change output at
+        change_num.
+        """
         change_data = self.get_change_data(change_num)
         i = change_data["output_index"]
         output = self.psbt.outputs[i]
-        is_owner = descriptor.owns(output)
-        # print(f"{self.psbt.tx.vout[i].script_pubkey.address()} | {output.value} | {is_owner}")
+        is_owner = PSBTParser._descriptor_owns(descriptor, output)
         return is_owner
+
+
+    def verify_multisig_descriptor(self, descriptor: Descriptor):
+        """
+        Checks the user's multisig descriptor against this psbt and records it in
+        verified_multisig_descriptor if it passes.
+
+        Verifying the user's multisig descriptor unifies the inputs' facts with the change
+        outputs' claims by proving that both belong to the same wallet.
+          * The user loads the descriptor, which lists the cosigners' xpubs and derivation
+            paths that define the wallet.
+          * We check that the descriptor is in a supported form: sortedmulti(), with every
+            key ending in "/{0,1}/*".
+          * We confirm that the descriptor derives the addresses of the psbt's inputs.
+          * Then we verify that it also derives the addresses of the change outputs.
+
+        We cannot just accept the descriptor at face value; a compromised coordinator
+        could supply a forged descriptor. A forged descriptor can list the seed's real key
+        but replace the cosigners with the attacker's keys. A malicious coordinator can
+        create the psbt with change outputs built from that forged descriptor. So a
+        "does the descriptor derive the change?" check alone is not sufficient.
+
+        The inputs are different. A forged descriptor would not be able to derive the
+        addresses for the wallet's genuine inputs. So by requiring the descriptor to match
+        the inputs, we know that it describes the correct wallet. We can then safely use
+        the descriptor to verify the change outputs (and apply other correctness checks).
+
+        Note: in a collaborative transaction, another party's inputs belong to their own
+        wallet, so we only check the inputs this seed owns.
+        """
+        from seedsigner.helpers import embit_utils
+        if not embit_utils.is_supported_multisig_descriptor(descriptor):
+            raise PSBTUnsupportedMultisigDescriptorError("Unsupported multisig descriptor form")
+
+        if not self.is_multisig:
+            # We shouldn't be able to get here with a single sig psbt; just a precaution
+            return
+
+        # First the input side: loop over the inputs using their verified derivation
+        # paths. Every input has an entry, in input order.
+        num_inputs_checked = 0
+        for i, verified_derivation_paths in enumerate(self.verified_input_derivation_paths):
+            if verified_derivation_paths == []:
+                # The seed does not own this input
+                continue
+
+            if not PSBTParser._descriptor_owns(descriptor, self.psbt.inputs[i]):
+                raise PSBTInputDescriptorMismatchError(f"Descriptor does not derive the address of input {i}")
+
+            num_inputs_checked += 1
+
+        if num_inputs_checked == 0:
+            # We shouldn't be able to get here: the parse would have already rejected a
+            # psbt that the seed can't sign. But the assurances provided by the change
+            # verification step below depend on the descriptor matching against an input.
+            # So this sanity check is important.
+            raise RuntimeError("Should not have been able to reach here: the seed doesn't own any of the inputs in the PSBT")
+
+        # Now verify that the same descriptor derives the change outputs
+        for change_num in range(self.num_change_outputs):
+            if not self.verify_multisig_output(descriptor, change_num):
+                raise PSBTChangeDescriptorMismatchError(change_num=change_num)
+
+        self.verified_multisig_descriptor = descriptor
+
+
+    @staticmethod
+    def _descriptor_owns(descriptor: Descriptor, scope: InputScope | OutputScope) -> bool:
+        """
+        Returns True if the descriptor derives the address of the input or output.
+
+        embit's Descriptor.owns() raises ArgumentError when a derivation path entry
+        matches one of the descriptor's keys but ends in a hardened address index. A
+        ranged key only derives non-hardened children, so we count that as not owned.
+        """
+        try:
+            return descriptor.owns(scope)
+        except ArgumentError:
+            return False
 
 
     def _fill_missing_fingerprints(self, child_key_derivation_cache: dict):

@@ -146,6 +146,13 @@ seed_24_w_passphrase = Seed(mnemonic=mnemonic_24, passphrase="some-PASS*phrase9"
 
 MULTISIG_WALLET_DESCRIPTOR = """wsh(sortedmulti(1,[22bde1a9/48h/1h/0h/2h]tpubDFfsBrmpj226ZYiRszYi2qK6iGvh2vkkghfGB2YiRUVY4rqqedHCFEgw12FwDkm7rUoVtq9wLTKc6BN2sxswvQeQgp7m8st4FP8WtP8go76/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*))#3jhtf6yx"""
 
+# The same multisig PSBT with its wallet's xpubs added as global xpubs, so that its
+# cosigners resolve
+psbt = PSBT.from_base64(BASE64_MULTISIG_PSBT)
+for key in embit.descriptor.Descriptor.from_string(MULTISIG_WALLET_DESCRIPTOR).keys:
+    psbt.xpubs[key.key] = embit.psbt.DerivationPath(key.fingerprint, key.derivation)
+BASE64_MULTISIG_PSBT_WITH_GLOBAL_XPUBS = psbt.to_string()
+
 # Grab the most recent release version info for the "release build" splash screenshots.
 (latest_release_version_name, latest_release_version_timestamp) = VersionUtils._fetch_latest_seedsigner_release_tag()
 if not latest_release_version_name or not latest_release_version_timestamp:
@@ -334,6 +341,12 @@ def generate_screenshots(locale):
 
 
         @contextmanager
+        def mock_multisig_psbt_with_global_xpubs_loaded():
+            with mock_load_psbt(BASE64_MULTISIG_PSBT_WITH_GLOBAL_XPUBS):
+                yield
+
+
+        @contextmanager
         def mock_multisig_wallet_descriptor_loaded():
             with patch.object(controller, 'multisig_wallet_descriptor', embit.descriptor.Descriptor.from_string(MULTISIG_WALLET_DESCRIPTOR)):
                 yield
@@ -343,6 +356,8 @@ def generate_screenshots(locale):
         def mock_multisig_psbt_and_descriptor_loaded():
             with mock_multisig_psbt_loaded():
                 with mock_multisig_wallet_descriptor_loaded():
+                    # The change is verified when the descriptor arrives
+                    controller.psbt_parser.verify_multisig_descriptor(controller.multisig_wallet_descriptor)
                     yield
 
 
@@ -479,6 +494,7 @@ def generate_screenshots(locale):
 
                 ScreenshotConfig(seed_views.LoadMultisigWalletDescriptorView),
                 ScreenshotConfig(seed_views.MultisigWalletDescriptorView, mock_context_manager=mock_multisig_wallet_descriptor_loaded),
+                ScreenshotConfig(seed_views.UnsupportedMultisigDescriptorView),
                 ScreenshotConfig(seed_views.SeedDiscardView, dict(seed=seed_12)),
 
                 ScreenshotConfig(seed_views.SeedSelectSeedView, dict(flow=Controller.FLOW__SIGN_MESSAGE), screenshot_name="SeedSelectSeedView_sign_message"),
@@ -499,7 +515,11 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), screenshot_name="PSBTChangeDetailsView_single_sig_change_verified",        mock_context_manager=mock_single_sig_psbt_loaded),
                 ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=1), screenshot_name="PSBTChangeDetailsView_single_sig_self_transfer_verified", mock_context_manager=mock_single_sig_psbt_loaded),
                 ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), screenshot_name="PSBTChangeDetailsView_single_sig_change_distant_index", mock_context_manager=mock_single_sig_psbt_with_distant_change_loaded),
-                ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), screenshot_name="PSBTChangeDetailsView_multisig_unverified", mock_context_manager=mock_multisig_psbt_loaded),
+                ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), screenshot_name="PSBTChangeDetailsView_multisig_unverified", mock_context_manager=mock_multisig_psbt_with_global_xpubs_loaded),
+                ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), screenshot_name="PSBTChangeDetailsView_multisig_cosigners_unverified", mock_context_manager=mock_multisig_psbt_loaded),
+                ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=1), screenshot_name="PSBTChangeDetailsView_multisig_self_transfer_cosigners_unverified", mock_context_manager=mock_multisig_psbt_loaded),
+                ScreenshotConfig(psbt_views.PSBTUnverifiedChangeWarningView, dict(change_address_num=0), screenshot_name="PSBTUnverifiedChangeWarningView_change",        mock_context_manager=mock_multisig_psbt_loaded),
+                ScreenshotConfig(psbt_views.PSBTUnverifiedChangeWarningView, dict(change_address_num=1), screenshot_name="PSBTUnverifiedChangeWarningView_self_transfer", mock_context_manager=mock_multisig_psbt_loaded),
                 ScreenshotConfig(psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), screenshot_name="PSBTChangeDetailsView_multisig_verified",   mock_context_manager=mock_multisig_psbt_and_descriptor_loaded),
                 ScreenshotConfig(psbt_views.PSBTOverviewView, screenshot_name="PSBTOverviewView_op_return",    mock_context_manager=mock_psbt_with_op_return_loaded),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_text",         mock_context_manager=mock_psbt_with_op_return_loaded),
@@ -522,6 +542,8 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTUnsupportedScriptPathView),
                 ScreenshotConfig(psbt_views.PSBTUnexpectedChangeDerivationPathView, dict(derivation_path=embit.bip32.parse_path("m/84h/1h/5h/1/0"))),
                 ScreenshotConfig(psbt_views.PSBTUnverifiableMixedInputBasePathsView),
+                ScreenshotConfig(psbt_views.PSBTUnsortedMultisigKeysView),
+                ScreenshotConfig(psbt_views.PSBTInputDescriptorMismatchView),
                 ScreenshotConfig(psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True),  screenshot_name="PSBTAddressVerificationFailedView_multisig_change"),
                 ScreenshotConfig(psbt_views.PSBTAddressVerificationFailedView, dict(is_change=False), screenshot_name="PSBTAddressVerificationFailedView_multisig_selftransfer"),
                 ScreenshotConfig(psbt_views.PSBTOutputOwnershipClaimFailedView),
