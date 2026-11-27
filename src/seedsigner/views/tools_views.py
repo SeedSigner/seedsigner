@@ -5,9 +5,9 @@ import time
 from gettext import gettext as _
 
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants, resize_image_to_fill
-from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
+from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen, LargeIconStatusScreen, WarningScreen
 from seedsigner.gui.screens.screen import ButtonOption
-from seedsigner.helpers import mnemonic_generation
+from seedsigner.helpers import entropy_verification, mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
@@ -117,6 +117,11 @@ class ToolsImageEntropyFinalImageView(View):
 
             time.sleep(0.25)
             self.controller.image_entropy_final_image = camera.capture_frame()
+            # Immediate second capture of the same scene (exposure/AWB were
+            # locked by the first capture_frame call). Used ONLY to measure
+            # temporal sensor noise via frame differencing -- it is never
+            # hashed into the seed.
+            self.controller.image_entropy_noise_frame = camera.capture_frame()
             camera.stop_single_frame_mode()
 
         # Prep a copy of the image for display:
@@ -138,6 +143,7 @@ class ToolsImageEntropyFinalImageView(View):
         if ret == RET_CODE__BACK_BUTTON:
             # Go back to live preview and reshoot
             self.controller.image_entropy_final_image = None
+            self.controller.image_entropy_noise_frame = None
             return Destination(BackStackView)
         
         return Destination(ToolsImageEntropyMnemonicLengthView)
@@ -171,6 +177,52 @@ class ToolsImageEntropyMnemonicLengthView(View):
         try:
             preview_images = self.controller.image_entropy_preview_frames
             seed_entropy_image = self.controller.image_entropy_final_image
+
+            # Entropy quality check (approach adapted from Krux): measure the
+            # capture and display the result; a degenerate capture (flat/dark
+            # scene, or no detectable sensor noise between two back-to-back
+            # frames) requires an explicit override to proceed. Measurement
+            # only -- the hash chain below is unchanged.
+            image_result = entropy_verification.assess_image_entropy(
+                seed_entropy_image,
+                noise_reference_frame=self.controller.image_entropy_noise_frame,
+            )
+            self.loading_screen.stop()
+            stats_text = _("Scene: {shannon} bits/px\nDeviation: {dev}").format(
+                shannon=f"{image_result.shannon_bits_per_pixel:.1f}",
+                dev=image_result.deviation_index,
+            )
+            if image_result.noise_bits_per_pixel is not None:
+                stats_text += "\n" + _("Sensor noise: {noise} bits/px").format(
+                    noise=f"{image_result.noise_bits_per_pixel:.2f}"
+                )
+            if image_result.quality == entropy_verification.EntropyQuality.GOOD:
+                self.run_screen(
+                    LargeIconStatusScreen,
+                    title=_("Image Entropy"),
+                    show_back_button=False,
+                    status_headline=_("Good entropy"),
+                    text=stats_text,
+                    button_data=[ButtonOption(_("Continue"))],
+                )
+            else:
+                if image_result.quality == entropy_verification.EntropyQuality.POOR:
+                    headline = _("Poor entropy")
+                else:
+                    headline = _("Insufficient entropy")
+                selected_menu_num = self.run_screen(
+                    WarningScreen,
+                    title=_("Image Entropy"),
+                    status_headline=headline,
+                    text=stats_text + "\n" + _("Proceed anyway?"),
+                    button_data=[ButtonOption(_("Proceed anyway")), ButtonOption(_("Retake"))],
+                )
+                if selected_menu_num != 0:
+                    self.controller.image_entropy_final_image = None
+                    self.controller.image_entropy_noise_frame = None
+                    return Destination(BackStackView)
+            self.loading_screen = LoadingScreenThread(text=_("Calculating..."))
+            self.loading_screen.start()
 
             # Build in some hardware-level uniqueness via CPU unique Serial num
             try:
@@ -212,6 +264,7 @@ class ToolsImageEntropyMnemonicLengthView(View):
             hash_bytes = None
             self.controller.image_entropy_preview_frames = None
             self.controller.image_entropy_final_image = None
+            self.controller.image_entropy_noise_frame = None
 
             # Add the mnemonic as an in-memory Seed
             seed = Seed(mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
@@ -277,7 +330,40 @@ class ToolsDiceEntropyEntryView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
+        # Entropy quality verdict (approach adapted from Krux): flag roll
+        # sequences that are statistically inconsistent with fair, independent
+        # dice -- repeating patterns or badly skewed face counts. Measurement
+        # only; mnemonic derivation below is unchanged.
+        mnemonic_length = 12 if self.total_rolls == mnemonic_generation.DICE__NUM_ROLLS__12WORD else 24
+        result = entropy_verification.assess_dice_entropy(ret, mnemonic_length)
+        if result.passed:
+            self.run_screen(
+                LargeIconStatusScreen,
+                title=_("Dice Entropy"),
+                show_back_button=False,
+                status_headline=_("Good entropy"),
+                text=_("No anomalies detected in {} rolls").format(len(ret)),
+                button_data=[ButtonOption(_("Continue"))],
+            )
+        else:
+            selected_menu_num = self.run_screen(
+                WarningScreen,
+                title=_("Dice Entropy"),
+                status_headline=_("Insufficient entropy"),
+                text=result.warning_text + "\n" + _("Proceed anyway?"),
+                button_data=[ButtonOption(_("Proceed anyway")), ButtonOption(_("Re-roll"))],
+            )
+            if selected_menu_num != 0:
+                return Destination(BackStackView)
+
+        # Per-face roll distribution; makes a biased die visible at a glance.
+        from seedsigner.gui.screens.tools_screens import ToolsDiceDistributionScreen
+        self.run_screen(
+            ToolsDiceDistributionScreen,
+            rolls=ret,
+        )
+
         dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
 
         # Add the mnemonic as an in-memory Seed
