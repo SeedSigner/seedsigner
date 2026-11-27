@@ -7,6 +7,7 @@ from base import BaseTest, FlowTest, FlowStep
 from base import FlowTestInvalidButtonDataSelectionException
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
+from seedsigner.models.qr_type import QRType
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
 from seedsigner.views.view import MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
@@ -494,6 +495,55 @@ class TestSeedFlows(FlowTest):
         ])
 
         assert self.controller.is_screensaver_start_allowed == False
+
+
+    @patch("seedsigner.gui.screens.seed_screens.SeedTranscribeSeedQRZoomedInScreen", autospec=True)
+    def test_transcribe_seedqr_standard_when_compact_disabled_flow(self, mock_zoomed_in_screen: Callable):
+        """
+        When CompactSeedQR is disabled in settings:
+        - 24-word seed standard SeedQR must route with num_modules=29 (not hardcoded 25).
+        - 12-word seed standard SeedQR must route with num_modules=25.
+        """
+        Settings.get_instance().set_value(SettingsConstants.SETTING__COMPACT_SEEDQR, SettingsConstants.OPTION__DISABLED)
+
+        mnemonic_24 = ["abandon"] * 23 + ["art"]
+        seed_24 = Seed(mnemonic=mnemonic_24)
+        self.controller.storage.set_pending_seed(seed_24)
+        self.controller.storage.finalize_pending_seed()
+
+        captured_warning_view = []
+        def capture_warning_view(view: View):
+            captured_warning_view.append(view)
+
+        captured_whole_qr_view = []
+        def capture_whole_qr_view(view: View):
+            captured_whole_qr_view.append(view)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, screen_return_value=0),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BACKUP),
+            FlowStep(seed_views.SeedBackupView, button_data_selection=seed_views.SeedBackupView.EXPORT_SEEDQR),
+            FlowStep(seed_views.SeedTranscribeSeedQRFormatView, is_redirect=True),
+            FlowStep(seed_views.SeedTranscribeSeedQRWarningView, before_run=capture_warning_view),
+            FlowStep(seed_views.SeedTranscribeSeedQRWholeQRView, screen_return_value=0, before_run=capture_whole_qr_view),
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView),
+        ])
+
+        assert len(captured_warning_view) == 1
+        assert captured_warning_view[0].num_modules == 29
+        assert captured_warning_view[0].seedqr_format == QRType.SEED__SEEDQR
+
+        assert len(captured_whole_qr_view) == 1
+        assert captured_whole_qr_view[0].num_modules == 29
+
+        # Also verify 12-word seed correctly routes with num_modules=25
+        mnemonic_12 = ["abandon"] * 11 + ["about"]
+        seed_12 = Seed(mnemonic=mnemonic_12)
+        view_12 = seed_views.SeedTranscribeSeedQRFormatView(seed=seed_12)
+        dest_12 = view_12.run()
+        assert dest_12.view_args["num_modules"] == 25
+        assert dest_12.view_args["seedqr_format"] == QRType.SEED__SEEDQR
 
 
 
