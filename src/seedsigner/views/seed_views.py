@@ -2037,7 +2037,7 @@ class LoadMultisigWalletDescriptorView(View):
 
         elif button_data[selected_menu_num] == self.CANCEL:
             from seedsigner.controller import Controller
-            if self.controller.resume_main_flow == Controller.FLOW__PSBT:
+            if self.controller.resume_main_flow in [Controller.FLOW__PSBT, Controller.FLOW__VERIFY_MULTISIG_ADDR]:
                 return Destination(BackStackView)
             else:
                 return Destination(MainMenuView)
