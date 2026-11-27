@@ -1051,6 +1051,14 @@ class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
 
 
 @dataclass
+class AdviceScreen(WarningEdgesMixin, LargeIconStatusScreen):
+    title: str = _mft("Advice")
+    status_icon_name: str = SeedSignerIconConstants.WARNING
+    status_color: str = "yellow"
+
+
+
+@dataclass
 class DireWarningScreen(WarningScreen):
     """
     Exclamation point icon + orange DIRE_WARNING color
