@@ -4,7 +4,7 @@ import hashlib
 import hmac
 
 from binascii import hexlify
-from embit import bip39, bip32, bip85
+from embit import bip39, bip32, bip85, slip39
 from embit.networks import NETWORKS
 from typing import List
 
@@ -14,6 +14,14 @@ logger = logging.getLogger(__name__)
 
 
 class InvalidSeedException(Exception):
+    pass
+
+
+class IncompleteShamirShareSetException(Exception):
+    pass
+
+
+class DuplicateShamirShareException(InvalidSeedException):
     pass
 
 
@@ -137,11 +145,19 @@ class Seed:
 
     @property
     def seedqr_supported(self) -> bool:
+        # TODO: Add "is_" prefix to this method
         return True
 
 
     @property
     def bip85_supported(self) -> bool:
+        # TODO: Add "is_" prefix to this method
+        return True
+    
+
+    @property
+    def backup_supported(self) -> bool:
+        # TODO: Add "is_" prefix to this method
         return True
 
 
@@ -239,3 +255,97 @@ class ElectrumSeed(Seed):
     @property
     def bip85_supported(self) -> bool:
         return False
+
+
+
+class ShamirSeed(Seed):
+    def __init__(self,
+                 mnemonic: List[List[str]] = None,
+                 passphrase: str = "") -> None:
+        if not mnemonic:
+            raise Exception("Must initialize a ShamirSeed with a mnemonic List[List[str]]")
+        
+        self._mnemonic: List[List[str]] = mnemonic # Mnemonic in this case is the set of Shamir shares
+
+        self._passphrase: str = ""
+        self.set_passphrase(passphrase, regenerate_seed=False)
+
+        self.seed_bytes: bytes = None
+        self._generate_seed()
+
+
+    @staticmethod
+    def get_wordlist() -> List[str]:
+        return slip39.SLIP39_WORDS
+        
+
+    def _generate_seed(self):
+        try:
+            shares = [slip39.Share.parse(" ".join(words)) for words in self._mnemonic]
+            # Validate the entire backup before selecting shares for recovery.
+            share_set = slip39.ShareSet(shares)
+            groups = {}
+            for share in shares:
+                if share.group_index >= share.group_count:
+                    raise ValueError("Group index exceeds group count")
+                group = groups.setdefault(share.group_index, [])
+                if group and share.member_threshold != group[0].member_threshold:
+                    raise ValueError("Member thresholds differ within a group")
+                group.append(share)
+
+            complete_groups = [
+                group[:group[0].member_threshold]
+                for _, group in sorted(groups.items())
+                if len(group) >= group[0].member_threshold
+            ]
+            if len(complete_groups) < share_set.group_threshold:
+                raise IncompleteShamirShareSetException("Not enough complete groups")
+
+            # embit 0.8.0 tries to recover every supplied group, including
+            # incomplete ones. Pass only the required complete groups.
+            recovery_shares = [
+                share
+                for group in complete_groups[:share_set.group_threshold]
+                for share in group
+            ]
+            self.seed_bytes = slip39.ShareSet(recovery_shares).recover(
+                self._passphrase.encode('utf-8')
+            )
+        except IncompleteShamirShareSetException:
+            raise
+        except ValueError as e:
+            logger.info(repr(e), exc_info=True)
+            raise InvalidSeedException(repr(e)) from e
+        except TypeError as e:
+            logger.info(repr(e), exc_info=True)
+            raise InvalidSeedException(repr(e)) from e
+        
+
+    @property
+    def passphrase_label(self) -> str:
+        return SettingsConstants.LABEL__SHAMIR_PASSPHRASE
+
+
+    @property
+    def seedqr_supported(self) -> bool:
+        return False
+
+
+    @property
+    def bip85_supported(self) -> bool:
+        return False
+    
+
+    @property
+    def backup_supported(self) -> bool:
+        # TODO: Support SLIP-39 extendable backup flag. Sparrow falls back
+        # to a 1-of-1 backup for recovery. Pending embit support for this (PR embit#91).
+        return False
+
+ 
+    def mnemonic_display_str(self, share_index) -> str:
+        return unicodedata.normalize("NFC", self._mnemonics[share_index])
+    
+
+    def mnemonic_display_list(self, share_index) -> List[str]:
+        return unicodedata.normalize("NFC", self._mnemonics[share_index]).split()
