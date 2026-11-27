@@ -9,8 +9,8 @@ from seedsigner.models.psbt_parser import (PSBTChangeDerivationPathError,
     PSBTMissingInputUtxoError, PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError,
     PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
     PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError,
-    PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError,
-    PSBTUnverifiableMixedInputBasePathsError)
+    PSBTUnsortedMultisigKeysError, PSBTUnsupportedDerivationPathError,
+    PSBTUnsupportedScriptPathError, PSBTUnverifiableMixedInputBasePathsError)
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
@@ -184,6 +184,10 @@ class PSBTOverviewView(View):
 
             except PSBTUnverifiableMixedInputBasePathsError:
                 self.set_redirect(Destination(PSBTUnverifiableMixedInputBasePathsView, clear_history=True))
+                return
+
+            except PSBTUnsortedMultisigKeysError:
+                self.set_redirect(Destination(PSBTUnsortedMultisigKeysView, clear_history=True))
                 return
 
             except PSBTSeedCannotSignError:
@@ -486,19 +490,20 @@ class PSBTChangeDetailsView(View):
 
         is_change_addr_verified = False
         if psbt_parser.is_multisig:
-            # Multisig is verified here rather than during the initial parse because the
-            # descriptor it needs to be checked against does not arrive until mid-flow.
-            # TODO: Verify the multisig change as soon as the descriptor is loaded, rather
-            # than waiting to do it here.
-
-            # if the known-good multisig descriptor is already onboard:
-            if self.controller.multisig_wallet_descriptor:
-                is_change_addr_verified = psbt_parser.verify_multisig_output(self.controller.multisig_wallet_descriptor, change_num=self.change_address_num)
+            # Multisig change is verified against the user's descriptor, which arrives
+            # mid-flow. Every change output is checked as soon as the descriptor
+            # arrives. So once a verified descriptor is recorded, this output has already
+            # passed.
+            if psbt_parser.verified_multisig_descriptor is not None:
+                is_change_addr_verified = True
                 button_data = [self.NEXT]
 
             else:
-                # Nothing to check against yet. Have the Screen offer to load in the
-                # multisig descriptor.
+                # Have the Screen offer to load in the multisig descriptor. When the
+                # cosigners resolve, the parser has already verified this change output,
+                # so the descriptor check is unnecessary. We still ask for it as a best
+                # practice: it encourages the user to keep their descriptor accessible
+                # and confirms that they haven't lost it.
                 button_data = [self.VERIFY_MULTISIG, self.SKIP_VERIFICATION]
 
         else:
@@ -506,13 +511,6 @@ class PSBTChangeDetailsView(View):
             # this seed.
             is_change_addr_verified = True
             button_data = [self.NEXT]
-
-        # TODO: Will be unnecessary once the above update is made to verify multisig
-        # change as soon as the descriptor is loaded.
-        if not is_change_addr_verified and self.controller.multisig_wallet_descriptor is not None:
-            # Verification failed, so this psbt is done.
-            # Set clear_history to disable returning via BACK button.
-            return Destination(PSBTAddressVerificationFailedView, view_args=dict(is_change=is_change_derivation_path), clear_history=True)
 
         selected_menu_num = self.run_screen(
             PSBTChangeDetailsScreen,
@@ -986,7 +984,7 @@ class PSBTUnexpectedChangeDerivationPathView(View):
 
 class PSBTUnverifiableMixedInputBasePathsView(View):
     """
-    Reached by single sig segwit v0 transactions when the inputs this seed signs are at
+    Reached by single sig segwit v0 transactions when the inputs this seed owns are at
     more than one base path and at least one input has no non_witness_utxo (the full
     transaction that created its utxo). See PSBTUnverifiableMixedInputBasePathsError.
 
@@ -1012,14 +1010,77 @@ class PSBTUnverifiableMixedInputBasePathsView(View):
 
 
 
+class PSBTUnsortedMultisigKeysView(View):
+    """
+    Reached when a multisig output that holds this seed's key, with the inputs' script
+    type and m-of-n, lists its keys out of sorted order (see
+    PSBTUnsortedMultisigKeysError).
+
+    We only support sortedmulti() wallets, but an honest multi() wallet can produce this.
+    We do not allow the user to continue, but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            text=_("A multisig output to this seed does not properly sort its keys. SeedSigner only supports BIP-67 compliant wallets."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTInputDescriptorMismatchView(View):
+    """
+    Reached when the descriptor the user just loaded does not derive the address of an
+    input this seed owns (see PSBTInputDescriptorMismatchError).
+
+    The usual cause is the user loading the wrong descriptor, but a forged descriptor
+    fails the same way. We give this the "Dire Warning" level. The back button returns to
+    the prompt to load a descriptor, so the user can try another one. Every descriptor
+    they load faces the same check.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        button_data = [self.DISCARD]
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
+            title=_("Wrong Descriptor"),
+            status_headline=_("Descriptor Mismatch"),
+            text=_("This descriptor is not for the wallet this transaction spends from."),
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.DISCARD:
+            # We're done with this PSBT. Route back to MainMenuView, which clears all
+            # ephemeral data (except in-memory seeds).
+            # Set clear_history to disable returning via BACK button.
+            return Destination(MainMenuView, clear_history=True)
+
+
+
 class PSBTAddressVerificationFailedView(View):
     """
-    Reached from PSBTChangeDetailsView when a multisig change or self-transfer output
-    could not be verified against the descriptor the user supplied.
+    Reached when the descriptor the user just loaded does not derive the address of a
+    multisig change or self-transfer output (see PSBTChangeDescriptorMismatchError). The
+    descriptor did match the inputs, so this is not simply a case of loading the wrong
+    descriptor.
 
-    We view this as suspicious but stop short of calling it an attack, since the user may
-    have loaded the wrong wallet's descriptor. We do not allow the user to continue and
-    give this the "Dire Warning" level.
+    We view this as suspicious but stop short of calling it an attack: the user may be
+    sending funds to a different multisig wallet that includes this seed. We do not allow
+    the user to continue and give this the "Dire Warning" level.
     """
     def __init__(self, is_change: bool = True):
         super().__init__()
@@ -1028,7 +1089,7 @@ class PSBTAddressVerificationFailedView(View):
 
     def run(self):
         # TRANSLATOR_NOTE: Variable is either "change" or "self-transfer".
-        text = _("Transaction's {} address could not be verified from wallet descriptor.").format(_("change") if self.is_change else _("self-transfer"))
+        text = _("The descriptor matches the transaction's inputs, but not its {} address.").format(_("change") if self.is_change else _("self-transfer"))
 
         self.run_screen(
             DireWarningScreen,

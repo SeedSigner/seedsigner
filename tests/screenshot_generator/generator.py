@@ -343,6 +343,8 @@ def generate_screenshots(locale):
         def mock_multisig_psbt_and_descriptor_loaded():
             with mock_multisig_psbt_loaded():
                 with mock_multisig_wallet_descriptor_loaded():
+                    # The change is verified when the descriptor arrives
+                    controller.psbt_parser.verify_multisig_descriptor(controller.multisig_wallet_descriptor)
                     yield
 
 
@@ -479,6 +481,7 @@ def generate_screenshots(locale):
 
                 ScreenshotConfig(seed_views.LoadMultisigWalletDescriptorView),
                 ScreenshotConfig(seed_views.MultisigWalletDescriptorView, mock_context_manager=mock_multisig_wallet_descriptor_loaded),
+                ScreenshotConfig(seed_views.UnsupportedMultisigDescriptorView),
                 ScreenshotConfig(seed_views.SeedDiscardView, dict(seed=seed_12)),
 
                 ScreenshotConfig(seed_views.SeedSelectSeedView, dict(flow=Controller.FLOW__SIGN_MESSAGE), screenshot_name="SeedSelectSeedView_sign_message"),
@@ -522,6 +525,8 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTUnsupportedScriptPathView),
                 ScreenshotConfig(psbt_views.PSBTUnexpectedChangeDerivationPathView, dict(derivation_path=embit.bip32.parse_path("m/84h/1h/5h/1/0"))),
                 ScreenshotConfig(psbt_views.PSBTUnverifiableMixedInputBasePathsView),
+                ScreenshotConfig(psbt_views.PSBTUnsortedMultisigKeysView),
+                ScreenshotConfig(psbt_views.PSBTInputDescriptorMismatchView),
                 ScreenshotConfig(psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True),  screenshot_name="PSBTAddressVerificationFailedView_multisig_change"),
                 ScreenshotConfig(psbt_views.PSBTAddressVerificationFailedView, dict(is_change=False), screenshot_name="PSBTAddressVerificationFailedView_multisig_selftransfer"),
                 ScreenshotConfig(psbt_views.PSBTOutputOwnershipClaimFailedView),

@@ -8,26 +8,29 @@ from unittest.mock import patch
 from embit import bip32, script
 from embit.ec import PublicKey
 from embit.networks import NETWORKS
-from embit.psbt import PSBT, DerivationPath, OutputScope
+from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope
 from embit.descriptor import Descriptor
+from embit.descriptor.errors import ArgumentError
 from embit.script import Script
 
 from seedsigner.models.psbt_parser import (OPCODES, PSBTChangeDerivationPathError,
-    PSBTExtraneousInputScriptError, PSBTInputAmountVerificationError,
+    PSBTChangeDescriptorMismatchError, PSBTExtraneousInputScriptError,
+    PSBTInputAmountVerificationError, PSBTInputDescriptorMismatchError,
     PSBTInputOwnershipClaimError, PSBTInputOwnershipContradictionError,
     PSBTInputScriptMismatchError, PSBTMalformedOpReturnError, PSBTMissingInputScriptError,
     PSBTMissingInputUtxoError, PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError,
     PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
-    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError,
-    PSBTUnsupportedDerivationPathError, PSBTUnsupportedScriptPathError,
+    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError, PSBTUnresolvedCosigners,
+    PSBTUnsortedMultisigKeysError, PSBTUnsupportedDerivationPathError,
+    PSBTUnsupportedMultisigDescriptorError, PSBTUnsupportedScriptPathError,
     PSBTUnverifiableMixedInputBasePathsError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
 from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_key,
     create_op_return_output, create_op_return_psbt, create_output, foreign_public_key,
-    op_return_script, p2tr_with_script_tree, repoint_change, root_for_seed,
-    set_input_locking_script, tapleaf_hash)
+    op_return_script, p2tr_with_script_tree, repoint_at_a_different_quorum,
+    repoint_change, root_for_seed, set_input_locking_script, tapleaf_hash)
 
 
 
@@ -366,6 +369,34 @@ class TestPSBTParser:
                     assert psbt_parser.verify_multisig_output(descriptor, change_num=1) == False
 
 
+    def test__descriptor_owns__returns_false_for_a_hardened_address_index(self):
+        """
+        A descriptor never owns an input or output whose derivation path entry ends in a
+        hardened "address_index".
+
+        The psbt's multisig input lists every key at a hardened "address_index" under the
+        wallet's own account path. embit raises on that entry rather than returning False.
+        The parser should count the input as not owned.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        inp = psbt.inputs[0]
+        descriptor = Descriptor.from_string(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR)
+
+        # The wallet's own descriptor owns the input as the fixture wrote it
+        assert PSBTParser._descriptor_owns(descriptor, inp) is True
+
+        # Harden the "address_index" of each of the input's entries
+        for derivation_path_obj in inp.bip32_derivations.values():
+            derivation_path_obj.derivation[-1] += bip32.HARDENED_INDEX
+
+        # embit raises on the hardened "address_index"...
+        with pytest.raises(ArgumentError):
+            descriptor.owns(inp)
+
+        # ...which the parser counts as not owned
+        assert PSBTParser._descriptor_owns(descriptor, inp) is False
+
+
     def test__is_change_branch__distinguishes_the_change_branch_from_the_receive_branch(self):
         """
         A wallet keeps its change addresses on branch 1 and the addresses it hands out to
@@ -374,6 +405,8 @@ class TestPSBTParser:
         """
         assert PSBTParser.is_change_branch(bip32.parse_path("m/84h/1h/0h/1/0")) is True
         assert PSBTParser.is_change_branch(bip32.parse_path("m/84h/1h/0h/0/0")) is False
+
+
     @pytest.mark.parametrize("vout_values, change_data, expected", [
         # single destination + single change
         ([100, 200], [{"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/1/0"), "amount": 200}], 100),
@@ -1053,21 +1086,22 @@ class TestPSBTParserOptimizations:
             assert derived.key.sec() == expected_key
 
 
-    def test_get_cosigners_identical_with_and_without_cache(self):
+    def test_get_valid_cosigners_identical_with_and_without_cache(self):
         """
-        The cache is transparent to callers: _get_cosigners returns the same cosigner
-        list whether it derives every level itself or reads them back out of the cache.
+        The cache is transparent to callers: _get_valid_cosigners returns the same
+        cosigner list whether it derives every level itself or reads them back out of the
+        cache.
         """
         psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
         inp = psbt.inputs[0]
         pubkeys = list(inp.bip32_derivations.keys())
 
         # No cache at all; every level is derived directly
-        uncached = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, None)
+        uncached = PSBTParser._get_valid_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, None)
 
         # An empty cache still has to derive every level, but now stores each one
         child_key_derivation_cache = {}
-        populating_the_cache = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, child_key_derivation_cache)
+        populating_the_cache = PSBTParser._get_valid_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, child_key_derivation_cache)
 
         # 3 cosigners x 2 levels each
         assert len(child_key_derivation_cache) == 6
@@ -1075,7 +1109,7 @@ class TestPSBTParserOptimizations:
         # The same call against the now-populated cache reads those levels back instead
         # of deriving them. Each level sits below a different cosigner's xpub, so a cache
         # that confused parents would return the wrong cosigner here.
-        reading_from_the_cache = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, child_key_derivation_cache)
+        reading_from_the_cache = PSBTParser._get_valid_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, child_key_derivation_cache)
 
         assert populating_the_cache == uncached
         assert reading_from_the_cache == uncached
@@ -2810,18 +2844,18 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
         assert psbt_parser.spend_amount == 10_000
 
 
-    def test_get_cosigners_returns_a_sorted_list(self):
+    def test_get_valid_cosigners_returns_a_sorted_list(self):
         """
         Two multisig scripts can list the same wallet's keys in different orders, so the
         cosigners resolved for one script and the cosigners resolved for another have to
-        be sorted before they can be compared. Regression test against _get_cosigners
-        ever dropping the sort logic.
+        be sorted before they can be compared. Regression test against
+        _get_valid_cosigners ever dropping the sort logic.
         """
         psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
         inp = psbt.inputs[0]
         pubkeys = list(inp.bip32_derivations.keys())
 
-        cosigners = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, None)
+        cosigners = PSBTParser._get_valid_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, None)
 
         assert cosigners == sorted(cosigners)
 
@@ -2829,75 +2863,53 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
         assert len(set(cosigners)) == 3
 
         # The same keys, handed over in the opposite order
-        reordered = PSBTParser._get_cosigners(list(reversed(pubkeys)), inp.bip32_derivations, psbt.xpubs, None)
+        reordered = PSBTParser._get_valid_cosigners(list(reversed(pubkeys)), inp.bip32_derivations, psbt.xpubs, None)
 
         assert reordered == cosigners
 
 
-    def _repoint_at_a_different_quorum(self, psbt: PSBT):
+    def test_get_valid_cosigners_leaves_a_key_at_a_hardened_level_unresolved(self):
         """
-        Helper function to rebuild the change output's script so it pays a 2-of-3 that
-        still holds this seed's key, but with one cosigner swapped for a different seed.
-        That swap makes the output's 2-of-3 a different wallet from the one the inputs
-        spend from.
+        A key at a hardened "branch" or "address_index" can't be traced back to a global
+        xpub, since an xpub only derives non-hardened children.
 
-        The psbt's global xpubs are left as the fixture wrote them: the inputs' three
-        cosigners (the expected behavior for all known coordinators). The outsider's xpub
-        is not added to the global xpubs.
+        The psbt's multisig input has every key at the same path. Two cases are tested:
+          * every key's "branch" hardened
+          * every key's "address_index" hardened
+
+        In each case the cosigners should be reported as unresolved, with
+        PSBTUnresolvedCosigners.
         """
-        # Callers pass a psbt whose change output comes first
-        out = psbt.outputs[0]
+        # Case: every key's "branch" hardened. Only the paths change. The keys stay as they
+        # were, since the check reads the paths before it derives anything.
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        inp = psbt.inputs[0]
+        for derivation_path_obj in inp.bip32_derivations.values():
+            derivation_path_obj.derivation[-2] += bip32.HARDENED_INDEX
 
-        seed_fingerprint = root_for_seed(self.seed).my_fingerprint
+        with pytest.raises(PSBTUnresolvedCosigners):
+            PSBTParser._get_valid_cosigners(list(inp.bip32_derivations.keys()), inp.bip32_derivations, psbt.xpubs, None)
 
-        # The replacement cosigner will use the same account-level derivation path as the
-        # first xpub.
-        account_derivation_path = list(psbt.xpubs.values())[0].derivation
+        # Case: every key's "address_index" hardened
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        inp = psbt.inputs[0]
+        for derivation_path_obj in inp.bip32_derivations.values():
+            derivation_path_obj.derivation[-1] += bip32.HARDENED_INDEX
 
-        # Pick the first entry that isn't the current seed's.
-        for public_key, derivation_path_obj in out.bip32_derivations.items():
-            if derivation_path_obj.fingerprint != seed_fingerprint:
-                displaced_public_key = public_key
-                address_derivation_path = derivation_path_obj.derivation
-                break
+        with pytest.raises(PSBTUnresolvedCosigners):
+            PSBTParser._get_valid_cosigners(list(inp.bip32_derivations.keys()), inp.bip32_derivations, psbt.xpubs, None)
 
-        # Build the outsider from a different seed: its account xpub at the shared
-        # account path, then the child key two levels down at the displaced entry's
-        # change/index.
-        outsider_root = root_for_seed(PSBTTestData.recipient_seed)
-        outsider_account = outsider_root.derive(account_derivation_path)
-        outsider_public_key = outsider_account.derive(address_derivation_path[-2:]).get_public_key()
 
-        # Rebuild the multisig script with the outsider's key in the displaced key's
-        # slot.
-        original_script = out.witness_script if out.witness_script is not None else out.redeem_script
-        m, n, public_keys = PSBTParser._parse_multisig(original_script)
-        new_pubkey_list = []
-        for public_key in public_keys:
-            if public_key == displaced_public_key:
-                new_pubkey_list.append(outsider_public_key)
-            else:
-                new_pubkey_list.append(public_key)
-        rebuilt_script = script.multisig(m, new_pubkey_list)
+    def test__parse__stops_on_an_unexpected_error_while_resolving_cosigners(self):
+        """
+        An unexpected error while resolving a multisig script's cosigners stops the
+        parse, rather than leaving the policy without its cosigners.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
 
-        # Swap the displaced cosigner's derivation path entry for the outsider's, so
-        # the psbt describes the rebuilt script truthfully.
-        del out.bip32_derivations[displaced_public_key]
-        out.bip32_derivations[outsider_public_key] = DerivationPath(outsider_root.my_fingerprint, address_derivation_path)
-
-        # Recommit the output to the rebuilt script, through the wrapping the fixture
-        # uses: p2wsh, p2sh-p2wsh, or bare p2sh.
-        if out.witness_script is not None:
-            out.witness_script = rebuilt_script
-            inner_script = script.p2wsh(rebuilt_script)
-        else:
-            inner_script = rebuilt_script
-
-        if out.redeem_script is not None:
-            out.redeem_script = inner_script
-            out.script_pubkey = script.p2sh(inner_script)
-        else:
-            out.script_pubkey = inner_script
+        with patch.object(PSBTParser, "_get_valid_cosigners", side_effect=RuntimeError("Unexpected error")):
+            with pytest.raises(RuntimeError, match="Unexpected error"):
+                self._parse(psbt)
 
 
     def test__parse__counts_a_different_quorum_as_a_spend(self):
@@ -2938,7 +2950,7 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
             assert psbt_parser.spend_amount == 0
 
             psbt = self._psbt_with_change(input_base64, change_hex)
-            self._repoint_at_a_different_quorum(psbt)
+            repoint_at_a_different_quorum(psbt)
 
             # The parse accepts the psbt: it described this output accurately.
             psbt_parser = self._parse(psbt)
@@ -2974,7 +2986,7 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
             (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
         ]:
             psbt = self._psbt_with_change(input_base64, change_hex)
-            self._repoint_at_a_different_quorum(psbt)
+            repoint_at_a_different_quorum(psbt)
 
             # Add the outsider's account xpub to the psbt's global xpubs, at the same
             # account-level derivation path the helper used. The global xpubs now hold
@@ -3034,7 +3046,7 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
             (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
         ]:
             psbt = self._psbt_with_change(input_base64, change_hex)
-            self._repoint_at_a_different_quorum(psbt)
+            repoint_at_a_different_quorum(psbt)
 
             # The global xpubs must be omitted for this scenario
             psbt.xpubs.clear()
@@ -3044,6 +3056,538 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
             # Parser categorizes the output as presumed change.
             assert psbt_parser.change_amount == 10_000
             assert psbt_parser.spend_amount == 0
+
+
+    def _repoint_change_cosigners(self, psbt: PSBT, derivation_paths: list[str], reverse_key_order: bool = False):
+        """
+        Rebuilds the change output from the wallet's cosigner keys, moving each key to its
+        own path provided by derivation_paths. Lets a test put the wallet's own keys at
+        different "branch" or "address_index" values within one output.
+          * derivation_paths: lists one path per cosigner, in the order of the multisig
+            fixtures' cosigner seeds.
+          * reverse_key_order: list the keys in reverse sorted order, so they are out of
+            BIP-67 order.
+
+        Callers pass a psbt whose change output comes first.
+        """
+        out = psbt.outputs[0]
+
+        # Drop the entries describing the old paths
+        out.bip32_derivations.clear()
+
+        # Each cosigner's key at its own path, claimed under that cosigner's fingerprint
+        cosigner_public_keys = []
+        for i, cosigner_seed in enumerate(PSBTTestData.multisig_cosigner_seeds):
+            public_key = root_for_seed(cosigner_seed).derive(derivation_paths[i]).get_public_key()
+            cosigner_public_keys.append(public_key)
+            claim_seed_owns_key(out, derivation_paths[i], public_key, seed=cosigner_seed)
+
+        # The fixtures are sortedmulti, so keep the keys in lexicographic order, unless
+        # the caller asked for the reverse
+        cosigner_public_keys.sort(key=lambda public_key: public_key.sec(), reverse=reverse_key_order)
+        multisig_script = script.multisig(2, cosigner_public_keys)
+
+        # Recommit the output to the rebuilt script, through the wrapping the fixture
+        # uses: p2wsh, p2sh-p2wsh, or bare p2sh.
+        if out.witness_script is not None:
+            out.witness_script = multisig_script
+            inner_script = script.p2wsh(multisig_script)
+        else:
+            inner_script = multisig_script
+
+        if out.redeem_script is not None:
+            out.redeem_script = inner_script
+            out.script_pubkey = script.p2sh(inner_script)
+        else:
+            out.script_pubkey = inner_script
+
+
+    def test__parse__counts_mixed_path_change_as_a_spend(self):
+        """
+        The parse withholds the cosigners of a mixed-path script, one whose keys are at
+        different "branch" or "address_index" values.
+
+        The psbt's change output has one cosigner's key at a different "branch" or
+        "address_index" from ours. Two cases are tested:
+          * that cosigner's key on the receive "branch"
+          * that cosigner's key at the next "address_index"
+
+        The inputs' cosigners resolve but the output's are withheld, so the output should
+        be counted as a spend.
+        """
+        for input_base64, change_hex in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        ]:
+            # Change on the input's base path, at the input's "address_index"
+            input_derivation_path = self._input_derivation_path(input_base64)
+            address_index = int(input_derivation_path.split("/")[-1])
+            change_derivation_path = self._sibling_path(input_derivation_path, branch=1, address_index=address_index)
+
+            # The wallet's own change, every key at the same path, for comparison
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_change_cosigners(psbt, [change_derivation_path] * 3)
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 10_000
+            assert psbt_parser.spend_amount == 0
+
+            # Case: the second cosigner's key on the receive "branch"
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            receive_derivation_path = self._sibling_path(input_derivation_path, branch=0, address_index=address_index)
+            self._repoint_change_cosigners(psbt, [change_derivation_path, receive_derivation_path, change_derivation_path])
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 0
+            assert psbt_parser.spend_amount == 10_000
+
+            # Case: the second cosigner's key at the next "address_index"
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            next_derivation_path = self._sibling_path(input_derivation_path, branch=1, address_index=address_index + 1)
+            self._repoint_change_cosigners(psbt, [change_derivation_path, next_derivation_path, change_derivation_path])
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 0
+            assert psbt_parser.spend_amount == 10_000
+
+
+    def test__parse__refuses_change_with_unsorted_keys(self):
+        """
+        A multisig change output's script must list its keys in sorted order (BIP-67),
+        with or without global xpubs.
+
+        The psbt's change output's script lists its keys in reverse sorted order. The psbt
+        supplies their global xpubs, so the output's cosigners resolve to the inputs'
+        cosigners. The parse should refuse it with PSBTUnsortedMultisigKeysError. With the
+        global xpubs removed, no cosigners resolve, but the parse should still refuse the
+        non-compliant key order.
+        """
+        for input_base64, change_hex in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        ]:
+            # Change on the input's base path, at the input's "address_index"
+            input_derivation_path = self._input_derivation_path(input_base64)
+            address_index = int(input_derivation_path.split("/")[-1])
+            change_derivation_path = self._sibling_path(input_derivation_path, branch=1, address_index=address_index)
+
+            # The wallet's own change, keys in sorted order, for comparison
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_change_cosigners(psbt, [change_derivation_path] * 3)
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 10_000
+            assert psbt_parser.spend_amount == 0
+
+            # The same keys in reverse sorted order
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_change_cosigners(psbt, [change_derivation_path] * 3, reverse_key_order=True)
+
+            # Sanity check the setup: the output's cosigners resolve to the inputs'
+            # cosigners. The inputs are unchanged from the comparison psbt, so its parse
+            # holds their policy. The output's is rebuilt here the same way the parser
+            # does it.
+            out = psbt.outputs[0]
+            out_policy = PSBTParser._get_policy(out, out.script_pubkey, psbt.xpubs, None)
+            assert out_policy["cosigners"] == psbt_parser.policy["cosigners"]
+
+            with pytest.raises(PSBTUnsortedMultisigKeysError):
+                self._parse(psbt)
+
+            # The same psbt without its global xpubs, so no cosigners resolve
+            psbt.xpubs.clear()
+            with pytest.raises(PSBTUnsortedMultisigKeysError):
+                self._parse(psbt)
+
+
+    def test__parse__refuses_a_different_quorum_with_unsorted_keys(self):
+        """
+        A multisig output that holds our key must list its keys in sorted order (BIP-67),
+        even when it pays a different quorum.
+
+        The psbt's change output pays a 2-of-3 that holds our key, but with one cosigner
+        swapped for a different seed. Its script lists the keys in reverse sorted order.
+        The psbt supplies only the global xpubs of the wallet the inputs spend from, so
+        the output's cosigners differ from the inputs'. The parse should refuse it with
+        PSBTUnsortedMultisigKeysError.
+        """
+        for input_base64, change_hex in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        ]:
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            repoint_at_a_different_quorum(psbt, reverse_key_order=True)
+
+            with pytest.raises(PSBTUnsortedMultisigKeysError):
+                self._parse(psbt)
+
+
+    def test__parse__refuses_unsorted_change_on_a_branch_no_coordinator_scans(self):
+        """
+        An output that pays our key must pass the change path rules, even when its
+        script's keys are out of sorted order (BIP-67). The change path refusal is the
+        more serious finding, so it's the one reported.
+
+        The psbt's change output is built from the wallet's own cosigners' keys on
+        "branch" 2 of the input's base path. Its script lists them in reverse sorted
+        order. The parse should refuse it with PSBTChangeDerivationPathError.
+        """
+        for input_base64, change_hex in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        ]:
+            input_derivation_path = self._input_derivation_path(input_base64)
+            change_derivation_path = self._sibling_path(input_derivation_path, branch=2, address_index=0)
+
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_change_cosigners(psbt, [change_derivation_path] * 3, reverse_key_order=True)
+
+            with pytest.raises(PSBTChangeDerivationPathError) as exc_info:
+                self._parse(psbt)
+            assert exc_info.value.derivation_path == bip32.parse_path(change_derivation_path)
+
+
+    def test__verify_multisig_descriptor__accepts_only_the_wallets_own_descriptor(self):
+        """
+        A multisig descriptor is only accepted when it derives the address of every input
+        this seed owns and of every change output.
+
+        For each multisig script type, the psbt spends from the wallet and has a change
+        output and a self-transfer output. The wallet's own descriptor should be accepted
+        and recorded as verified. The descriptors for the other script types should each
+        be refused with PSBTInputDescriptorMismatchError. None of them should be recorded
+        as verified.
+        """
+        multisig_inputs = [
+            PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT,
+            PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT,
+            PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT
+        ]
+        change_outputs = [
+            PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE,
+            PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE,
+            PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE
+        ]
+        self_transfer_outputs = [
+            PSBTTestData.MULTISIG_NATIVE_SEGWIT_SELF_TRANSFER,
+            PSBTTestData.MULTISIG_NESTED_SEGWIT_SELF_TRANSFER,
+            PSBTTestData.MULTISIG_LEGACY_P2SH_SELF_TRANSFER
+        ]
+        descriptors = [
+            PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR,
+            PSBTTestData.MULTISIG_NESTED_SEGWIT_DESCRIPTOR,
+            PSBTTestData.MULTISIG_LEGACY_P2SH_DESCRIPTOR
+        ]
+
+        for i, psbt_base64 in enumerate(multisig_inputs):
+            for j, descriptor_str in enumerate(descriptors):
+                psbt: PSBT = PSBT.parse(a2b_base64(psbt_base64))
+                psbt.outputs.append(create_output(change_outputs[i], 100_000))
+                psbt.outputs.append(create_output(self_transfer_outputs[i], 100_000))
+                psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
+                descriptor = Descriptor.from_string(descriptor_str)
+
+                if i == j:
+                    # The descriptor is for the wallet this psbt spends from
+                    psbt_parser.verify_multisig_descriptor(descriptor)
+                    assert psbt_parser.verified_multisig_descriptor is descriptor
+                else:
+                    # The descriptor is for a wallet of a different script type, so it
+                    # doesn't derive this psbt's input
+                    with pytest.raises(PSBTInputDescriptorMismatchError):
+                        psbt_parser.verify_multisig_descriptor(descriptor)
+                    assert psbt_parser.verified_multisig_descriptor is None
+
+
+    def test__verify_multisig_descriptor__refuses_an_unsupported_descriptor(self):
+        """
+        A multisig descriptor must be in a supported form: sortedmulti(), with every key
+        ending in "/{0,1}/*".
+
+        The psbt spends from the wallet and has a change output. The user's descriptor is
+        the wallet's own, rewritten with multi() in place of sortedmulti(). It should be
+        refused with PSBTUnsupportedMultisigDescriptorError and not recorded as verified.
+        """
+        psbt_parser = self._parse(self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE))
+        descriptor_str = PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR.split("#")[0]
+        multi_descriptor = Descriptor.from_string(descriptor_str.replace("sortedmulti(", "multi("))
+
+        with pytest.raises(PSBTUnsupportedMultisigDescriptorError):
+            psbt_parser.verify_multisig_descriptor(multi_descriptor)
+        assert psbt_parser.verified_multisig_descriptor is None
+
+
+    def test__verify_multisig_descriptor__checks_every_input_the_seed_owns(self):
+        """
+        The descriptor is refused if the seed owns an input whose address the descriptor
+        doesn't derive.
+
+        The psbt has two inputs that hold our key. The first is from the wallet. The
+        second is from a different 2-of-3, with one cosigner swapped for an outsider. The
+        psbt has no global xpubs, so both inputs share the same policy (p2wsh 2-of-3) and
+        the parse accepts it. The wallet's descriptor derives the first input's address
+        but not the second's, so PSBTInputDescriptorMismatchError should be raised.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        psbt.xpubs.clear()
+        seed_fingerprint = self._root().my_fingerprint
+
+        # Copy our input, then swap one cosigner's key for an outsider's at the same path
+        second_input = deepcopy(psbt.inputs[0])
+        m, n, public_keys = PSBTParser._parse_multisig(second_input.witness_script)
+        for public_key, derivation_path_obj in list(second_input.bip32_derivations.items()):
+            if derivation_path_obj.fingerprint != seed_fingerprint:
+                displaced_public_key = public_key
+                derivation_path = bip32.path_to_str(derivation_path_obj.derivation)
+                break
+        outsider_public_key = foreign_public_key(derivation_path)
+        del second_input.bip32_derivations[displaced_public_key]
+        claim_seed_owns_key(second_input, derivation_path, outsider_public_key, seed=PSBTTestData.recipient_seed)
+
+        new_public_keys = [outsider_public_key if public_key == displaced_public_key else public_key for public_key in public_keys]
+        new_public_keys.sort(key=lambda public_key: public_key.sec())
+        second_input.witness_script = script.multisig(m, new_public_keys)
+        set_input_locking_script(second_input, script.p2wsh(second_input.witness_script))
+        psbt.inputs.append(second_input)
+
+        psbt_parser = self._parse(psbt)
+        descriptor = Descriptor.from_string(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR)
+
+        # Sanity check the setup: the parse verified our key on both inputs. The
+        # descriptor derives only the first.
+        assert psbt_parser.verified_input_derivation_paths[0] != []
+        assert psbt_parser.verified_input_derivation_paths[1] != []
+        assert PSBTParser._descriptor_owns(descriptor, psbt.inputs[0]) is True
+        assert PSBTParser._descriptor_owns(descriptor, psbt.inputs[1]) is False
+
+        with pytest.raises(PSBTInputDescriptorMismatchError):
+            psbt_parser.verify_multisig_descriptor(descriptor)
+        assert psbt_parser.verified_multisig_descriptor is None
+
+
+    def test__verify_multisig_descriptor__skips_another_partys_input(self):
+        """
+        In a collaborative spend, the descriptor is only checked against the inputs the
+        seed owns.
+
+        The psbt has a second input from another party: a 2-of-3 that doesn't include any
+        of our keys, with no derivation path entries. The psbt has no global xpubs, so
+        both inputs share the same policy (p2wsh 2-of-3) and the parse accepts it. The
+        wallet's descriptor doesn't derive the other party's input, but the descriptor
+        should still be accepted and recorded as verified.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        psbt.xpubs.clear()
+
+        other_partys_input = deepcopy(psbt.inputs[0])
+        other_partys_input.bip32_derivations.clear()
+        other_partys_input.witness_script = self._foreign_multisig_script()
+        set_input_locking_script(other_partys_input, script.p2wsh(other_partys_input.witness_script))
+        psbt.inputs.append(other_partys_input)
+
+        psbt_parser = self._parse(psbt)
+        descriptor = Descriptor.from_string(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR)
+
+        # Sanity check the setup: the descriptor doesn't derive the other party's input
+        assert PSBTParser._descriptor_owns(descriptor, psbt.inputs[1]) is False
+
+        psbt_parser.verify_multisig_descriptor(descriptor)
+        assert psbt_parser.verified_multisig_descriptor is descriptor
+
+
+    def test__verify_multisig_descriptor__refuses_change_the_descriptor_does_not_derive(self):
+        """
+        Every multisig change output must pay an address that the user's descriptor
+        derives.
+
+        The psbt's change output pays a different quorum. One of the inputs' cosigners is
+        swapped out for an outside key. The psbt omits its global xpubs, so the output is
+        counted as presumed change. The wallet's own descriptor matches the input. It
+        can't match the change, whose script includes the outside key. So
+        PSBTChangeDescriptorMismatchError should be raised for the change output. The
+        descriptor should not be recorded as verified.
+        """
+        for input_base64, change_hex, descriptor_str in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE, PSBTTestData.MULTISIG_NESTED_SEGWIT_DESCRIPTOR),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE, PSBTTestData.MULTISIG_LEGACY_P2SH_DESCRIPTOR),
+        ]:
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            repoint_at_a_different_quorum(psbt)
+            psbt.xpubs.clear()
+            psbt_parser = self._parse(psbt)
+            assert psbt_parser.change_amount == 10_000
+
+            with pytest.raises(PSBTChangeDescriptorMismatchError) as e:
+                psbt_parser.verify_multisig_descriptor(Descriptor.from_string(descriptor_str))
+            assert e.value.change_num == 0
+            assert psbt_parser.verified_multisig_descriptor is None
+
+
+    def test__verify_multisig_descriptor__checks_every_change_output(self):
+        """
+        The descriptor must derive the address of every change output.
+
+        The psbt omits its global xpubs and has two change outputs. The first is the
+        wallet's own change. The second pays a different quorum: one of the inputs'
+        cosigners is swapped out for an outside key. The wallet's descriptor derives the
+        first change output but not the second. So PSBTChangeDescriptorMismatchError
+        should be raised for the second change output. The descriptor should not be
+        recorded as verified.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        repoint_at_a_different_quorum(psbt)
+        psbt.xpubs.clear()
+
+        # Put the wallet's own change ahead of the different quorum's
+        psbt.outputs.insert(0, create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, 10_000))
+
+        psbt_parser = self._parse(psbt)
+        assert psbt_parser.num_change_outputs == 2
+
+        with pytest.raises(PSBTChangeDescriptorMismatchError) as e:
+            psbt_parser.verify_multisig_descriptor(Descriptor.from_string(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR))
+        assert e.value.change_num == 1
+        assert psbt_parser.verified_multisig_descriptor is None
+
+
+    def _harden_a_cosigners_address_index(self, scope: InputScope | OutputScope):
+        """
+        Hardens the "address_index" in one cosigner's derivation path entry on an input or
+        output, then lists that entry first. Lets a test reach embit's error on a hardened
+        "address_index" through a full descriptor check.
+
+        Callers pass a multisig input or output with an entry for each cosigner.
+        """
+        # Harden the "address_index" in the first entry that belongs to another cosigner.
+        # The key itself stays as it was.
+        entries = list(scope.bip32_derivations.items())
+        for i, (public_key, derivation_path_obj) in enumerate(entries):
+            if derivation_path_obj.fingerprint != self._root().my_fingerprint:
+                derivation_path_obj.derivation[-1] += bip32.HARDENED_INDEX
+                hardened_entry = entries.pop(i)
+                break
+
+        # embit's owns() reads the first entry that matches one of the descriptor's keys,
+        # so the hardened entry goes first
+        scope.bip32_derivations.clear()
+        for public_key, derivation_path_obj in [hardened_entry] + entries:
+            scope.bip32_derivations[public_key] = derivation_path_obj
+
+
+    def test__verify_multisig_descriptor__counts_a_hardened_address_index_as_not_owned(self):
+        """
+        The descriptor check counts an input or a change output as not owned when one of
+        its derivation path entries ends in a hardened "address_index". A descriptor's
+        keys only derive non-hardened children.
+
+        One cosigner's entry ends in a hardened "address_index". Two cases are tested:
+          * on the input: PSBTInputDescriptorMismatchError should be raised
+          * on the change output: PSBTChangeDescriptorMismatchError should be raised
+
+        In each case the wallet's own descriptor should be refused. The error embit raises
+        on the hardened "address_index" should not stop the check.
+        """
+        descriptor = Descriptor.from_string(PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR)
+
+        # Case: on the input
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        self._harden_a_cosigners_address_index(psbt.inputs[0])
+        psbt_parser = self._parse(psbt)
+
+        with pytest.raises(PSBTInputDescriptorMismatchError):
+            psbt_parser.verify_multisig_descriptor(descriptor)
+        assert psbt_parser.verified_multisig_descriptor is None
+
+        # Case: on the change output. Without global xpubs, the output still counts as
+        # change, so the descriptor check reads it.
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        psbt.xpubs.clear()
+        self._harden_a_cosigners_address_index(psbt.outputs[0])
+        psbt_parser = self._parse(psbt)
+        assert psbt_parser.num_change_outputs == 1
+
+        with pytest.raises(PSBTChangeDescriptorMismatchError):
+            psbt_parser.verify_multisig_descriptor(descriptor)
+        assert psbt_parser.verified_multisig_descriptor is None
+
+
+    def test__verify_multisig_descriptor__refuses_a_forged_descriptor(self):
+        """
+        The user's descriptor must derive the address of every input this seed owns
+        before any change is verified against it.
+
+        A malicious coordinator tries to pass off change sent to a different quorum as the
+        user's own change, by supplying a forged descriptor that matches that change. To
+        build both, it swaps one of the wallet's cosigners for an outside key, in the
+        change output and in the descriptor. It also omits the psbt's global xpubs, which
+        would otherwise expose the different quorum. The forged descriptor can't match the
+        input, which still uses the real cosigner, so PSBTInputDescriptorMismatchError
+        should be raised.
+        """
+        for input_base64, change_hex, descriptor_str in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE, PSBTTestData.MULTISIG_NESTED_SEGWIT_DESCRIPTOR),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE, PSBTTestData.MULTISIG_LEGACY_P2SH_DESCRIPTOR),
+        ]:
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            repoint_at_a_different_quorum(psbt)
+            psbt.xpubs.clear()
+            psbt_parser = self._parse(psbt)
+
+            # Find the wallet descriptor's key for the cosigner the outside key
+            # displaced. The change output lists every cosigner's fingerprint except the
+            # displaced cosigner's.
+            wallet_descriptor = Descriptor.from_string(descriptor_str)
+            output_fingerprints = []
+            for derivation_path_obj in psbt.outputs[0].bip32_derivations.values():
+                output_fingerprints.append(derivation_path_obj.fingerprint)
+            for key in wallet_descriptor.keys:
+                if key.fingerprint not in output_fingerprints:
+                    displaced_key = key
+                    break
+
+            # The forged descriptor lists the outside key's account xpub in place of the
+            # displaced cosigner's, under the displaced cosigner's fingerprint
+            outsider_account_xpub = root_for_seed(PSBTTestData.recipient_seed).derive(displaced_key.derivation).to_public()
+            forged_descriptor = Descriptor.from_string(descriptor_str.split("#")[0].replace(displaced_key.key.to_base58(), outsider_account_xpub.to_base58()))
+
+            # The forged descriptor derives the change...
+            assert psbt_parser.verify_multisig_output(forged_descriptor, change_num=0) is True
+
+            # ...but not the input
+            with pytest.raises(PSBTInputDescriptorMismatchError):
+                psbt_parser.verify_multisig_descriptor(forged_descriptor)
+            assert psbt_parser.verified_multisig_descriptor is None
+
+
+    def test__verify_multisig_descriptor__requires_an_input_the_seed_owns(self):
+        """
+        The descriptor is only verified after it derives the address of at least one
+        input the seed owns.
+
+        The parse already refuses a psbt with no input the seed owns. This is a regression
+        test in case a later change to the parse's ordering lets the descriptor check run
+        with no verified input. The test parses the wallet's psbt with change, then
+        empties every input's entry in verified_input_derivation_paths. Verifying the
+        wallet's own descriptor should raise RuntimeError, even though that descriptor
+        derives the change. The descriptor should not be recorded as verified.
+        """
+        for input_base64, change_hex, descriptor_str in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE, PSBTTestData.MULTISIG_NESTED_SEGWIT_DESCRIPTOR),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE, PSBTTestData.MULTISIG_LEGACY_P2SH_DESCRIPTOR),
+        ]:
+            psbt_parser = self._parse(self._psbt_with_change(input_base64, change_hex))
+            descriptor = Descriptor.from_string(descriptor_str)
+            assert psbt_parser.verify_multisig_output(descriptor, change_num=0) is True
+
+            # Every input keeps its entry, but none lists a verified derivation path
+            psbt_parser.verified_input_derivation_paths = [[] for _ in psbt_parser.verified_input_derivation_paths]
+
+            with pytest.raises(RuntimeError):
+                psbt_parser.verify_multisig_descriptor(descriptor)
+            assert psbt_parser.verified_multisig_descriptor is None
 
 
     def test__parse__refuses_an_unsupported_script_type(self):
